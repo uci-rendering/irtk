@@ -1,0 +1,9 @@
+name: ivt
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.8
+  - pip
+  - pytorch
+  - cudatoolkit=10.2
