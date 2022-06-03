@@ -7,3 +7,4 @@ dependencies:
   - pip
   - pytorch
   - cudatoolkit=10.2
+  - igl
