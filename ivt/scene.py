@@ -18,11 +18,21 @@ class Scene:
         self.device = device
 
     def to_ftensor(self, array):
-        return torch.tensor(array, dtype=self.ftype, device=self.device) if array is not None else None
-
+        if array is None: return None 
+        
+        if torch.is_tensor(array):
+            return array.to(self.ftype).to(self.device)
+        else:
+            return torch.tensor(array, dtype=self.ftype, device=self.device)
+        
     def to_itensor(self, array):
-        return torch.tensor(array, dtype=self.itype, device=self.device) if array is not None else None
-
+        if array is None: return None 
+        
+        if torch.is_tensor(array):
+            return array.to(self.itype).to(self.device)
+        else:
+            return torch.tensor(array, dtype=self.itype, device=self.device)
+        
     def add_integrator(self, type):
         self.integrator = {
             'type': type
