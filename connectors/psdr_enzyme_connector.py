@@ -1,15 +1,20 @@
+import enum
 from venv import create
 from ivt.connector import Connector
 import psdr_cpu
 import numpy as np
 
 class PSDREnzymeConnector(Connector):
+    backend = 'numpy'
+    device = 'cpu'
+    ftype = np.float64
+    itype = np.int64
     
     def create_objects(self, scene):
-        scene.backend = 'numpy'
-        scene.device = 'cpu'
-        scene.ftype = np.float64
-        scene.itype = np.int64 
+        scene.backend = PSDREnzymeConnector.backend
+        scene.device = PSDREnzymeConnector.device
+        scene.ftype = PSDREnzymeConnector.ftype
+        scene.itype = PSDREnzymeConnector.itype 
         scene.configure()
         
         objects = {}
@@ -77,13 +82,13 @@ class PSDREnzymeConnector(Connector):
     
     def renderC(self, scene, sensor_ids=[0]):    
         objects = self.create_objects(scene)
-        images = []
         
         psdr_scene = psdr_cpu.Scene()
         psdr_scene.shapes = objects['meshes']
         psdr_scene.bsdfs = objects['bsdfs']
         psdr_scene.emitters = objects['emitters']
         
+        images = []
         for sensor_id in sensor_ids:
             psdr_scene.camera = objects['sensors'][sensor_id]
             psdr_scene.configure()
@@ -92,5 +97,36 @@ class PSDREnzymeConnector(Connector):
         
         return images
     
-    def renderD(self, scene, target_image, image_loss_func, sensor_ids=[0]):
-        pass
+    def renderD(self, scene, image_grads, sensor_ids=[0]):
+        assert len(image_grads) == len(sensor_ids)
+        
+        param_names = scene.get_requiring_grad()
+        param_grads = []
+        for param_name in param_names:
+            param = scene.param_map[param_name]
+            if param_name.startswith('meshes'):
+                param_name = param_name.replace('meshes', 'shapes')
+            param_names.append(param_name)
+            param_grads.append(np.zeros_like(param.data, dtype=PSDREnzymeConnector.ftype))
+            
+        objects = self.create_objects(scene)
+        
+        psdr_scene = psdr_cpu.Scene()
+        psdr_scene.shapes = objects['meshes']
+        psdr_scene.bsdfs = objects['bsdfs']
+        psdr_scene.emitters = objects['emitters']
+        
+        for i, sensor_id in enumerate(sensor_ids):
+            psdr_scene.camera = objects['sensors'][sensor_id]
+            psdr_scene.configure()
+            
+            psdr_scene_ad = psdr_cpu.SceneAD(psdr_scene)
+            objects['integrator'].renderD(psdr_scene_ad, objects['render_options'], image_grads[i].reshape(-1))
+            
+            boundary_integral = psdr_cpu.BoundaryIntegrator(psdr_scene)
+            boundary_integral.renderD(psdr_scene_ad, objects['render_options'], image_grads[i].reshape(-1))
+            
+            for j, param_name in enumerate(param_names):
+                param_grads[j] += np.array(eval("psdr_scene_ad.der." + param_name), dtype=PSDREnzymeConnector.ftype)
+        
+        return param_grads

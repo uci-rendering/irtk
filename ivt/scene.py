@@ -34,6 +34,10 @@ class Parameter:
             self.data = np.array(self.data, dtype=self.dtype)
             self.device = 'cpu'
             
+    def set(self, data):
+        self.data = data
+        self.configure()
+            
     def __repr__(self):
         return repr(self.data)
 
@@ -143,6 +147,9 @@ class Scene:
             param.dtype = self.ftype if param.is_float else self.itype
             param.device = self.device
             param.configure()
+            
+    def get_requiring_grad(self):
+        return [param_name for param_name in self.param_map if self.param_map[param_name].requires_grad]
 
     def __repr__(self):
         s = '\n'.join([f'{param_name}: {self.param_map[param_name]}' for param_name in self.param_map])
