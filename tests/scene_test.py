@@ -26,7 +26,7 @@ def different_backends():
     scene.add_hdr_film(resolution=(512, 512))
     scene.add_perspective_camera(fov=45, origin=(1, 0, 0), target=(0, 0, 0), up=(0, 0, 1))
     scene.add_mesh(v, f, 0)
-    scene.add_diffuse(torch.tensor((1, 0, 0)).reshape(1, 1, 3))
+    scene.add_diffuse_bsdf(torch.tensor((1, 0, 0)).reshape(1, 1, 3))
     scene.add_area_light(mesh_id=0, radiance=(10, 10, 10))
     
     print('backend: torch + cpu')
