@@ -5,6 +5,9 @@ channels:
 dependencies:
   - python=3.8
   - pip
+  - gcc=9.4.0
+  - gxx=9.4.0
   - cudatoolkit=11.3
   - pytorch=1.11.0
   - igl
+  - imageio
