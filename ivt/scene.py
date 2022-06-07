@@ -123,11 +123,17 @@ class Scene:
         }
         self.meshes.append(mesh)
 
-    def add_diffuse(self, reflectance):
+    def add_diffuse_bsdf(self, reflectance):
         id = f'bsdfs[{len(self.bsdfs)}]'
         bsdf = {
             'type': 'diffuse',
             'reflectance': self.add_fparam(id + '.reflectance', reflectance)
+        }
+        self.bsdfs.append(bsdf)
+        
+    def add_null_bsdf(self):
+        bsdf = {
+            'type': 'null',
         }
         self.bsdfs.append(bsdf)
     
