@@ -1,8 +1,10 @@
+from matplotlib.pyplot import connect
 from ivt.scene import Scene
 from pathlib import Path
 import igl
 import torch
 import numpy as np
+from connectors import PSDREnzymeConnector
 
 tests = []
 def add_test(func):
@@ -13,12 +15,11 @@ def add_test(func):
     tests.append(wrapper)
 
 @add_test
-def different_backends():
-    
+def test0():
     bunny_path = Path('data', 'meshes', 'bunny.obj')
     v, tc, n, f, ftc, fn = igl.read_obj(str(bunny_path))
 
-    scene = Scene(device='cpu')
+    scene = Scene(backend='numpy')
     scene.add_integrator('path')
     scene.add_render_options({
         'spp': 1
@@ -28,24 +29,9 @@ def different_backends():
     scene.add_mesh(v, f, 0)
     scene.add_diffuse(torch.tensor((1, 0, 0)).reshape(1, 1, 3))
     scene.add_area_light(mesh_id=0, radiance=(10, 10, 10))
-    
-    print('backend: torch + cpu')
-    print(scene)
-    print()
-    
-    scene.device = 'cuda'
-    scene.configure()
-    print('backend: torch + cuda')
-    print(scene)
-    print()
-    
-    scene.backend = 'numpy'
-    scene.ftype = np.float32
-    scene.itype = np.int64
-    scene.device = 'cpu'
-    scene.configure()
-    print('backend: numpy')
-    print(scene)
+
+    connector = PSDREnzymeConnector()
+    connector.renderC(scene)
 
 if __name__ == '__main__':
     for test in tests:

@@ -1,37 +1,83 @@
+from collections import OrderedDict
 import torch
+import numpy as np
+
+class Parameter:
+    
+    def __init__(self, data, backend='torch', dtype=torch.float32, device='cpu', is_float=True):
+        
+        self.data = data
+        self.backend = backend
+        self.dtype = dtype
+        self.device = device
+        self.is_float = is_float
+        self.requires_grad = False
+        
+        if torch.is_tensor(data):
+            self.requires_grad = data.requires_grad
+        
+        self.configure()
+            
+    def configure(self):
+        assert self.backend in ['torch', 'numpy']
+        
+        if self.backend == 'torch':
+            if torch.is_tensor(self.data):
+                self.data = self.data.to(self.dtype).to(self.device)
+                self.data.requires_grad = self.requires_grad
+            else:
+                self.data = torch.tensor(self.data, dtype=self.dtype, device=self.device)
+                
+        elif self.backend == 'numpy':
+            if torch.is_tensor(self.data):
+                self.data = self.data.detach().cpu()
+            self.data = np.array(self.data, dtype=self.dtype)
+            self.device = 'cpu'
+            
+    def __repr__(self):
+        return repr(self.data)
 
 class Scene:
 
-    def __init__(self, ftype=torch.float32, itype=torch.long, device='cuda'):
+    def __init__(self, backend='torch', device='cpu', ftype=None, itype=None):
+        assert backend in ['torch', 'numpy']
+        
         self.integrator = None 
         self.render_options = None 
         self.film = None 
+        self.sensors = []
+        self.meshes = []
+        self.bsdfs = []
+        self.emitters = []
+        
+        self.param_map = OrderedDict()
 
-        self.params = {}
-        self.params['sensors'] = []
-        self.params['meshes'] = []
-        self.params['bsdfs'] = []
-        self.params['emitters'] = []
-
-        self.ftype = ftype
-        self.itype = itype
+        self.backend = backend
         self.device = device
-
-    def to_ftensor(self, array):
-        if array is None: return None 
         
-        if torch.is_tensor(array):
-            return array.to(self.ftype).to(self.device)
-        else:
-            return torch.tensor(array, dtype=self.ftype, device=self.device)
+        if backend == 'numpy': device = 'cpu'
         
-    def to_itensor(self, array):
-        if array is None: return None 
+        if ftype is None:
+            if backend == 'torch':
+                self.ftype = torch.float32
+            elif backend == 'numpy':
+                self.ftype = np.float64
         
-        if torch.is_tensor(array):
-            return array.to(self.itype).to(self.device)
-        else:
-            return torch.tensor(array, dtype=self.itype, device=self.device)
+        if itype is None:
+            if backend == 'torch':
+                self.itype = torch.long
+            elif backend == 'numpy':
+                self.itype = np.int64
+            
+    def add_iparam(self, param_name, array):
+        param = Parameter(array, self.backend, self.itype, self.device, is_float=False)
+        self.param_map[param_name] = param 
+        return param
+    
+    def add_fparam(self, param_name, array):
+        param = Parameter(array, self.backend, self.ftype, self.device)
+        self.param_map[param_name] = param 
+        return param
         
     def add_integrator(self, type):
         self.integrator = {
@@ -50,52 +96,56 @@ class Scene:
         }
 
     def add_perspective_camera(self, fov, origin, target, up):
+        id = f'sensors[{len(self.sensors)}]'
         sensor = {
             'type': type,
-            'fov': self.to_ftensor(fov),
-            'origin': self.to_ftensor(origin),
-            'target': self.to_ftensor(target),
-            'up': self.to_ftensor(up)
+            'fov': self.add_fparam(id + '.fov', fov),
+            'origin': self.add_fparam(id + '.origin', origin),
+            'target': self.add_fparam(id + '.target', target),
+            'up': self.add_fparam(id + '.up', up)
         }
-        self.params['sensors'].append(sensor)
+        self.sensors.append(sensor)
 
-    def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, vertex_normals=None, uv_positions=None, uv_indices=None, to_world=torch.eye(4)):
+    def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, vertex_normals=[], uv_positions=[], uv_indices=[], to_world=torch.eye(4)):
+        id = f'meshes[{len(self.meshes)}]'
         mesh = {
-            'vertex_positions': self.to_ftensor(vertex_positions),
-            'vertex_indices': self.to_itensor(vertex_indices),
-            'vertex_normals': self.to_ftensor(vertex_normals),
-            'uv_positions': self.to_ftensor(uv_positions),
-            'uv_indices': self.to_ftensor(uv_indices),
-            'to_world': self.to_ftensor(to_world),
+            'vertex_positions': self.add_fparam(id + '.vertex_positions', vertex_positions),
+            'vertex_indices': self.add_iparam(id + '.vertex_indices', vertex_indices),
+            'vertex_normals': self.add_fparam(id + '.vertex_normals', vertex_normals),
+            'uv_positions': self.add_fparam(id + '.uv_positions', uv_positions),
+            'uv_indices': self.add_iparam(id + '.uv_indices', uv_indices),
+            'to_world': self.add_fparam(id + '.to_world', to_world),
             'bsdf_id': bsdf_id,
         }
-        self.params['meshes'].append(mesh)
+        self.meshes.append(mesh)
 
     def add_diffuse(self, reflectance):
+        id = f'bsdfs[{len(self.bsdfs)}]'
         bsdf = {
             'type': 'diffuse',
-            'reflectance': self.to_ftensor(reflectance)
+            'reflectance': self.add_fparam(id + '.reflectance', reflectance)
         }
-        self.params['bsdfs'].append(bsdf)
+        self.bsdfs.append(bsdf)
     
     def add_area_light(self, mesh_id, radiance):
+        id = f'emitters[{len(self.emitters)}]'
         emitter = {
             'type': 'area',
             'mesh_id': mesh_id,
-            'radiance': self.to_ftensor(radiance)
+            'radiance': self.add_fparam(id + '.radiance', radiance)
         }
-        self.params['emitters'].append(emitter)
-
-    def requires_grad(self, param_type, id, prop, req=True):
-        data = self.params[param_type][id][prop]
-        assert torch.is_tensor(data)
-        data.requires_grad = req
+        self.emitters.append(emitter)
+        
+    def configure(self):
+        for param_name in self.param_map:
+            param = self.param_map[param_name]
+            param.backend = self.backend
+            param.dtype = self.ftype if param.is_float else self.itype
+            param.device = self.device
+            param.configure()
 
     def __repr__(self):
-        s = f'integrator: {self.integrator}\n'
-        s += f'render_options: {self.render_options}\n'
-        s += f'flim: {self.film}\n'
-        s += f'params: {self.params}'
+        s = '\n'.join([f'{param_name}: {self.param_map[param_name]}' for param_name in self.param_map])
 
         return s
 
