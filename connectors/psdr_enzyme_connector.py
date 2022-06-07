@@ -1,5 +1,3 @@
-import enum
-from venv import create
 from ivt.connector import Connector
 import psdr_cpu
 import numpy as np
@@ -11,6 +9,10 @@ class PSDREnzymeConnector(Connector):
     itype = np.int64
     
     def create_objects(self, scene):
+        """
+        Create psdr_cpu objects from the scene data.
+        """
+        
         scene.backend = PSDREnzymeConnector.backend
         scene.device = PSDREnzymeConnector.device
         scene.ftype = PSDREnzymeConnector.ftype
@@ -100,6 +102,7 @@ class PSDREnzymeConnector(Connector):
     def renderD(self, scene, image_grads, sensor_ids=[0]):
         assert len(image_grads) == len(sensor_ids)
         
+        # Transform the parameter names to extrac the gradient later.
         param_names = scene.get_requiring_grad()
         param_grads = []
         for i, param_name in enumerate(param_names):
@@ -122,12 +125,15 @@ class PSDREnzymeConnector(Connector):
             psdr_scene.camera = objects['sensors'][sensor_id]
             psdr_scene.configure()
             
+            # Estimate the interior integral.
             psdr_scene_ad = psdr_cpu.SceneAD(psdr_scene)
             objects['integrator'].renderD(psdr_scene_ad, objects['render_options'], image_grads[i].reshape(-1))
             
-            boundary_integral = psdr_cpu.BoundaryIntegrator(psdr_scene)
-            boundary_integral.renderD(psdr_scene_ad, objects['render_options'], image_grads[i].reshape(-1))
+            # Estimate the boundary integral.
+            boundary_integrator = psdr_cpu.BoundaryIntegrator(psdr_scene)
+            boundary_integrator.renderD(psdr_scene_ad, objects['render_options'], image_grads[i].reshape(-1))
             
+            # Extrac the gradient.
             for j, param_name in enumerate(param_names):
                 grad = eval("psdr_scene_ad.der." + param_name)
                 if isinstance(grad, psdr_cpu.Bitmap):

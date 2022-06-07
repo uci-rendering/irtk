@@ -3,6 +3,10 @@ import torch
 import numpy as np
 
 class Parameter:
+    """
+    A class to store parameters using different backends such as torch and numpy.
+    It tracks requires_grad even if the backend doesn't support autodiff. 
+    """
     
     def __init__(self, data, backend='torch', dtype=torch.float32, device='cpu', is_float=True):
         
@@ -46,6 +50,7 @@ class Scene:
     def __init__(self, backend='torch', device='cpu', ftype=None, itype=None):
         assert backend in ['torch', 'numpy']
         
+        # Scene data 
         self.integrator = None 
         self.render_options = None 
         self.film = None 
@@ -54,6 +59,7 @@ class Scene:
         self.bsdfs = []
         self.emitters = []
         
+        # A map from all parameter names to their corresponding parameters.
         self.param_map = OrderedDict()
 
         self.backend = backend

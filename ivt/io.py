@@ -1,4 +1,3 @@
-from distutils import extension
 import igl
 import imageio.v3 as iio
 import numpy as np
