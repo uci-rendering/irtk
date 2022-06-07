@@ -102,11 +102,13 @@ class PSDREnzymeConnector(Connector):
         
         param_names = scene.get_requiring_grad()
         param_grads = []
-        for param_name in param_names:
+        for i, param_name in enumerate(param_names):
             param = scene.param_map[param_name]
             if param_name.startswith('meshes'):
                 param_name = param_name.replace('meshes', 'shapes')
-            param_names.append(param_name)
+                if param_name.endswith('vertex_positions'):
+                    param_name = param_name.replace('vertex_positions', 'vertices')
+            param_names[i] = param_name
             param_grads.append(np.zeros_like(param.data, dtype=PSDREnzymeConnector.ftype))
             
         objects = self.create_objects(scene)
@@ -127,6 +129,9 @@ class PSDREnzymeConnector(Connector):
             boundary_integral.renderD(psdr_scene_ad, objects['render_options'], image_grads[i].reshape(-1))
             
             for j, param_name in enumerate(param_names):
-                param_grads[j] += np.array(eval("psdr_scene_ad.der." + param_name), dtype=PSDREnzymeConnector.ftype)
+                grad = eval("psdr_scene_ad.der." + param_name)
+                if isinstance(grad, psdr_cpu.Bitmap):
+                    grad = grad.m_data
+                param_grads[j] += np.array(grad, dtype=PSDREnzymeConnector.ftype)
         
         return param_grads
