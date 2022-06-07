@@ -50,7 +50,7 @@ def simple_scene():
     
     return scene
 
-# @add_test # comment this to skip the test
+@add_test # comment this to skip the test
 def renderC():
     output_path = Path('tmp_output', 'connector_test', 'renderC')
     output_path.mkdir(parents=True, exist_ok=True)
