@@ -1,9 +1,9 @@
 from ivt.scene import Scene
 from ivt.io import read_obj, write_png
+from ivt.connector import ConnectorManager
 from pathlib import Path
 import torch
 import numpy as np
-from connectors import PSDREnzymeConnector
 
 tests = []
 def add_test(func):
@@ -55,9 +55,11 @@ def renderC():
     output_path = Path('tmp_output', 'connector_test', 'renderC')
     output_path.mkdir(parents=True, exist_ok=True)
 
+    cm = ConnectorManager()
+    assert cm.is_available('psdr_enzyme')
+    connector = cm.get_connector('psdr_enzyme')
+
     scene = simple_scene()
-    connector = PSDREnzymeConnector()
-    
     images = connector.renderC(scene)
     for i, image in enumerate(images):
         write_png(output_path / f'{i}.png', image)
@@ -69,9 +71,11 @@ def renderD():
     output_path = Path('tmp_output', 'connector_test', 'renderD')
     output_path.mkdir(parents=True, exist_ok=True)
 
+    cm = ConnectorManager()
+    assert cm.is_available('psdr_enzyme')
+    connector = cm.get_connector('psdr_enzyme')
+
     scene = simple_scene()
-    connector = PSDREnzymeConnector()
-    
     target_images = connector.renderC(scene)
     
     scene.param_map['bsdfs[0].reflectance'].set(np.array((0.5, 0.6, 0.7)).reshape(1, 1, 3))
