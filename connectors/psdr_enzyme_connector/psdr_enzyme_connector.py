@@ -40,13 +40,16 @@ class PSDREnzymeConnector(Connector):
             'shape': (width, height, 3)
         }
         
+        rfilters = {'tent': 0, 'box': 1, 'gaussian': 2}
+        rfilter = rfilters[film_config['rfilter']]
         sensors = []
         for sensor_config in scene.sensors:
             sensor = psdr_cpu.Camera(width, height, 
                                      float(sensor_config['fov'].data), 
                                      sensor_config['origin'].data, 
                                      sensor_config['target'].data, 
-                                     sensor_config['up'].data)
+                                     sensor_config['up'].data,
+                                     rfilter)
             sensors.append(sensor)
         objects['sensors'] = sensors
         
