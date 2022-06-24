@@ -13,8 +13,14 @@ class Connector(ABC):
 
 class ConnectorManager:
 
-    def __init__(self):
-        self.em = stevedore.extension.ExtensionManager('ivt_connectors')
+    def __init__(self, quiet=True):
+
+        def on_load_failure_callback(manager, entrypoint, exception):
+            print(f'Failed to load {entrypoint}: {exception}')
+
+        self.em = stevedore.extension.ExtensionManager('ivt_connectors',
+            on_load_failure_callback=None if quiet else on_load_failure_callback
+        )
 
     def is_available(self, connector_name):
         return connector_name in self.em
