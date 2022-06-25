@@ -116,12 +116,11 @@ class Scene:
         }
         self.sensors.append(sensor)
 
-    def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, vertex_normals=[], uv_positions=[], uv_indices=[], to_world=torch.eye(4)):
+    def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, uv_positions=[], uv_indices=[], to_world=torch.eye(4)):
         id = f'meshes[{len(self.meshes)}]'
         mesh = {
             'vertex_positions': self.add_fparam(id + '.vertex_positions', vertex_positions),
             'vertex_indices': self.add_iparam(id + '.vertex_indices', vertex_indices),
-            'vertex_normals': self.add_fparam(id + '.vertex_normals', vertex_normals),
             'uv_positions': self.add_fparam(id + '.uv_positions', uv_positions),
             'uv_indices': self.add_iparam(id + '.uv_indices', uv_indices),
             'to_world': self.add_fparam(id + '.to_world', to_world),
