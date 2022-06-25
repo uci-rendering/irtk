@@ -1,6 +1,8 @@
 from ivt.scene import Scene
 from ivt.io import read_obj, write_png
 from ivt.connector import ConnectorManager
+from ivt.loss import l1_loss
+
 from pathlib import Path
 import torch
 import numpy as np
@@ -77,6 +79,7 @@ def renderD():
 
     scene = simple_scene()
     target_images = connector.renderC(scene)
+    target_images = [torch.from_numpy(target_image).to('cpu') for target_image in target_images]
     
     scene.param_map['bsdfs[0].reflectance'].set(np.array((0.5, 0.6, 0.7)).reshape(1, 1, 3))
     scene.param_map['bsdfs[0].reflectance'].requires_grad = True
@@ -87,17 +90,7 @@ def renderD():
     
     param_names = scene.get_requiring_grad()
     
-    images = connector.renderC(scene)
-    
-    image_grads = []
-    for image, target_image in zip(images, target_images):
-        image = torch.from_numpy(image).requires_grad_()
-        target_image = torch.from_numpy(target_image)
-        loss = (image - target_image).abs().mean()
-        image_grad = torch.autograd.grad(loss, image)[0]
-        image_grads.append(image_grad.detach().numpy().astype(connector.ftype))
-        
-    param_grads = connector.renderD(scene, image_grads)
+    param_grads = connector.renderD(target_images, l1_loss, scene)
     
     for param_name, param_grad in zip(param_names, param_grads):
         print(f'gradient of {param_name}:')

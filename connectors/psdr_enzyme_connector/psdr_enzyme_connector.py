@@ -1,6 +1,7 @@
 from ivt.connector import Connector
 import psdr_cpu
 import numpy as np
+import torch
 
 class PSDREnzymeConnector(Connector):
     backend = 'numpy'
@@ -58,7 +59,7 @@ class PSDREnzymeConnector(Connector):
             mesh = psdr_cpu.Shape(mesh_config['vertex_positions'].data,
                                   mesh_config['vertex_indices'].data,
                                   mesh_config['uv_indices'].data, 
-                                  mesh_config['vertex_normals'].data,
+                                  [],
                                   mesh_config['vertex_positions'].data.shape[0],
                                   mesh_config['vertex_indices'].data.shape[0],
                                   -1, mesh_config['bsdf_id'], -1, -1)
@@ -102,8 +103,11 @@ class PSDREnzymeConnector(Connector):
         
         return images
     
-    def renderD(self, scene, image_grads, sensor_ids=[0]):
-        assert len(image_grads) == len(sensor_ids)
+    def renderD(self, target_images, loss_func, scene, sensor_ids=[0]):
+        assert len(target_images) == len(sensor_ids) and len(target_images) > 0
+
+        t_dtype = target_images[0].dtype
+        t_device = target_images[0].device
         
         # Transform the parameter names to extrac the gradient later.
         param_names = scene.get_requiring_grad()
@@ -115,7 +119,7 @@ class PSDREnzymeConnector(Connector):
                 if param_name.endswith('vertex_positions'):
                     param_name = param_name.replace('vertex_positions', 'vertices')
             param_names[i] = param_name
-            param_grads.append(np.zeros_like(param.data, dtype=PSDREnzymeConnector.ftype))
+            param_grads.append(torch.zeros(param.data.shape, dtype=t_dtype, device=t_device))
             
         objects = self.create_objects(scene)
         
@@ -127,20 +131,32 @@ class PSDREnzymeConnector(Connector):
         for i, sensor_id in enumerate(sensor_ids):
             psdr_scene.camera = objects['sensors'][sensor_id]
             psdr_scene.configure()
+
+            # Forward rendering
+            image = objects['integrator'].renderC(psdr_scene, objects['render_options'])
+            image = image.reshape(objects['film']['shape'])
+
+            # Compute image_grad
+            image = torch.from_numpy(image).to(t_dtype).to(t_device).requires_grad_()
+            loss = loss_func(target_images[i], image)
+            image_grad = torch.autograd.grad(loss, image)[0]
+            image_grad = np.array(image_grad.detach().cpu().numpy(), dtype=PSDREnzymeConnector.ftype)
+            image_grad = image_grad.reshape(-1)
             
             # Estimate the interior integral.
             psdr_scene_ad = psdr_cpu.SceneAD(psdr_scene)
-            objects['integrator'].renderD(psdr_scene_ad, objects['render_options'], image_grads[i].reshape(-1))
+            objects['integrator'].renderD(psdr_scene_ad, objects['render_options'], image_grad)
             
             # Estimate the boundary integral.
             boundary_integrator = psdr_cpu.BoundaryIntegrator(psdr_scene)
-            boundary_integrator.renderD(psdr_scene_ad, objects['render_options'], image_grads[i].reshape(-1))
+            boundary_integrator.renderD(psdr_scene_ad, objects['render_options'], image_grad)
             
             # Extrac the gradient.
             for j, param_name in enumerate(param_names):
                 grad = eval("psdr_scene_ad.der." + param_name)
                 if isinstance(grad, psdr_cpu.Bitmap):
                     grad = grad.m_data
-                param_grads[j] += np.array(grad, dtype=PSDREnzymeConnector.ftype)
+                grad = np.array(grad, dtype=PSDREnzymeConnector.ftype)
+                param_grads[j] += torch.tensor(grad, dtype=t_dtype, device=t_device)
         
         return param_grads
