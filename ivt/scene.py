@@ -89,9 +89,9 @@ class Scene:
         self.param_map[param_name] = param 
         return param
         
-    def add_integrator(self, type):
+    def add_integrator(self, integrator_type):
         self.integrator = {
-            'type': type
+            'type': integrator_type
         }
 
     def add_render_options(self, options):
@@ -108,7 +108,7 @@ class Scene:
     def add_perspective_camera(self, fov, origin, target, up):
         id = f'sensors[{len(self.sensors)}]'
         sensor = {
-            'type': type,
+            'type': 'perspective',
             'fov': self.add_fparam(id + '.fov', fov),
             'origin': self.add_fparam(id + '.origin', origin),
             'target': self.add_fparam(id + '.target', target),
