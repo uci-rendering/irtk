@@ -41,6 +41,18 @@ class Parameter:
     def set(self, data):
         self.data = data
         self.configure()
+
+    def tolist(self):
+        if self.backend == 'torch' or self.backend == 'numpy':
+            return self.data.tolist()
+        else:
+            assert False
+
+    def item(self):
+        if self.backend == 'torch' or self.backend == 'numpy':
+            return self.data.item()
+        else:
+            assert False
             
     def __repr__(self):
         return repr(self.data)
@@ -99,7 +111,7 @@ class Scene:
 
     def add_hdr_film(self, resolution, rfilter='tent', crop=(0, 0, 1, 1)):
         self.film = {
-            'type': 'hdr',
+            'type': 'hdrfilm',
             'resolution': resolution,
             'rfilter': 'tent',
             'crop': crop
@@ -119,6 +131,7 @@ class Scene:
     def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, uv_positions=[], uv_indices=[], to_world=torch.eye(4)):
         id = f'meshes[{len(self.meshes)}]'
         mesh = {
+            'id': id,
             'vertex_positions': self.add_fparam(id + '.vertex_positions', vertex_positions),
             'vertex_indices': self.add_iparam(id + '.vertex_indices', vertex_indices),
             'uv_positions': self.add_fparam(id + '.uv_positions', uv_positions),
@@ -131,6 +144,7 @@ class Scene:
     def add_diffuse_bsdf(self, reflectance):
         id = f'bsdfs[{len(self.bsdfs)}]'
         bsdf = {
+            'id': id,
             'type': 'diffuse',
             'reflectance': self.add_fparam(id + '.reflectance', reflectance)
         }
@@ -145,6 +159,7 @@ class Scene:
     def add_area_light(self, mesh_id, radiance):
         id = f'emitters[{len(self.emitters)}]'
         emitter = {
+            'id': id,
             'type': 'area',
             'mesh_id': mesh_id,
             'radiance': self.add_fparam(id + '.radiance', radiance)
