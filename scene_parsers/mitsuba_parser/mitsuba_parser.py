@@ -33,7 +33,7 @@ class MitsubaParser(SceneParser):
                     up=list_to_csl(sensor['up']),
             )
 
-            fov_n = etree.SubElement(sensor_n, 'float', fov=str(sensor['fov'].item()))
+            fov_n = etree.SubElement(sensor_n, 'float', name='fov', value=str(sensor['fov'].item()))
 
             if i == 0:
                 sampler_n = etree.SubElement(sensor_n, 'sampler', type='independent')
@@ -43,6 +43,8 @@ class MitsubaParser(SceneParser):
                 film_n = etree.SubElement(sensor_n, 'film', type=film['type'])
                 width_n = etree.SubElement(film_n, 'integer', name='width', value=str(film['resolution'][0]))
                 height_n = etree.SubElement(film_n, 'integer', name='height', value=str(film['resolution'][1]))
+                rfilter_n = etree.SubElement(film_n, 'rfilter', type=film['rfilter'])
+
 
         area_lights = {}
         for i, emitter in enumerate(scene.emitters):
@@ -50,7 +52,7 @@ class MitsubaParser(SceneParser):
                 area_lights[emitter['mesh_id']] = i
 
         for bsdf in scene.bsdfs:
-            bsdf_n = etree.SubElement(scene_n, 'bsdf', id=bsdf['id'])
+            bsdf_n = etree.SubElement(scene_n, 'bsdf', type='diffuse', id=bsdf['id'])
             if bsdf['type'] == 'diffuse':
                 reflectance = bsdf['reflectance'].data 
                 if reflectance.shape == (1, 1, 1):
@@ -73,7 +75,7 @@ class MitsubaParser(SceneParser):
             if i in area_lights:
                 emitter = scene.emitters[area_lights[i]]
                 emitter_n = etree.SubElement(shape_n, 'emitter', type='area')
-                radiance_n = etree.SubElement(emitter_n, 'spectrum', name='raidance', value=list_to_csl(emitter['radiance'].data.flatten()))
+                radiance_n = etree.SubElement(emitter_n, 'spectrum', name='radiance', value=list_to_csl(emitter['radiance'].data.flatten()))
 
             ref_n = etree.SubElement(shape_n, 'ref', id=f"bsdfs[{mesh['bsdf_id']}]")
 
