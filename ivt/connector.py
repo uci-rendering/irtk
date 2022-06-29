@@ -8,7 +8,7 @@ class Connector(ABC):
         pass
     
     @abstractmethod
-    def renderD(self, target_images, loss_func, scene, sensor_ids=[0]):
+    def renderD(self, image_grads, scene, sensor_ids=[0]):
         pass
 
 class ConnectorManager:
