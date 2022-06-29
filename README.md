@@ -23,3 +23,8 @@ pip install scene_parsers/*
 ```
 If you want to modify the code but don't want to repeatedly install them, add `-e` after `install`, such as `pip install -e .`.
 
+## Run a simple test
+I created a simple inverse rendering experiment in `tests/inv_rendering_test.py`. After all the requirements are met, run
+```
+python tests/inv_rendering_test.py
+```
