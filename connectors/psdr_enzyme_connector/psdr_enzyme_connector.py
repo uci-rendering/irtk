@@ -132,10 +132,6 @@ class PSDREnzymeConnector(Connector):
             psdr_scene.camera = objects['sensors'][sensor_id]
             psdr_scene.configure()
 
-            # Forward rendering
-            image = objects['integrator'].renderC(psdr_scene, objects['render_options'])
-            image = image.reshape(objects['film']['shape'])
-
             # Process image_grad
             image_grad = np.array(image_grads[i].detach().cpu().numpy(), dtype=PSDREnzymeConnector.ftype)
             image_grad = image_grad.reshape(-1)
