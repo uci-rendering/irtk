@@ -27,12 +27,12 @@ def renderC():
     # Test every connector available
     for cn in cm.get_availability_list():
         print(f'Rendering with connector [{cn}]...')
-        renderer = Renderer(cn, device='cuda', dtype=torch.float32)
+        render = Renderer(cn, device='cuda', dtype=torch.float32)
         scene.add_render_options(simple_render_options[cn])
 
         # Render the images without gradient 
         with torch.no_grad():
-            images = renderer(scene)
+            images = render(scene)
 
         # Write the images
         output_connector_path = output_path / cn
@@ -51,11 +51,11 @@ def renderD():
     # Test every connector available
     for cn in cm.get_availability_list():
         print(f'Rendering with connector [{cn}]...')
-        renderer = Renderer(cn, device='cuda', dtype=torch.float32)
+        render = Renderer(cn, device='cuda', dtype=torch.float32)
         scene.add_render_options(simple_render_options[cn])
 
         # Render target images 
-        target_images = renderer(scene)
+        target_images = render(scene)
         
         # Modify the parameters and set requires_grad 
         scene.param_map['bsdfs[0].reflectance'].set((0.5, 0.6, 0.7))
@@ -71,7 +71,7 @@ def renderD():
 
         
         # Render the new images 
-        images = renderer(scene, params)
+        images = render(scene, params)
 
         # Get gradient
         loss = l1_loss(target_images, images)
