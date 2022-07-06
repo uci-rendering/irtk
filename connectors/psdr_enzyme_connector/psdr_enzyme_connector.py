@@ -69,9 +69,15 @@ class PSDREnzymeConnector(Connector):
         bsdfs = []
         for bsdf_config in scene.bsdfs:
             if bsdf_config['type'] == 'diffuse':
-                bsdf = psdr_cpu.DiffuseBSDF(psdr_cpu.RGBSpectrum(0, 0, 0))
-                reflectance_shape = bsdf_config['reflectance'].data.shape
-                bsdf.reflectance = psdr_cpu.Bitmap(bsdf_config['reflectance'].data.reshape(-1), reflectance_shape[:2])
+                reflectance_data = bsdf_config['reflectance'].data
+                reflectance_shape = reflectance_data.shape
+                if reflectance_shape == ():
+                    bsdf = psdr_cpu.DiffuseBSDF(psdr_cpu.RGBSpectrum(reflectance_data.item()))
+                elif reflectance_shape == (3, ):
+                    bsdf = psdr_cpu.DiffuseBSDF(psdr_cpu.RGBSpectrum(reflectance_data))
+                elif len(reflectance_data) == 3:
+                    bsdf = psdr_cpu.DiffuseBSDF(psdr_cpu.RGBSpectrum(0, 0, 0))
+                    bsdf.reflectance = psdr_cpu.Bitmap(bsdf_config['reflectance'].data.reshape(-1), reflectance_shape[:2])
             bsdfs.append(bsdf)
         objects['bsdfs'] = bsdfs
             
