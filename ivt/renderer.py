@@ -1,6 +1,7 @@
 from ivt.connector import ConnectorManager
 import torch 
 import numpy as np
+from copy import deepcopy
 
 class RenderFunction(torch.autograd.Function):
 
@@ -34,6 +35,7 @@ class Renderer(torch.nn.Module):
         self.device = device
         self.dtype = dtype
 
-    def forward(self, scene, params, sensor_ids=[0]):
+    def forward(self, scene, params=[], sensor_ids=[0]):
+        scene = deepcopy(scene)
         images = RenderFunction.apply(scene, self.connector, sensor_ids, self.device, self.dtype, *params)
         return images
