@@ -9,7 +9,7 @@ def read_obj(obj_path):
     
     v, tc, n, f, ftc, fn = igl.read_obj(obj_path)
     
-    return v, f
+    return v, tc, n, f, ftc, fn
 
 def write_obj(obj_path, v, f):
     v = to_numpy(v)
@@ -32,10 +32,19 @@ def to_numpy(data):
     else:
         return data
 
+def read_png(png_path):
+    image = iio.imread(png_path, extension='.png')
+    image = image[:, :, :3].astype(float) / 255
+    return image
+
 def write_png(png_path, image):
     image = to_srgb(to_numpy(image))
     image = (image * 255).astype(np.uint8)
     iio.imwrite(png_path, image, extension='.png')
+
+def read_exr(exr_path):
+    image = iio.imread(exr_path, extension='.exr')
+    return image
 
 def write_exr(exr_path, image):
     image = to_numpy(image).astype(np.float32)

@@ -31,7 +31,7 @@ def simple_mat_opt():
         print(f'Optimizing with connector [{cn}]...')
 
         # Get renderer
-        renderer = Renderer(cn, device='cuda', dtype=torch.float32)
+        render = Renderer(cn, device='cuda', dtype=torch.float32)
 
         # Make a simple scene
         scene = simple_scene()
@@ -45,7 +45,7 @@ def simple_mat_opt():
         reflectance = scene.bsdfs[0]['reflectance']
         reflectance.set(target_v)
         reflectance.configure()
-        target_images = renderer(scene)
+        target_images = render(scene)
 
         # Set the intial parameters
         reflectance.set(init_v)
@@ -62,7 +62,7 @@ def simple_mat_opt():
         for iter in range(num_iters):
             optimizer.zero_grad()
 
-            images = renderer(scene, params)
+            images = render(scene, params)
 
             loss = loss_func(target_images, images)
             loss.backward()
@@ -80,9 +80,6 @@ def simple_mat_opt():
         print(target_v)
         print('Optimized: ')
         print(reflectance.data)
-        
-
-
 
 if __name__ == '__main__':
     for test in tests:

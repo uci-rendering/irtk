@@ -9,6 +9,7 @@ import torch
 
 from pathlib import Path
 from shutil import rmtree
+import os
 
 class PSDRCudaConnector(Connector):
     backend = 'torch'
@@ -25,8 +26,11 @@ class PSDRCudaConnector(Connector):
         sp.write(tmp_scene_path, scene)
         
         # Load the scene 
+        old_path = os.getcwd()
+        os.chdir(tmp_path)
         psdr_scene = psdr_cuda.Scene()
-        psdr_scene.load_file(str(tmp_scene_path), False)
+        psdr_scene.load_file(str('scene.xml'), False)
+        os.chdir(old_path)
         
         # Clean up
         rmtree(tmp_path)
@@ -41,6 +45,10 @@ class PSDRCudaConnector(Connector):
         integrator_config = scene.integrator
         if integrator_config['type'] == 'direct':
             objects['integrator'] = psdr_cuda.DirectIntegrator()
+        elif integrator_config['type'] == 'collocated':
+            objects['integrator'] = psdr_cuda.CollocatedIntegrator(integrator_config['params']['intensity'])
+        else:
+            raise ValueError(f"integrator type [{integrator_config['type']}] not supported.")
             
         objects['scene'].opts.spp = scene.render_options['spp']
         objects['scene'].opts.sppe = scene.render_options['sppe']

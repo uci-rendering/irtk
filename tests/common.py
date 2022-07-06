@@ -34,13 +34,13 @@ def simple_scene(backend='torch', device='cuda'):
     
     scene.add_perspective_camera(fov=45, origin=(0, 0, 30), target=(0, 0, 0), up=(0, 1, 0))
     
-    v, f = read_obj(meshes_path / 'bunny.obj')
+    v, tc, n, f, ftc, fn = read_obj(meshes_path / 'bunny.obj')
     scene.add_mesh(v, f, 0)
     
-    v, f = read_obj(meshes_path / 'light_0.obj')
+    v, tc, n, f, ftc, fn = read_obj(meshes_path / 'light_0.obj')
     scene.add_mesh(v, f, 1)
     
-    v, f = read_obj(meshes_path / 'light_1.obj')
+    v, tc, n, f, ftc, fn = read_obj(meshes_path / 'light_1.obj')
     scene.add_mesh(v, f, 1)
     
     scene.add_diffuse_bsdf((0.8, 0.8, 0.8))

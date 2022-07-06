@@ -100,9 +100,10 @@ class Scene:
         self.param_map[param_name] = param 
         return param
         
-    def add_integrator(self, integrator_type):
+    def add_integrator(self, integrator_type, integrator_params={}):
         self.integrator = {
-            'type': integrator_type
+            'type': integrator_type,
+            'params': integrator_params
         }
 
     def add_render_options(self, options):
