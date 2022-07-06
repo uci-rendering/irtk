@@ -15,7 +15,7 @@ def add_test(func):
 
 @add_test
 def different_backends():
-    scene = simple_scene()
+    scene = simple_scene(device='cpu')
     
     print('backend: torch + cpu')
     print(scene)

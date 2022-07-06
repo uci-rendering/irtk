@@ -28,9 +28,9 @@ class Parameter:
         if self.backend == 'torch':
             if torch.is_tensor(self.data):
                 self.data = self.data.to(self.dtype).to(self.device)
-                self.data.requires_grad = self.requires_grad
             else:
                 self.data = torch.tensor(self.data, dtype=self.dtype, device=self.device)
+            self.data.requires_grad = self.requires_grad
                 
         elif self.backend == 'numpy':
             if torch.is_tensor(self.data):
@@ -40,7 +40,6 @@ class Parameter:
             
     def set(self, data):
         self.data = data
-        self.configure()
 
     def tolist(self):
         if self.backend == 'torch' or self.backend == 'numpy':
@@ -64,7 +63,7 @@ class Scene:
         
         # Scene data 
         self.integrator = None 
-        self.render_options = None 
+        self.render_options = {} 
         self.film = None 
         self.sensors = []
         self.meshes = []
