@@ -55,15 +55,17 @@ class MitsubaParser(SceneParser):
             bsdf_n = etree.SubElement(scene_n, 'bsdf', type='diffuse', id=bsdf['id'])
             if bsdf['type'] == 'diffuse':
                 reflectance = bsdf['reflectance'].data 
-                if reflectance.shape == (1, 1, 1):
-                    etree.SubElement(bsdf_n, 'float', name='reflectance', value=list_to_csl(reflectance.flatten()))
-                elif reflectance.shape == (1, 1, 3):
-                    etree.SubElement(bsdf_n, 'spectrum', name='reflectance', value=list_to_csl(reflectance.flatten()))
-                else:
+                if reflectance.shape == ():
+                    etree.SubElement(bsdf_n, 'float', name='reflectance', value=list_to_csl(reflectance))
+                elif reflectance.shape == (3, ):
+                    etree.SubElement(bsdf_n, 'spectrum', name='reflectance', value=list_to_csl(reflectance))
+                elif len(reflectance.shape) == 3:
                     texture_name = f"{bsdf['id']}_diffuse.exr"
                     write_exr(model_dir / texture_name, bsdf['reflectance'].data)
                     d_texture_n = etree.SubElement(bsdf_n, 'texture', name='reflectance', type='bitmap')
                     filename_n = etree.SubElement(d_texture_n, 'string', name='filename', value=f'model/{texture_name}')
+                else:
+                    print(f'reflectance format not supported: {reflectance.shape}')
 
         for i, mesh in enumerate(scene.meshes):
             obj_name = f"{mesh['id']}.obj"
