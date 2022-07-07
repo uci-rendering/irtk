@@ -48,7 +48,7 @@ class PSDRCudaConnector(Connector):
         elif integrator_config['type'] == 'collocated':
             objects['integrator'] = psdr_cuda.CollocatedIntegrator(integrator_config['params']['intensity'])
         else:
-            raise ValueError(f"integrator type [{integrator_config['type']}] not supported.")
+            raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
             
         objects['scene'].opts.spp = scene.render_options['spp']
         objects['scene'].opts.sppe = scene.render_options['sppe']
