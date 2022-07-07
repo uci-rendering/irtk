@@ -69,7 +69,11 @@ class MitsubaParser(SceneParser):
 
         for i, mesh in enumerate(scene.meshes):
             obj_name = f"{mesh['id']}.obj"
-            write_obj(model_dir / obj_name, mesh['vertex_positions'].data, mesh['vertex_indices'].data)
+            write_obj(model_dir / obj_name, 
+                    mesh['vertex_positions'].data, 
+                    mesh['vertex_indices'].data,
+                    mesh['uv_positions'].data,
+                    mesh['uv_indices'].data)
 
             shape_n = etree.SubElement(scene_n, 'shape', type='obj')
             filename_n = etree.SubElement(shape_n, 'string', name='filename', value=f'model/{obj_name}')

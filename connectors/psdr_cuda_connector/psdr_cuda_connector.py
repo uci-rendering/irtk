@@ -129,12 +129,16 @@ class PSDRCudaConnector(Connector):
             enoki.set_gradient(image, image_grad)
             FloatD.backward()
 
+            # garbage collection
+            del image, image_grad
+            enoki.cuda_malloc_trim()
+
         param_grads = [enoki.gradient(enoki_param).torch().cuda() for enoki_param in enoki_params]
         for i in range(len(param_names)):
             param_grads[i] = param_grads[i].reshape(scene.param_map[param_names[i]].data.shape)
 
         # garbage collection
-        del objects
+        del objects, enoki_params
         enoki.cuda_malloc_trim()
         
         return param_grads
