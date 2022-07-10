@@ -149,6 +149,17 @@ class Scene:
             'reflectance': self.add_fparam(id + '.reflectance', reflectance)
         }
         self.bsdfs.append(bsdf)
+
+    def add_microfacet_bsdf(self, diffuse_reflectance, specular_reflectance, roughness):
+        id = f'bsdfs[{len(self.bsdfs)}]'
+        bsdf = {
+            'id': id,
+            'type': 'microfacet',
+            'diffuse_reflectance': self.add_fparam(id + '.diffuse_reflectance', diffuse_reflectance),
+            'specular_reflectance': self.add_fparam(id + '.specular_reflectance', specular_reflectance),
+            'roughness': self.add_fparam(id + '.roughness', roughness),
+        }
+        self.bsdfs.append(bsdf)
         
     def add_null_bsdf(self):
         bsdf = {

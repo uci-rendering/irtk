@@ -1,4 +1,5 @@
 from cgitb import text
+from multiprocessing.sharedctypes import Value
 from torch import TracingState
 from ivt.scene_parser import SceneParser
 from ivt.io import write_exr, write_obj
@@ -17,7 +18,23 @@ class MitsubaParser(SceneParser):
         model_dir.mkdir(parents=True, exist_ok=True)
 
         def list_to_csl(data):
-            return ', '.join([str(v) for v in data.tolist()])
+            if data.shape == ():
+                return str(data.item())
+            else:
+                return ', '.join([str(v) for v in data.tolist()])
+
+        def add_color(bsdf_id, color, name):
+            if color.shape == () or color.shape == (1, ):
+                etree.SubElement(bsdf_n, 'float', name=name, value=list_to_csl(color))
+            elif color.shape == (3, ):
+                etree.SubElement(bsdf_n, 'spectrum', name=name, value=list_to_csl(color))
+            elif len(color.shape) == 3:
+                texture_name = f"{bsdf_id}_{name}.exr"
+                write_exr(model_dir / texture_name, color)
+                texture_n = etree.SubElement(bsdf_n, 'texture', name=name, type='bitmap')
+                filename_n = etree.SubElement(texture_n, 'string', name='filename', value=f'model/{texture_name}')
+            else:
+                raise ValueError(f'color shape of [{bsdf_id}.{name}] is not supported: {color.shape}')
 
         scene_n = etree.Element("scene", version='2.0.0')
 
@@ -28,9 +45,9 @@ class MitsubaParser(SceneParser):
 
             transform_n = etree.SubElement(sensor_n, 'transform', name='toWorld')
             lookat_n = etree.SubElement(transform_n, 'lookat', 
-                    target=list_to_csl(sensor['target']),
-                    origin=list_to_csl(sensor['origin']),
-                    up=list_to_csl(sensor['up']),
+                    target=list_to_csl(sensor['target'].data),
+                    origin=list_to_csl(sensor['origin'].data),
+                    up=list_to_csl(sensor['up'].data),
             )
 
             fov_n = etree.SubElement(sensor_n, 'float', name='fov', value=str(sensor['fov'].item()))
@@ -45,27 +62,24 @@ class MitsubaParser(SceneParser):
                 height_n = etree.SubElement(film_n, 'integer', name='height', value=str(film['resolution'][1]))
                 rfilter_n = etree.SubElement(film_n, 'rfilter', type=film['rfilter'])
 
-
         area_lights = {}
         for i, emitter in enumerate(scene.emitters):
             if emitter['type'] == 'area': 
                 area_lights[emitter['mesh_id']] = i
 
         for bsdf in scene.bsdfs:
-            bsdf_n = etree.SubElement(scene_n, 'bsdf', type='diffuse', id=bsdf['id'])
+            bsdf_type = bsdf['type']
+            bsdf_id = bsdf['id']
+            bsdf_n = etree.SubElement(scene_n, 'bsdf', type=bsdf_type, id=bsdf_id)
+
             if bsdf['type'] == 'diffuse':
-                reflectance = bsdf['reflectance'].data 
-                if reflectance.shape == ():
-                    etree.SubElement(bsdf_n, 'float', name='reflectance', value=list_to_csl(reflectance))
-                elif reflectance.shape == (3, ):
-                    etree.SubElement(bsdf_n, 'spectrum', name='reflectance', value=list_to_csl(reflectance))
-                elif len(reflectance.shape) == 3:
-                    texture_name = f"{bsdf['id']}_diffuse.exr"
-                    write_exr(model_dir / texture_name, bsdf['reflectance'].data)
-                    d_texture_n = etree.SubElement(bsdf_n, 'texture', name='reflectance', type='bitmap')
-                    filename_n = etree.SubElement(d_texture_n, 'string', name='filename', value=f'model/{texture_name}')
-                else:
-                    print(f'reflectance format not supported: {reflectance.shape}')
+                add_color(bsdf_id, bsdf['reflectance'].data, 'reflectance')
+            elif bsdf['type'] == 'microfacet':
+                add_color(bsdf_id, bsdf['diffuse_reflectance'].data, 'diffuseReflectance')
+                add_color(bsdf_id, bsdf['specular_reflectance'].data, 'specularReflectance')
+                add_color(bsdf_id, bsdf['roughness'].data, 'roughness')
+            else:
+                raise ValueError(f"BSDF type {bsdf['type']} is not supported.")
 
         for i, mesh in enumerate(scene.meshes):
             obj_name = f"{mesh['id']}.obj"

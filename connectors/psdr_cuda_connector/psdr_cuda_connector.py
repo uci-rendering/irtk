@@ -1,9 +1,10 @@
+from multiprocessing.sharedctypes import Value
 from ivt.connector import Connector
 from ivt.scene_parser import SceneParserManager
 import psdr_cuda
 import enoki
 from enoki.cuda import Vector3f as Vector3fC
-from enoki.cuda_autodiff import Vector3f as Vector3fD
+from enoki.cuda_autodiff import Vector3f as Vector3fD, Float32 as FloatD
 from enoki.cuda_autodiff import Float32 as FloatD
 import torch
 
@@ -99,22 +100,44 @@ class PSDRCudaConnector(Connector):
         param_names = scene.get_requiring_grad()
         enoki_params = []
         for param_name in param_names:
+            param = scene.param_map[param_name]
             group, idx, prop = split_parma_name(param_name)
             if group == 'meshes':
                 if prop == 'vertex_positions':
-                    enoki_param = Vector3fD(scene.param_map[param_name].data)
+                    enoki_param = Vector3fD(param.data)
                     enoki.set_requires_gradient(enoki_param, True)
                     objects['scene'].param_map[f'Mesh[{idx}]'].vertex_positions = enoki_param
                     enoki_params.append(enoki_param)
 
             elif group == 'bsdfs':
-                brdf_type = scene.bsdfs[idx]['type']
-                if brdf_type == 'diffuse':
+                bsdf_type = scene.bsdfs[idx]['type']
+                enoki_bsdf = objects['scene'].param_map[f'BSDF[{idx}]']
+                if bsdf_type == 'diffuse':
                     if prop == 'reflectance':
-                        enoki_param = Vector3fD(scene.param_map[param_name].data.reshape(-1, 3))
+                        enoki_param = Vector3fD(param.data.reshape(-1, 3))
                         enoki.set_requires_gradient(enoki_param, True)
-                        objects['scene'].param_map[f'BSDF[{idx}]'].reflectance.data = enoki_param
+                        enoki_bsdf.reflectance.data = enoki_param
                         enoki_params.append(enoki_param)
+                    else:
+                        raise ValueError(f"property not supported: {prop}")
+                elif bsdf_type == 'microfacet':
+                    if prop == 'diffuse_reflectance':
+                        enoki_param = Vector3fD(param.data.reshape(-1, 3))
+                        enoki.set_requires_gradient(enoki_param, True)
+                        enoki_bsdf.diffuseReflectance.data = enoki_param
+                        enoki_params.append(enoki_param)
+                    elif prop == 'specular_reflectance':
+                        enoki_param = Vector3fD(param.data.reshape(-1, 3))
+                        enoki.set_requires_gradient(enoki_param, True)
+                        enoki_bsdf.specularReflectance.data = enoki_param
+                        enoki_params.append(enoki_param)
+                    elif prop == 'roughness':
+                        enoki_param = FloatD(param.data.reshape(-1, ))
+                        enoki.set_requires_gradient(enoki_param, True)
+                        enoki_bsdf.roughness.data = enoki_param
+                        enoki_params.append(enoki_param)
+                    else:
+                        raise ValueError(f"property not supported: {prop}")
 
         objects['scene'].configure2(sensor_ids)
 
