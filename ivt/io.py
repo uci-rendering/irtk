@@ -52,7 +52,7 @@ def srgb_encoding(v):
 		return (1.055*(v**(1.0/2.4))-0.055)
 
 def to_srgb(image):
-    return np.clip(np.vectorize(srgb_encoding)(image), 0, 1)
+    return np.clip(np.vectorize(srgb_encoding)(to_numpy(image)), 0, 1)
 
 def to_numpy(data):
     if torch.is_tensor(data):
