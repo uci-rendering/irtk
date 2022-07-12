@@ -36,6 +36,5 @@ class Renderer(torch.nn.Module):
         self.dtype = dtype
 
     def forward(self, scene, params=[], sensor_ids=[0]):
-        scene = deepcopy(scene)
         images = RenderFunction.apply(scene, self.connector, sensor_ids, self.device, self.dtype, *params)
         return images

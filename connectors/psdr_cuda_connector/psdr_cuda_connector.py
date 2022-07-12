@@ -1,9 +1,13 @@
+from multiprocessing.sharedctypes import Value
 from ivt.connector import Connector
 from ivt.scene_parser import SceneParserManager
+from ivt.scene import split_param_name
+from ivt.utils import lookat
+
 import psdr_cuda
 import enoki
 from enoki.cuda import Vector3f as Vector3fC
-from enoki.cuda_autodiff import Vector3f as Vector3fD
+from enoki.cuda_autodiff import Vector3f as Vector3fD, Float32 as FloatD, Matrix4f as Matrix4fD
 from enoki.cuda_autodiff import Float32 as FloatD
 import torch
 
@@ -40,7 +44,13 @@ class PSDRCudaConnector(Connector):
     def create_objects(self, scene):
         objects = {}
         
-        objects['scene'] = self.create_scene(scene)
+        psdr_scene = self.create_scene(scene)
+        objects['scene'] = psdr_scene
+
+        psdr_scene.opts.spp = scene.render_options['spp']
+        psdr_scene.opts.sppe = scene.render_options['sppe']
+        psdr_scene.opts.sppse = scene.render_options['sppse']
+        psdr_scene.opts.log_level = scene.render_options['log_level']
 
         integrator_config = scene.integrator
         if integrator_config['type'] == 'direct':
@@ -63,9 +73,75 @@ class PSDRCudaConnector(Connector):
 
         return objects
 
+    def get_objects(self, scene):
+        def convert_color(color, c=3):
+            if c is None:
+                return color.reshape(-1, )
+            if color.shape == ():
+                return color.tile(c)
+            else:
+                return color.reshape(-1, c)
+
+        # Update the cached scene objects with new values
+        if 'psdr_cuda' in scene.cached:
+            objects = scene.cached['psdr_cuda']
+            psdr_param_map = objects['scene'].param_map
+            updated_params = scene.get_updated()
+
+            for param_name in updated_params:
+                param = scene.param_map[param_name]
+                group, idx, prop = split_param_name(param_name)
+
+                if group == 'meshes':
+                    if prop == 'vertex_positions':
+                        enoki_param = Vector3fD(param.data)
+                        psdr_param_map[f'Mesh[{idx}]'].vertex_positions = enoki_param
+
+                elif group == 'bsdfs': 
+                    bsdf_type = scene.bsdfs[idx]['type']
+                    enoki_bsdf = psdr_param_map[f'BSDF[{idx}]']
+                    
+                    if bsdf_type == 'diffuse':
+                        if prop == 'reflectance':
+                            enoki_param = Vector3fD(convert_color(param.data))
+                            enoki_bsdf.reflectance.data = enoki_param
+
+                    elif bsdf_type == 'microfacet':
+                        if prop == 'diffuse_reflectance':
+                            enoki_param = Vector3fD(convert_color(param.data))
+                            enoki_bsdf.diffuseReflectance.data = enoki_param
+                        elif prop == 'specular_reflectance':
+                            enoki_param = Vector3fD(convert_color(param.data))
+                            enoki_bsdf.specularReflectance.data = enoki_param
+                        elif prop == 'roughness':
+                            enoki_param = FloatD(convert_color(param.data, c=None))
+                            enoki_bsdf.roughness.data = enoki_param
+
+                elif group == 'sensors':
+                    sensor = scene.sensors[idx]
+                    sensor_type = sensor['type']
+                    enoki_sensor = psdr_param_map[f'Sensor[{idx}]']
+
+                    if sensor_type == 'perspective':
+                        if prop == 'origin':
+                            to_world = lookat(sensor['origin'].data, sensor['target'].data, sensor['up'].data).to('cuda').to(torch.float32)
+                            enoki_sensor.to_world = Matrix4fD(to_world.reshape(1, 4, 4))
+                            
+                param.updated = False
+
+            return objects
+
+        # Create scene objects if there is no cache
+        else:
+            objects = self.create_objects(scene)
+            scene.cached['psdr_cuda'] = objects
+            for param_name in scene.get_updated():
+                scene.param_map[param_name].updated = False
+            return objects
+
     def renderC(self, scene, sensor_ids=[0]):
         # Convert the scene into psdr_cuda objects
-        objects = self.create_objects(scene)
+        objects = self.get_objects(scene)
         objects['scene'].configure2(sensor_ids)
         w, h, c = objects['film']['shape']
         npass = scene.render_options['npass']
@@ -79,42 +155,51 @@ class PSDRCudaConnector(Connector):
             image = image.reshape(w, h, c)
             images.append(image)
 
-        # garbage collection
-        del objects
-        enoki.cuda_malloc_trim()
-        
         return images
     
     def renderD(self, image_grads, scene, sensor_ids=[0]):
         # Convert the scene into psdr_cuda objects
-        objects = self.create_objects(scene)
+        objects = self.get_objects(scene)
         objects['scene'].configure2(sensor_ids)
+        psdr_param_map = objects['scene'].param_map
         npass = scene.render_options['npass']
-
-        def split_parma_name(param_name):
-            group, idx, prop = param_name.replace('[', '.').replace(']', '').split('.')
-            idx = int(idx)
-            return group, idx, prop
 
         param_names = scene.get_requiring_grad()
         enoki_params = []
         for param_name in param_names:
-            group, idx, prop = split_parma_name(param_name)
+            param = scene.param_map[param_name]
+            group, idx, prop = split_param_name(param_name)
             if group == 'meshes':
                 if prop == 'vertex_positions':
-                    enoki_param = Vector3fD(scene.param_map[param_name].data)
+                    enoki_param = psdr_param_map[f'Mesh[{idx}]'].vertex_positions
                     enoki.set_requires_gradient(enoki_param, True)
-                    objects['scene'].param_map[f'Mesh[{idx}]'].vertex_positions = enoki_param
                     enoki_params.append(enoki_param)
 
             elif group == 'bsdfs':
-                brdf_type = scene.bsdfs[idx]['type']
-                if brdf_type == 'diffuse':
+                bsdf_type = scene.bsdfs[idx]['type']
+                enoki_bsdf = objects['scene'].param_map[f'BSDF[{idx}]']
+                if bsdf_type == 'diffuse':
                     if prop == 'reflectance':
-                        enoki_param = Vector3fD(scene.param_map[param_name].data.reshape(-1, 3))
+                        enoki_param = enoki_bsdf.reflectance.data 
                         enoki.set_requires_gradient(enoki_param, True)
-                        objects['scene'].param_map[f'BSDF[{idx}]'].reflectance.data = enoki_param
                         enoki_params.append(enoki_param)
+                    else:
+                        raise ValueError(f"property not supported: {prop}")
+                elif bsdf_type == 'microfacet':
+                    if prop == 'diffuse_reflectance':
+                        enoki_param = enoki_bsdf.diffuseReflectance.data
+                        enoki.set_requires_gradient(enoki_param, True)
+                        enoki_params.append(enoki_param)
+                    elif prop == 'specular_reflectance':
+                        enoki_param = enoki_bsdf.specularReflectance.data
+                        enoki.set_requires_gradient(enoki_param, True)
+                        enoki_params.append(enoki_param)
+                    elif prop == 'roughness':
+                        enoki_param = enoki_bsdf.roughness.data
+                        enoki.set_requires_gradient(enoki_param, True)
+                        enoki_params.append(enoki_param)
+                    else:
+                        raise ValueError(f"property not supported: {prop}")
 
         objects['scene'].configure2(sensor_ids)
 
@@ -136,9 +221,5 @@ class PSDRCudaConnector(Connector):
         param_grads = [enoki.gradient(enoki_param).torch().cuda() for enoki_param in enoki_params]
         for i in range(len(param_names)):
             param_grads[i] = param_grads[i].reshape(scene.param_map[param_names[i]].data.shape)
-
-        # garbage collection
-        del objects, enoki_params
-        enoki.cuda_malloc_trim()
         
         return param_grads

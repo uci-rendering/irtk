@@ -1,8 +1,10 @@
+from copy import deepcopy
 from ivt.io import write_png
 from ivt.renderer import Renderer
 from ivt.connector import ConnectorManager
 from ivt.loss import l1_loss
 from common import *
+from time import time
 
 from pathlib import Path
 import torch
@@ -36,18 +38,20 @@ def simple_mat_opt():
         # Make a simple scene
         scene = simple_scene()
         scene.add_render_options(simple_render_options[cn])
+        target_scene = deepcopy(scene)
 
         # Target & init values
         target_v = (0.8, 0.8, 0.8)
-        init_v = (0.8, 0.5, 0.1)
+        init_v = (0.5, 0.5, 0.5)
         
         # Render target images
-        reflectance = scene.bsdfs[0]['reflectance']
-        reflectance.set(target_v)
-        reflectance.configure()
-        target_images = render(scene)
+        target_reflectance = target_scene.bsdfs[0]['reflectance']
+        target_reflectance.set(target_v)
+        target_reflectance.configure()
+        target_images = render(target_scene)
 
         # Set the intial parameters
+        reflectance = scene.bsdfs[0]['reflectance']
         reflectance.set(init_v)
         reflectance.requires_grad = True
         reflectance.configure()
@@ -60,6 +64,8 @@ def simple_mat_opt():
 
         # Start optimization
         for iter in range(num_iters):
+            t0 = time()
+
             optimizer.zero_grad()
 
             images = render(scene, params)
@@ -67,7 +73,9 @@ def simple_mat_opt():
             loss = loss_func(target_images, images)
             loss.backward()
 
-            print(f'[iter {iter}/{num_iters}] loss: {loss.item()}')
+            t1 = time()
+
+            print(f'[iter {iter}/{num_iters}] loss: {loss.item()} time: {t1 - t0}')
 
             optimizer.step()
             

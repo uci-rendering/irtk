@@ -15,10 +15,10 @@ simple_render_options = {
     }, 
 
     'psdr_cuda': {
-        'spp': 1,
-        'sppe': 1,
-        'sppse': 1,
-        'npass': 4,
+        'spp': 4,
+        'sppe': 4,
+        'sppse': 4,
+        'npass': 1,
         'log_level': 0,
     }
 }

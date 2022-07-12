@@ -16,6 +16,7 @@ class Parameter:
         self.device = device
         self.is_float = is_float
         self.requires_grad = False
+        self.updated = False
         
         if torch.is_tensor(data):
             self.requires_grad = data.requires_grad
@@ -30,7 +31,11 @@ class Parameter:
                 self.data = self.data.to(self.dtype).to(self.device)
             else:
                 self.data = torch.tensor(self.data, dtype=self.dtype, device=self.device)
-            self.data.requires_grad = self.requires_grad
+
+            if self.data.requires_grad:
+                self.requires_grad = True
+            else:
+                self.data.requires_grad = self.requires_grad
                 
         elif self.backend == 'numpy':
             if torch.is_tensor(self.data):
@@ -40,6 +45,7 @@ class Parameter:
             
     def set(self, data):
         self.data = data
+        self.updated = True
 
     def tolist(self):
         if self.backend == 'torch' or self.backend == 'numpy':
@@ -69,6 +75,9 @@ class Scene:
         self.meshes = []
         self.bsdfs = []
         self.emitters = []
+
+        # Cached scenes
+        self.cached = {}
         
         # A map from all parameter names to their corresponding parameters.
         self.param_map = OrderedDict()
@@ -149,6 +158,17 @@ class Scene:
             'reflectance': self.add_fparam(id + '.reflectance', reflectance)
         }
         self.bsdfs.append(bsdf)
+
+    def add_microfacet_bsdf(self, diffuse_reflectance, specular_reflectance, roughness):
+        id = f'bsdfs[{len(self.bsdfs)}]'
+        bsdf = {
+            'id': id,
+            'type': 'microfacet',
+            'diffuse_reflectance': self.add_fparam(id + '.diffuse_reflectance', diffuse_reflectance),
+            'specular_reflectance': self.add_fparam(id + '.specular_reflectance', specular_reflectance),
+            'roughness': self.add_fparam(id + '.roughness', roughness),
+        }
+        self.bsdfs.append(bsdf)
         
     def add_null_bsdf(self):
         bsdf = {
@@ -177,6 +197,9 @@ class Scene:
     def get_requiring_grad(self):
         return [param_name for param_name in self.param_map if self.param_map[param_name].requires_grad]
 
+    def get_updated(self):
+        return [param_name for param_name in self.param_map if self.param_map[param_name].updated]
+
     def __repr__(self):
         s = '\n'.join([f'{param_name}: {self.param_map[param_name]}' for param_name in self.param_map])
 
@@ -185,3 +208,7 @@ class Scene:
     def validate(self):
         pass
     
+def split_param_name(param_name):
+    group, idx, prop = param_name.replace('[', '.').replace(']', '').split('.')
+    idx = int(idx)
+    return group, idx, prop

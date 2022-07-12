@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 from ivt.connector import Connector
 import psdr_cpu
 import numpy as np
@@ -23,8 +24,14 @@ class PSDREnzymeConnector(Connector):
         objects = {}
         
         integrator_config = scene.integrator
-        if integrator_config['type'] == 'direct':
-            objects['integrator'] = psdr_cpu.Direct()
+        integrator_dict = {
+            'direct': psdr_cpu.Direct,
+            'collocated': psdr_cpu.Collocated,
+        }
+        if integrator_config['type'] in integrator_dict:
+            objects['integrator'] = integrator_dict[integrator_config['type']]()
+        else:
+            raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
             
         objects['render_options'] = psdr_cpu.RenderOptions(
             scene.render_options['seed'],
