@@ -54,8 +54,7 @@ class MitsubaParser(SceneParser):
 
             if i == 0:
                 sampler_n = etree.SubElement(sensor_n, 'sampler', type='independent')
-                spp = scene.render_options['num_samples'] if 'num_samples' in scene.render_options else 1
-                sample_count_n = etree.SubElement(sampler_n, 'integer', name='sample_count', value=str(spp))
+                sample_count_n = etree.SubElement(sampler_n, 'integer', name='sample_count', value='1')
                 film = scene.film
                 film_n = etree.SubElement(sensor_n, 'film', type=film['type'])
                 width_n = etree.SubElement(film_n, 'integer', name='width', value=str(film['resolution'][0]))

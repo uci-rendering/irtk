@@ -34,10 +34,10 @@ def simple_mat_opt():
 
         # Get renderer
         render = Renderer(cn, device='cuda', dtype=torch.float32)
+        render.set_render_options(simple_render_options[cn])
 
         # Make a simple scene
         scene = simple_scene()
-        scene.add_render_options(simple_render_options[cn])
         target_scene = deepcopy(scene)
 
         # Target & init values

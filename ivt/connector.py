@@ -4,11 +4,11 @@ import stevedore.extension
 class Connector(ABC):
     
     @abstractmethod
-    def renderC(self, scene, sensor_ids=[0]):
+    def renderC(self, scene, render_options, sensor_ids=[0]):
         pass
     
     @abstractmethod
-    def renderD(self, image_grads, scene, sensor_ids=[0]):
+    def renderD(self, image_grads, scene, render_options, sensor_ids=[0]):
         pass
 
 class ConnectorManager:

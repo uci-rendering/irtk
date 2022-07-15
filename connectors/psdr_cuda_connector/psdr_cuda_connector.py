@@ -21,6 +21,9 @@ class PSDRCudaConnector(Connector):
     ftype = torch.float32
     itype = torch.long
 
+    def __init__(self):
+        super().__init__()
+
     def create_scene(self, scene):
         # Create a temporary scene directory with all the data
         tmp_path = Path("__psdr_cuda_tmp__")
@@ -41,16 +44,16 @@ class PSDRCudaConnector(Connector):
 
         return psdr_scene
 
-    def create_objects(self, scene):
+    def create_objects(self, scene, render_options):
         objects = {}
         
         psdr_scene = self.create_scene(scene)
         objects['scene'] = psdr_scene
 
-        psdr_scene.opts.spp = scene.render_options['spp']
-        psdr_scene.opts.sppe = scene.render_options['sppe']
-        psdr_scene.opts.sppse = scene.render_options['sppse']
-        psdr_scene.opts.log_level = scene.render_options['log_level']
+        psdr_scene.opts.spp = render_options['spp']
+        psdr_scene.opts.sppe = render_options['sppe']
+        psdr_scene.opts.sppse = render_options['sppse']
+        psdr_scene.opts.log_level = render_options['log_level']
 
         integrator_config = scene.integrator
         if integrator_config['type'] == 'direct':
@@ -60,10 +63,10 @@ class PSDRCudaConnector(Connector):
         else:
             raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
             
-        objects['scene'].opts.spp = scene.render_options['spp']
-        objects['scene'].opts.sppe = scene.render_options['sppe']
-        objects['scene'].opts.sppse = scene.render_options['sppse']
-        objects['scene'].opts.log_level = scene.render_options['log_level']
+        objects['scene'].opts.spp = render_options['spp']
+        objects['scene'].opts.sppe = render_options['sppe']
+        objects['scene'].opts.sppse = render_options['sppse']
+        objects['scene'].opts.log_level = render_options['log_level']
         
         film_config = scene.film
         width, height = film_config['resolution']
@@ -73,7 +76,7 @@ class PSDRCudaConnector(Connector):
 
         return objects
 
-    def get_objects(self, scene):
+    def get_objects(self, scene, render_options):
         def convert_color(color, c=3):
             if c is None:
                 return color.reshape(-1, )
@@ -133,18 +136,18 @@ class PSDRCudaConnector(Connector):
 
         # Create scene objects if there is no cache
         else:
-            objects = self.create_objects(scene)
+            objects = self.create_objects(scene, render_options)
             scene.cached['psdr_cuda'] = objects
             for param_name in scene.get_updated():
                 scene.param_map[param_name].updated = False
             return objects
 
-    def renderC(self, scene, sensor_ids=[0]):
+    def renderC(self, scene, render_options, sensor_ids=[0]):
         # Convert the scene into psdr_cuda objects
-        objects = self.get_objects(scene)
+        objects = self.get_objects(scene, render_options)
         objects['scene'].configure2(sensor_ids)
         w, h, c = objects['film']['shape']
-        npass = scene.render_options['npass']
+        npass = render_options['npass']
 
         # Render the images
         images = []
@@ -157,12 +160,12 @@ class PSDRCudaConnector(Connector):
 
         return images
     
-    def renderD(self, image_grads, scene, sensor_ids=[0]):
+    def renderD(self, image_grads, scene, render_options, sensor_ids=[0]):
         # Convert the scene into psdr_cuda objects
-        objects = self.get_objects(scene)
+        objects = self.get_objects(scene, render_options)
         objects['scene'].configure2(sensor_ids)
         psdr_param_map = objects['scene'].param_map
-        npass = scene.render_options['npass']
+        npass = render_options['npass']
 
         param_names = scene.get_requiring_grad()
         enoki_params = []

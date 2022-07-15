@@ -69,7 +69,6 @@ class Scene:
         
         # Scene data 
         self.integrator = None 
-        self.render_options = {} 
         self.film = None 
         self.sensors = []
         self.meshes = []
@@ -114,9 +113,6 @@ class Scene:
             'type': integrator_type,
             'params': integrator_params
         }
-
-    def add_render_options(self, options):
-        self.render_options = options
 
     def add_hdr_film(self, resolution, rfilter='tent', crop=(0, 0, 1, 1)):
         self.film = {
