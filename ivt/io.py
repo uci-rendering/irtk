@@ -68,10 +68,14 @@ def read_png(png_path):
 def write_png(png_path, image):
     image = to_srgb(to_numpy(image))
     image = (image * 255).astype(np.uint8)
+    if image.shape[2] == 1:
+        image = np.repeat(image, 3, axis=2)
     iio.imwrite(png_path, image, extension='.png')
 
 def read_exr(exr_path):
     image = iio.imread(exr_path, extension='.exr')
+    if len(image.shape) == 2:
+        image = np.expand_dims(image, axis=2)
     return image
 
 def write_exr(exr_path, image):
