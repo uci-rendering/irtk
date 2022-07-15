@@ -59,11 +59,9 @@ def renderD():
         
         # Modify the parameters and set requires_grad 
         scene.param_map['bsdfs[0].reflectance'].set((0.5, 0.6, 0.7))
-        scene.param_map['bsdfs[0].reflectance'].requires_grad = True
-        scene.param_map['bsdfs[0].reflectance'].configure()
+        scene.param_map['bsdfs[0].reflectance'].set_requires_grad()
         scene.param_map['meshes[0].vertex_positions'].data += 1e-4
-        scene.param_map['meshes[0].vertex_positions'].requires_grad = True
-        scene.param_map['meshes[0].vertex_positions'].configure()
+        scene.param_map['meshes[0].vertex_positions'].set_requires_grad()
 
         # Get parameters that requires gradient
         param_names = scene.get_requiring_grad()

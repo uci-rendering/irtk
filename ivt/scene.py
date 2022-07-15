@@ -18,11 +18,8 @@ class Parameter:
         self.requires_grad = False
         self.updated = False
         
-        if torch.is_tensor(data):
-            self.requires_grad = data.requires_grad
-        
-        self.configure()
-            
+        self.set(data)
+
     def configure(self):
         assert self.backend in ['torch', 'numpy']
         
@@ -46,6 +43,12 @@ class Parameter:
     def set(self, data):
         self.data = data
         self.updated = True
+        self.configure()
+
+    def set_requires_grad(self, b=True):
+        self.requires_grad = b
+        if self.backend == 'torch':
+            self.data.requires_grad = b
 
     def tolist(self):
         if self.backend == 'torch' or self.backend == 'numpy':
@@ -100,7 +103,6 @@ class Scene:
             
     def add_iparam(self, param_name, array):
         param = Parameter(array, self.backend, self.itype, self.device, is_float=False)
-        self.param_map[param_name] = param 
         return param
     
     def add_fparam(self, param_name, array):

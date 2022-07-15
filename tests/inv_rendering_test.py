@@ -47,14 +47,12 @@ def simple_mat_opt():
         # Render target images
         target_reflectance = target_scene.bsdfs[0]['reflectance']
         target_reflectance.set(target_v)
-        target_reflectance.configure()
         target_images = render(target_scene)
 
         # Set the intial parameters
         reflectance = scene.bsdfs[0]['reflectance']
         reflectance.set(init_v)
-        reflectance.requires_grad = True
-        reflectance.configure()
+        reflectance.set_requires_grad()
 
         # Prepare for optimization
         param_names = scene.get_requiring_grad()
@@ -72,7 +70,7 @@ def simple_mat_opt():
 
             loss = loss_func(target_images, images)
             loss.backward()
-
+            
             t1 = time()
 
             print(f'[iter {iter}/{num_iters}] loss: {loss.item()} time: {t1 - t0}')
@@ -80,8 +78,7 @@ def simple_mat_opt():
             optimizer.step()
             
             for i in range(num_params):
-                scene.param_map[param_names[i]].set(params[i])
-                scene.param_map[param_names[i]].configure()
+                scene.param_map[param_names[i]].updated = True
 
         print()
         print('Target: ')
