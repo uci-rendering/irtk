@@ -36,11 +36,11 @@ class PSDRCudaConnector(Connector):
         old_path = os.getcwd()
         os.chdir(tmp_path)
         psdr_scene = psdr_cuda.Scene()
-        psdr_scene.load_file(str('scene.xml'), False)
+        psdr_scene.load_file('scene.xml', False)
         os.chdir(old_path)
         
         # Clean up
-        rmtree(tmp_path)
+        # rmtree(tmp_path)
 
         return psdr_scene
 
@@ -58,6 +58,7 @@ class PSDRCudaConnector(Connector):
         integrator_config = scene.integrator
         if integrator_config['type'] == 'direct':
             objects['integrator'] = psdr_cuda.DirectIntegrator()
+            objects['integrator'].hide_emitters = True
         elif integrator_config['type'] == 'collocated':
             objects['integrator'] = psdr_cuda.CollocatedIntegrator(integrator_config['params']['intensity'])
         else:

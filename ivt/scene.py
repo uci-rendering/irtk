@@ -103,6 +103,7 @@ class Scene:
             
     def add_iparam(self, param_name, array):
         param = Parameter(array, self.backend, self.itype, self.device, is_float=False)
+        self.param_map[param_name] = param 
         return param
     
     def add_fparam(self, param_name, array):
@@ -181,6 +182,15 @@ class Scene:
             'type': 'area',
             'mesh_id': mesh_id,
             'radiance': self.add_fparam(id + '.radiance', radiance)
+        }
+        self.emitters.append(emitter)
+
+    def add_env_light(self, env_map):
+        id = f'emitters[{len(self.emitters)}]'
+        emitter = {
+            'id': id,
+            'type': 'env',
+            'env_map': self.add_fparam(id + '.env_map', env_map)
         }
         self.emitters.append(emitter)
         
