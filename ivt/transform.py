@@ -35,8 +35,10 @@ def rotate(axis, angle, use_degree=True):
 
     to_world = torch.eye(4).to(device).to(dtype)
     axis = normalize(axis).reshape(3, 1)
+    if not torch.is_tensor(angle):
+        angle = torch.tensor(angle).to(device).to(dtype)
     if use_degree:
-        angle = torch.deg2rad(torch.tensor(angle))
+        angle = torch.deg2rad(angle)
 
     sin_theta = torch.sin(angle)
     cos_theta = torch.cos(angle)
