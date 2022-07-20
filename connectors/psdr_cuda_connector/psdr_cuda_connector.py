@@ -40,7 +40,7 @@ class PSDRCudaConnector(Connector):
         os.chdir(old_path)
         
         # Clean up
-        # rmtree(tmp_path)
+        rmtree(tmp_path)
 
         return psdr_scene
 
