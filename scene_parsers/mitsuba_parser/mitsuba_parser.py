@@ -104,6 +104,8 @@ class MitsubaParser(SceneParser):
 
             etree.SubElement(shape_n, 'ref', id=f"bsdfs[{mesh['bsdf_id']}]")
 
+            transform_n = etree.SubElement(shape_n, 'transform', name='to_world')
+            etree.SubElement(transform_n, 'matrix', value=list_to_csl(mesh['to_world'].data.flatten()))
         
 
         with open(scene_path, 'wb') as f:
