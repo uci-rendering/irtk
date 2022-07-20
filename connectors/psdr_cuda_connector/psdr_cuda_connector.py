@@ -2,7 +2,7 @@ from multiprocessing.sharedctypes import Value
 from ivt.connector import Connector
 from ivt.scene_parser import SceneParserManager
 from ivt.scene import split_param_name
-from ivt.utils import lookat
+from ivt.transform import lookat
 
 import psdr_cuda
 import enoki
@@ -58,7 +58,8 @@ class PSDRCudaConnector(Connector):
         integrator_config = scene.integrator
         if integrator_config['type'] == 'direct':
             objects['integrator'] = psdr_cuda.DirectIntegrator()
-            objects['integrator'].hide_emitters = True
+            if 'hide_envmap' in integrator_config['params']:
+                objects['integrator'].hide_emitters = integrator_config['params']['hide_envmap']
         elif integrator_config['type'] == 'collocated':
             objects['integrator'] = psdr_cuda.CollocatedIntegrator(integrator_config['params']['intensity'])
         else:
