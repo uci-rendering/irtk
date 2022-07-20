@@ -98,9 +98,14 @@ class PSDRCudaConnector(Connector):
                 group, idx, prop = split_param_name(param_name)
 
                 if group == 'meshes':
+                    enoki_mesh = psdr_param_map[f'Mesh[{idx}]']
+
                     if prop == 'vertex_positions':
                         enoki_param = Vector3fD(param.data)
-                        psdr_param_map[f'Mesh[{idx}]'].vertex_positions = enoki_param
+                        enoki_mesh.vertex_positions = enoki_param
+                    elif prop == 'to_world':
+                        enoki_param = Matrix4fD(param.data.reshape(1, 4, 4))
+                        enoki_mesh.set_transform(enoki_param)
 
                 elif group == 'bsdfs': 
                     bsdf_type = scene.bsdfs[idx]['type']
@@ -175,8 +180,13 @@ class PSDRCudaConnector(Connector):
             param = scene.param_map[param_name]
             group, idx, prop = split_param_name(param_name)
             if group == 'meshes':
+                enoki_mesh = psdr_param_map[f'Mesh[{idx}]']
                 if prop == 'vertex_positions':
-                    enoki_param = psdr_param_map[f'Mesh[{idx}]'].vertex_positions
+                    enoki_param = enoki_mesh.vertex_positions
+                    enoki.set_requires_gradient(enoki_param, True)
+                    enoki_params.append(enoki_param)
+                elif prop == 'to_world':
+                    enoki_param = enoki_mesh.to_world
                     enoki.set_requires_gradient(enoki_param, True)
                     enoki_params.append(enoki_param)
 

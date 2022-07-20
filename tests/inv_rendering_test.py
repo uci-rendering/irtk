@@ -1,8 +1,10 @@
+from audioop import add
 from copy import deepcopy
 from ivt.io import write_png
 from ivt.renderer import Renderer
 from ivt.connector import ConnectorManager
 from ivt.loss import l1_loss
+from ivt.transform import *
 from common import *
 from time import time
 
@@ -18,15 +20,16 @@ def add_test(func):
         print(f'\nTest ({func.__name__}) ends.\n')
     tests.append(wrapper)
     
-@add_test # comment this to skip the test
-def simple_mat_opt():
+# @add_test # comment this to skip the test
+def mat_opt():
+    # Optimize the diffuse component of a bunny
+
     # Config
     loss_func = l1_loss
     num_iters = 100
     lr = 1e-2
 
     cm = ConnectorManager()
-    scene = simple_scene()
 
     # Test every connector available
     for cn in cm.get_availability_list():
@@ -85,6 +88,65 @@ def simple_mat_opt():
         print(target_v)
         print('Optimized: ')
         print(reflectance.data)
+
+@add_test
+def position_opt():
+    # Optimize the x offset of a bunny
+
+    # Config
+    loss_func = l1_loss
+    num_iters = 500
+    lr = 5e-3
+
+    cm = ConnectorManager()
+
+    # Test every connector available
+    for cn in cm.get_availability_list():
+        print(f'Optimizing with connector [{cn}]...')
+
+        # Get renderer
+        render = Renderer(cn, device='cuda', dtype=torch.float32)
+        render.set_render_options(simple_render_options[cn])
+
+        # Make a simple scene
+        opt_scene = simple_scene()
+        target_scene = deepcopy(opt_scene)
+
+        #  Init values
+        opt_x = torch.tensor(2, device='cuda', dtype=torch.float32).requires_grad_()
+        x_axis = torch.tensor([1, 0, 0], device='cuda', dtype=torch.float32)
+        
+        # Get variable to change
+        opt_to_world = opt_scene.param_map['meshes[0].to_world']
+
+        # Render target images
+        target_images = render(target_scene)
+
+        # Prepare for optimization
+        optimizer = torch.optim.Adam([opt_x], lr=lr)
+
+        # Start optimization
+        for iter in range(num_iters):
+            t0 = time()
+
+            optimizer.zero_grad()
+
+            opt_to_world.set(translate(opt_x * x_axis))
+            images = render(opt_scene, [opt_to_world.data])
+            
+            loss = loss_func(target_images, images)
+            loss.backward()
+            t1 = time()
+
+            print(f'[iter {iter}/{num_iters}] loss: {loss.item()} time: {t1 - t0} x: {opt_x.item()}')
+
+            optimizer.step()
+
+        print()
+        print('Target: ')
+        print(0)
+        print('Optimized: ')
+        print(opt_x.item())
 
 if __name__ == '__main__':
     for test in tests:
