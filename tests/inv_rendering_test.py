@@ -95,8 +95,8 @@ def position_opt():
 
     # Config
     loss_func = l1_loss
-    num_iters = 500
-    lr = 5e-3
+    num_iters = 100
+    lr = 0.05
 
     cm = ConnectorManager()
 
