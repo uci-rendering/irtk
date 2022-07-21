@@ -106,6 +106,8 @@ class MitsubaParser(SceneParser):
 
             transform_n = etree.SubElement(shape_n, 'transform', name='to_world')
             etree.SubElement(transform_n, 'matrix', value=list_to_csl(mesh['to_world'].data.flatten()))
+
+            etree.SubElement(shape_n, 'boolean', name='face_normals', value=mesh['use_face_normal'])
         
 
         with open(scene_path, 'wb') as f:
