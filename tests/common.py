@@ -79,10 +79,6 @@ def kai_scene(backend='torch', device='cuda'):
     to_world4 = torch.mm(to_world4, temp)
     scene.add_mesh(v, f, 0, to_world=to_world4)
 
-    v1, tc1, n1, f1, ftc1, fn1 = read_obj(meshes_path / 'plane.obj')
-
-    
-
     v3,_,_,f3,_,_ = read_obj(meshes_path / 'table.obj')
     scene.add_mesh(v3, f3, 0)
 
@@ -90,6 +86,8 @@ def kai_scene(backend='torch', device='cuda'):
     to_world7 = translate(torch.tensor([0, 7, 0], device='cuda', dtype=torch.float32))
     scene.add_mesh(v4, f4, 0, to_world=to_world7)
 
+
+    v1, tc1, n1, f1, ftc1, fn1 = read_obj(meshes_path / 'plane.obj')
     to_world5 = translate(torch.tensor([0, -0.01, 0], device='cuda', dtype=torch.float32))
     temp = scale(torch.tensor([5,1,5], device='cuda', dtype=torch.float32))
     to_world5 = torch.mm(to_world5, temp)
