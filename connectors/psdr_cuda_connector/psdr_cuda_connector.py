@@ -105,7 +105,7 @@ class PSDRCudaConnector(Connector):
                         enoki_mesh.vertex_positions = enoki_param
                     elif prop == 'to_world':
                         enoki_param = Matrix4fD(param.data.reshape(1, 4, 4))
-                        enoki_mesh.set_transform(enoki_param)
+                        enoki_mesh.to_world = enoki_param
 
                 elif group == 'bsdfs': 
                     bsdf_type = scene.bsdfs[idx]['type']
