@@ -64,6 +64,6 @@ def scale(size):
     dtype = size.dtype 
 
     to_world = torch.eye(4).to(device).to(dtype)
-    to_world[:3, :3] = torch.diag(size).to(device).to(dtype)
+    to_world[:3, :3] = torch.diag(size).to(device).to(dtype) * torch.eye(3).to(device).to(dtype)
 
     return to_world

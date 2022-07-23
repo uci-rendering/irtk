@@ -64,6 +64,10 @@ def position_opt():
     trans_vec4 = torch.tensor([2, 0, 0], device='cuda', dtype=torch.float32).requires_grad_()
     trans_vec5 = torch.tensor([2, 1, 0], device='cuda', dtype=torch.float32).requires_grad_()
 
+    scale_val1 = torch.tensor([1.5], device='cuda', dtype=torch.float32).requires_grad_()
+
+    scale_val2 = torch.tensor([0.8], device='cuda', dtype=torch.float32).requires_grad_()
+
     # Get variable to change
     init_mat0 = opt_scene.param_map['meshes[0].to_world'].data.clone()
     opt_to_world0 = opt_scene.param_map['meshes[0].to_world']
@@ -84,6 +88,8 @@ def position_opt():
     # Prepare for optimization
 
     params_opt = [
+        {'params': scale_val1, 'lr':  0.02},
+        {'params': scale_val2, 'lr':  0.02},
         {'params': trans_vec0, 'lr':  0.05},
         {'params': trans_vec1, 'lr':  0.05},
         {'params': trans_vec2, 'lr':  0.05},
@@ -104,41 +110,50 @@ def position_opt():
         t0 = time()
 
         optimizer.zero_grad()
-        
+        scale_mat0 = scale(scale_val1)
+        scale_mat1 = scale(scale_val2)
+
         mat_trans0 = translate(trans_vec0)
         mat_rot0 = rotate(rot_axis, rot_angle0)
         mat_temp0 = torch.mm(mat_trans0, mat_rot0)
         mat0 = torch.mm(init_mat0, mat_temp0)
+        scale_mat0 = scale(scale_val1)
+        mat0 = torch.mm(mat0, scale_mat0)
         opt_to_world0.set(mat0)
 
         mat_trans1 = translate(trans_vec1)
         mat_rot1 = rotate(rot_axis, rot_angle1)
         mat_temp1 = torch.mm(mat_trans1, mat_rot1)
         mat1 = torch.mm(init_mat1, mat_temp1)
+        mat1 = torch.mm(mat1, scale_mat0)
         opt_to_world1.set(mat1)
 
         mat_trans2 = translate(trans_vec2)
         mat_rot2 = rotate(rot_axis, rot_angle2)
         mat_temp2 = torch.mm(mat_trans1, mat_rot2)
         mat2 = torch.mm(init_mat2, mat_temp2)
+        mat2 = torch.mm(mat2, scale_mat0)
         opt_to_world2.set(mat2)
 
         mat_trans3 = translate(trans_vec3)
         mat_rot3 = rotate(rot_axis, rot_angle3)
         mat_temp3 = torch.mm(mat_trans3, mat_rot3)
         mat3 = torch.mm(init_mat3, mat_temp3)
+        mat3 = torch.mm(mat3, scale_mat0)
         opt_to_world3.set(mat3)
 
         mat_trans4 = translate(trans_vec4)
         mat_rot4 = rotate(rot_axis, rot_angle4)
         mat_temp4 = torch.mm(mat_trans4, mat_rot4)
         mat4 = torch.mm(init_mat4, mat_temp4)
+        mat4 = torch.mm(mat4, scale_mat1)
         opt_to_world4.set(mat4)
 
         mat_trans5 = translate(trans_vec5)
         mat_rot5 = rotate(rot_axis, rot_angle5)
         mat_temp5 = torch.mm(mat_trans5, mat_rot5)
         mat5 = torch.mm(init_mat5, mat_temp5)
+        mat5 = torch.mm(mat5, scale_mat1)
         opt_to_world5.set(mat5)
 
         images = render(opt_scene, [opt_to_world0.data, opt_to_world1.data, opt_to_world2.data, opt_to_world3.data, opt_to_world4.data, opt_to_world5.data])
