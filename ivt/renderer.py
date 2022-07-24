@@ -18,14 +18,15 @@ class RenderFunction(torch.autograd.Function):
         ctx.render_options = render_options
         ctx.params = params
         ctx.sensor_ids = sensor_ids
+        ctx.integrator_id = integrator_id
 
         return images
 
     @staticmethod
     def backward(ctx, grad_out):
         image_grads = [image_grad for image_grad in grad_out]
-        param_grads = ctx.connector.renderD(image_grads, ctx.scene, ctx.render_options, ctx.sensor_ids)
-        return tuple([None] * 6 + param_grads)
+        param_grads = ctx.connector.renderD(image_grads, ctx.scene, ctx.render_options, ctx.sensor_ids, ctx.integrator_id)
+        return tuple([None] * 7 + param_grads)
 
 class Renderer(torch.nn.Module):
 
@@ -39,7 +40,6 @@ class Renderer(torch.nn.Module):
 
     def forward(self, scene, params=[], sensor_ids=[0], integrator_id=0):
         assert self.render_options is not None, "Please set render options first."
-        print(integrator_id)
         images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, self.device, self.dtype, *params)
         return images
 

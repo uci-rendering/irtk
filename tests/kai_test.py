@@ -83,7 +83,7 @@ def position_opt():
     opt_to_world5 = opt_scene.param_map['meshes[5].to_world']
 
     # Render target images
-    target_images = render(target_scene, sensor_ids=[0,1], integrator_id=0)
+    target_images = render(target_scene, sensor_ids=[0,1], integrator_id=1)
 
     write_exr(output_path / 'target1.exr', target_images[0])
     write_exr(output_path / 'target2.exr', target_images[1])
@@ -159,9 +159,10 @@ def position_opt():
         mat5 = torch.mm(mat5, scale_mat1)
         opt_to_world5.set(mat5)
 
-        images = render(opt_scene, [opt_to_world0.data, opt_to_world1.data, opt_to_world2.data, opt_to_world3.data, opt_to_world4.data, opt_to_world5.data])
+        images = render(opt_scene, [opt_to_world0.data, opt_to_world1.data, opt_to_world2.data, opt_to_world3.data, opt_to_world4.data, opt_to_world5.data], sensor_ids=[0,1], integrator_id=1)
 
-        write_exr(output_path / f"{it}.exr", images)
+        write_exr(output_path / f"{it}_sensor0.exr", images[0])
+        write_exr(output_path / f"{it}_sensor1.exr", images[1])
         
         loss = loss_func(target_images, images)
         loss.backward()
