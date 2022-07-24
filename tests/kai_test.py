@@ -1,6 +1,6 @@
 from audioop import add
 from copy import deepcopy
-from ivt.io import write_png
+from ivt.io import write_png, write_exr
 from ivt.renderer import Renderer
 from ivt.connector import ConnectorManager
 from ivt.loss import l1_loss
@@ -35,9 +35,9 @@ def position_opt():
     # Get renderer
     render = Renderer('psdr_cuda', device='cuda', dtype=torch.float32)
     render.set_render_options({
-        'spp': 16,
+        'spp': 8,
         'sppe': 8,
-        'sppse': 4,
+        'sppse': 0,
         'npass': 1,
         'log_level': 0,
     })
@@ -62,7 +62,7 @@ def position_opt():
     trans_vec2 = torch.tensor([3, 0, 0], device='cuda', dtype=torch.float32).requires_grad_()
     trans_vec3 = torch.tensor([-3, 0, 0], device='cuda', dtype=torch.float32).requires_grad_()
     trans_vec4 = torch.tensor([2, 0, 0], device='cuda', dtype=torch.float32).requires_grad_()
-    trans_vec5 = torch.tensor([2, 1, 0], device='cuda', dtype=torch.float32).requires_grad_()
+    trans_vec5 = torch.tensor([0, 1, 0], device='cuda', dtype=torch.float32).requires_grad_()
 
     scale_val1 = torch.tensor([1.5], device='cuda', dtype=torch.float32).requires_grad_()
 
@@ -83,8 +83,11 @@ def position_opt():
     opt_to_world5 = opt_scene.param_map['meshes[5].to_world']
 
     # Render target images
-    target_images = render(target_scene)
-    write_png(output_path / 'target.png', target_images)
+    target_images = render(target_scene, sensor_ids=[0,1], integrator_id=0)
+
+    write_exr(output_path / 'target1.exr', target_images[0])
+    write_exr(output_path / 'target2.exr', target_images[1])
+
     # Prepare for optimization
 
     params_opt = [
@@ -158,7 +161,7 @@ def position_opt():
 
         images = render(opt_scene, [opt_to_world0.data, opt_to_world1.data, opt_to_world2.data, opt_to_world3.data, opt_to_world4.data, opt_to_world5.data])
 
-        write_png(output_path / f"{it}.png", images)
+        write_exr(output_path / f"{it}.exr", images)
         
         loss = loss_func(target_images, images)
         loss.backward()

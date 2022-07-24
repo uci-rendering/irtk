@@ -38,7 +38,8 @@ class MitsubaParser(SceneParser):
 
         scene_n = etree.Element("scene", version='2.0.0')
 
-        etree.SubElement(scene_n, "integrator", type=scene.integrator['type'])
+        for i, integrator in enumerate(scene.integrators):
+            etree.SubElement(scene_n, "integrator", type=integrator['type'])
 
         for i, sensor in enumerate(scene.sensors): 
             sensor_n = etree.SubElement(scene_n, 'sensor', type=sensor['type'])

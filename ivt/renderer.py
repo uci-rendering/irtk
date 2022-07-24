@@ -6,8 +6,8 @@ from copy import deepcopy
 class RenderFunction(torch.autograd.Function):
 
     @staticmethod
-    def forward(ctx, connector, scene, render_options, sensor_ids, device, dtype, *params):
-        images = connector.renderC(scene, render_options, sensor_ids=sensor_ids)
+    def forward(ctx, connector, scene, render_options, sensor_ids, integrator_id, device, dtype, *params):
+        images = connector.renderC(scene, render_options, sensor_ids=sensor_ids, integrator_id=integrator_id)
         if isinstance(images[0], np.ndarray):
             images = [torch.from_numpy(image) for image in images]
         images = [image.to(device).to(dtype) for image in images]
@@ -37,10 +37,10 @@ class Renderer(torch.nn.Module):
         self.dtype = dtype
         self.render_options = None
 
-    def forward(self, scene, params=[], sensor_ids=[0]):
+    def forward(self, scene, params=[], sensor_ids=[0], integrator_id=0):
         assert self.render_options is not None, "Please set render options first."
-
-        images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, self.device, self.dtype, *params)
+        print(integrator_id)
+        images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, self.device, self.dtype, *params)
         return images
 
     def set_render_options(self, render_options):

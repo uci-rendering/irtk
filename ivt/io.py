@@ -1,8 +1,12 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
 import igl
 import imageio.v3 as iio
 import imageio
 import numpy as np
 import torch
+from skimage.transform import resize
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
@@ -73,7 +77,7 @@ def write_png(png_path, image):
     iio.imwrite(png_path, image, extension='.png')
 
 def read_exr(exr_path):
-    image = iio.imread(exr_path)
+    image = iio.imread(exr_path, extension='.exr')
     if len(image.shape) == 2:
         image = np.expand_dims(image, axis=2)
     return image
@@ -87,4 +91,9 @@ def write_exr(exr_path, image):
     except OSError:
         imageio.plugins.freeimage.download()
         iio.imwrite(exr_path, image, extension='.exr')
-    
+
+def read_texture(tex_path, res):
+    image = iio.imread(tex_path)
+    if len(image.shape) == 2:
+        image = np.expand_dims(image, axis=2)
+    return resize(image, (res, res))

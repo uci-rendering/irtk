@@ -71,7 +71,7 @@ class Scene:
         assert backend in ['torch', 'numpy']
         
         # Scene data 
-        self.integrator = None 
+        self.integrators = [] 
         self.film = None 
         self.sensors = []
         self.meshes = []
@@ -112,10 +112,11 @@ class Scene:
         return param
         
     def add_integrator(self, integrator_type, integrator_params={}):
-        self.integrator = {
+        integrator = {
             'type': integrator_type,
             'params': integrator_params
         }
+        self.integrators.append(integrator)
 
     def add_hdr_film(self, resolution, rfilter='tent', crop=(0, 0, 1, 1)):
         self.film = {

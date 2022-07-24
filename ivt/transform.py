@@ -64,6 +64,13 @@ def scale(size):
     dtype = size.dtype 
 
     to_world = torch.eye(4).to(device).to(dtype)
-    to_world[:3, :3] = torch.diag(size).to(device).to(dtype) * torch.eye(3).to(device).to(dtype)
+
+    if size.size(dim=0) == 1:
+        to_world[:3, :3] = torch.diag(size).to(device).to(dtype) * torch.eye(3).to(device).to(dtype)
+    elif size.size(dim=0) == 3:
+        to_world[:3, :3] = torch.diag(size).to(device).to(dtype)
+    else:
+        print("error transform.py for scale")
+        exit()
 
     return to_world
