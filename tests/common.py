@@ -1,6 +1,7 @@
 from ivt.scene import Scene
-from ivt.io import read_obj
+from ivt.io import read_obj, read_exr
 from ivt.transform import *
+import imageio.v3 as iio
 
 from pathlib import Path
 import numpy as np
@@ -94,5 +95,7 @@ def kai_scene(backend='torch', device='cuda'):
     scene.add_mesh(v1, f1, 1, to_world=to_world5, use_face_normal=True)
 
     scene.add_diffuse_bsdf((0.9, 0.5, 0.5))
-    scene.add_diffuse_bsdf((0.5, 0.5, 0.5))
+    # scene.add_diffuse_bsdf((0.5, 0.9, 0.5))
+    scene.add_diffuse_bsdf(read_exr("./tests/texture/diffuse.exr"))
+
     return scene

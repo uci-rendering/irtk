@@ -73,7 +73,7 @@ def write_png(png_path, image):
     iio.imwrite(png_path, image, extension='.png')
 
 def read_exr(exr_path):
-    image = iio.imread(exr_path, extension='.exr')
+    image = iio.imread(exr_path)
     if len(image.shape) == 2:
         image = np.expand_dims(image, axis=2)
     return image
