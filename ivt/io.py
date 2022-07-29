@@ -49,14 +49,23 @@ def write_obj(obj_path, v, f, tc=None, ftc=None):
 
     obj_file.close()
 
-def srgb_encoding(v):
-	if (v <= 0.0031308):
-		return (v * 12.92)
-	else:
-		return (1.055*(v**(1.0/2.4))-0.055)
+def linear_to_srgb(l):
+    if l <= 0.00313066844250063:
+        return l * 12.92
+    else:
+        return 1.055*(l**(1.0/2.4))-0.055
+
+def srgb_to_linear(s):
+    if s <= 0.0404482362771082:
+        return s / 12.92
+    else:
+        return ((s+0.055)/1.055) ** 2.4
 
 def to_srgb(image):
-    return np.clip(np.vectorize(srgb_encoding)(to_numpy(image)), 0, 1)
+    return np.clip(np.vectorize(linear_to_srgb)(to_numpy(image)), 0, 1)
+
+def to_linear(image):
+    return np.vectorize(srgb_to_linear)(to_numpy(image))
 
 def to_numpy(data):
     if torch.is_tensor(data):
