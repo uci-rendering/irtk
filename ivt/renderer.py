@@ -40,6 +40,8 @@ class Renderer(torch.nn.Module):
 
     def forward(self, scene, params=[], sensor_ids=[0], integrator_id=0):
         assert self.render_options is not None, "Please set render options first."
+        if torch.is_tensor(sensor_ids):
+            sensor_ids = sensor_ids.flatten().tolist()
         images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, self.device, self.dtype, *params)
         return images
 
