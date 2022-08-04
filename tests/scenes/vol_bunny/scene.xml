@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='utf-8'?>
+
+<scene version="0.5.0">
+	<integrator type="ptracer">
+		<integer name="maxDepth" value="10" />
+	</integrator>
+
+	<sensor type="perspective">
+		<float name="focusDistance" value="2344.45" />
+		<float name="fov" value="13.3071" />
+		<string name="fovAxis" value="x" />
+		<transform name="toWorld">
+
+			<lookat target="201.868, 315.266, 383.194" origin="202.242, 315.857, 383.908" up="-0.260633, 0.806177, -0.531178" />
+		</transform>
+
+		<sampler type="independent">
+			<integer name="sampleCount" value="512" />
+		</sampler>
+
+		<film type="hdrfilm">
+			<boolean name="banner" value="false" />
+			<integer name="height" value="256" />
+			<integer name="width" value="256" />
+			<rfilter type="tent" />
+		</film>
+	</sensor>
+
+	<medium type="homogeneous" id="tank">
+		<spectrum name="sigmaT" value="0.7" />
+		<spectrum name="albedo" value="0.5, 0.7, 1.0" />
+	</medium>
+
+	<bsdf type="null" id="null" />
+
+	<bsdf type="roughdielectric" id="Glass">
+		<float name="intIOR" value="1.5" />
+		<float name="extIOR" value="1.0" />
+		<float name="alpha" value="0.3" />
+	</bsdf>
+
+	<bsdf type="diffuse" id="light">
+		<spectrum name="reflectance" value="0.0, 0.0, 0.0" />
+	</bsdf>
+
+	<bsdf type="diffuse" id="floor">
+		<spectrum name="reflectance" value="0.07, 0.07, 0.07" />
+	</bsdf>
+
+	<bsdf type="diffuse" id="red">
+		<spectrum name="reflectance" value="0.7, 0., 0." />
+	</bsdf>
+
+	<bsdf type="diffuse" id="blue">
+		<spectrum name="reflectance" value="0., 0., 0.7" />
+	</bsdf>
+
+
+	<shape type="obj">
+		<string name="filename" value="meshes/bunny.obj" />
+		<boolean name="faceNormals" value="true" />
+
+		<ref name="interior" id="tank" />
+
+		<ref id="null" />
+	</shape>
+
+	<shape type="obj">
+		<ref id="floor" />
+		<string name="filename" value="meshes/emitter.obj" />
+
+		<emitter type="area">
+			<rgb name="radiance" value="100., 100., 100." />
+		</emitter>
+		<transform name="toWorld">
+			<scale x="1" z="1" />
+		</transform>
+	</shape>
+</scene>
