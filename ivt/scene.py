@@ -75,6 +75,8 @@ class Scene:
         self.meshes = []
         self.bsdfs = []
         self.emitters = []
+        self.phases= []
+        self.mediums = []
 
         # Cached scenes
         self.cached = {}
@@ -137,7 +139,8 @@ class Scene:
         }
         self.sensors.append(sensor)
 
-    def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, uv_positions=[], uv_indices=[], to_world=torch.eye(4)):
+    def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, med_int_id = None, med_ext_id = None,
+                 uv_positions=[], uv_indices=[], to_world=torch.eye(4)):
         id = f'meshes[{len(self.meshes)}]'
         mesh = {
             'id': id,
@@ -148,6 +151,11 @@ class Scene:
             'to_world': self.add_fparam(id + '.to_world', to_world),
             'bsdf_id': bsdf_id,
         }
+        if med_int_id is not None:
+            mesh.update({'med_int_id' : med_int_id})
+        if med_ext_id is not None:
+            mesh.update({'med_ext_id' : med_ext_id})
+
         self.meshes.append(mesh)
 
     def add_diffuse_bsdf(self, reflectance):
@@ -185,7 +193,28 @@ class Scene:
             'radiance': self.add_fparam(id + '.radiance', radiance)
         }
         self.emitters.append(emitter)
-        
+    
+    def add_isotropic_phase(self):
+        i = len(self.phases)
+        id = f'phases[{i}]'
+        phase = {
+            'id': id,
+            'type': 'isotropic'
+        }
+        self.phases.append(phase)
+        return i
+
+    def add_homogeneous_medium(self, sigmaT, albedo, phase_id=None):
+        id = f'mediums[{len(self.mediums)}]'
+        medium = {
+            'id': id,
+            'type': 'homogeneous',
+            'sigmaT': self.add_fparam(id + '.sigmaT', sigmaT),
+            'albedo': self.add_fparam(id + '.albedo', albedo),
+            'phase_id': phase_id if phase_id is not None else self.add_isotropic_phase()
+        }
+        self.mediums.append(medium)
+
     def configure(self):
         for param_name in self.param_map:
             param = self.param_map[param_name]

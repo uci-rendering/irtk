@@ -39,7 +39,35 @@ def renderC():
         output_connector_path.mkdir(parents=True, exist_ok=True)
         for i, image in enumerate(images):
             write_png(output_connector_path / f'{i}.png', image)
+
+
+@add_test # comment this to skip the test
+def renderC_vol():
+    output_path = Path('tmp_output', 'connector_test', 'renderC_vol')
+
+    cm = ConnectorManager()
+    # scene = simple_scene()
+    scene = vol_bunny_scene()
     
+    # Test every connector available
+    for cn in cm.get_availability_list():
+        print(f'Rendering with connector [{cn}]...')
+        render = Renderer(cn, device='cuda', dtype=torch.float32)
+        # scene.add_render_options(simple_render_options[cn])
+        scene.add_render_options(bunny_render_options[cn])
+
+        # Render the images without gradient 
+        with torch.no_grad():
+            images = render(scene)
+
+        # Write the images
+        output_connector_path = output_path / cn
+        output_connector_path.mkdir(parents=True, exist_ok=True)
+        for i, image in enumerate(images):
+            write_png(output_connector_path / f'{i}.png', image)
+    return
+    
+
 @add_test
 def renderD():
     output_path = Path('tmp_output', 'connector_test', 'renderD')

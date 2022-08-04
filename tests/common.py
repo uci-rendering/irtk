@@ -50,3 +50,42 @@ def simple_scene(backend='torch', device='cuda'):
     scene.add_area_light(mesh_id=2, radiance=(100, 70, 50))
     
     return scene
+
+bunny_render_options = {
+    'psdr_enzyme': {
+        'seed': 42,
+        'num_samples': 10,
+        'max_bounces': 10,
+        'num_samples_primary_edge': 0,
+        'num_samples_secondary_edge': 0,
+        'quiet': False
+    },
+}
+def vol_bunny_scene(backend='torch', device='cpu'):
+    meshes_path = Path('tests', 'scenes', 'vol_bunny', 'meshes')
+
+    scene = Scene(backend=backend, device=device)
+
+    scene.add_integrator('volpath')
+
+    scene.add_hdr_film(resolution=(256, 256))
+
+    scene.add_perspective_camera(fov=13,
+                                 origin=(201.868, 315.266, 383.194),
+                                 target=(202.242, 315.857, 383.908),
+                                 up=(-0.260633, 0.806177, -0.531178))
+
+    scene.add_null_bsdf()
+    scene.add_diffuse_bsdf((0., 0., 0.))
+
+    scene.add_homogeneous_medium(sigmaT=0.7, albedo=(0.5, 0.7, 1.))
+
+    v, _, _, f, _, _ = read_obj(meshes_path / 'bunny.obj')
+    scene.add_mesh(v, f, 0, med_int_id=0)
+
+    v, _, _, f, _, _ = read_obj(meshes_path / 'emitter.obj')
+    scene.add_mesh(v, f, 0)
+
+    scene.add_area_light(mesh_id=1, radiance=(100, 100, 100))
+
+    return scene

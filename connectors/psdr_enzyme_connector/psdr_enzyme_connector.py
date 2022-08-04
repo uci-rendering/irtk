@@ -3,6 +3,7 @@ from ivt.connector import Connector
 import psdr_cpu
 import numpy as np
 import torch
+import os
 
 class PSDREnzymeConnector(Connector):
     backend = 'numpy'
@@ -26,7 +27,8 @@ class PSDREnzymeConnector(Connector):
         integrator_config = scene.integrator
         integrator_dict = {
             'direct': psdr_cpu.Direct,
-            'collocated': psdr_cpu.Collocated,
+            'volpath': psdr_cpu.Volpath2,
+            # 'collocated': psdr_cpu.Collocated,
         }
         if integrator_config['type'] in integrator_dict:
             objects['integrator'] = integrator_dict[integrator_config['type']]()
@@ -70,6 +72,11 @@ class PSDREnzymeConnector(Connector):
                                   mesh_config['vertex_positions'].data.shape[0],
                                   mesh_config['vertex_indices'].data.shape[0],
                                   -1, mesh_config['bsdf_id'], -1, -1)
+            # handle medium
+            if 'med_ext_id' in mesh_config:
+                mesh.med_ext_id = mesh_config['med_ext_id']
+            if 'med_int_id' in mesh_config:
+                mesh.med_int_id = mesh_config['med_int_id']
             meshes.append(mesh)
         objects['meshes'] = meshes
             
@@ -87,6 +94,8 @@ class PSDREnzymeConnector(Connector):
                 elif len(reflectance_data) == 3:
                     bsdf = psdr_cpu.DiffuseBSDF(psdr_cpu.RGBSpectrum(0, 0, 0))
                     bsdf.reflectance = psdr_cpu.Bitmap(bsdf_config['reflectance'].data.reshape(-1), reflectance_shape[:2])
+            elif bsdf_config['type'] == 'null':
+                bsdf = psdr_cpu.NullBSDF()
             bsdfs.append(bsdf)
         objects['bsdfs'] = bsdfs
             
@@ -98,7 +107,23 @@ class PSDREnzymeConnector(Connector):
                 meshes[emitter_config['mesh_id']].light_id = i
                 emitters.append(emitter)
         objects['emitters'] = emitters
-        
+
+        phases = []
+        for i, phase_config in enumerate(scene.phases):
+            if phase_config['type'] == 'isotropic':
+                phase = psdr_cpu.Isotropic()
+            phases.append(phase)
+        objects['phases'] = phases
+
+        mediums = []
+        for i, medium_config in enumerate(scene.mediums):
+            if medium_config['type'] == 'homogeneous':
+                medium = psdr_cpu.Homogeneous(medium_config['sigmaT'].data,
+                                              medium_config['albedo'].data,
+                                              medium_config['phase_id'])
+                mediums.append(medium)
+        objects['mediums'] = mediums
+
         return objects
     
     def renderC(self, scene, sensor_ids=[0]):    
@@ -108,6 +133,8 @@ class PSDREnzymeConnector(Connector):
         psdr_scene.shapes = objects['meshes']
         psdr_scene.bsdfs = objects['bsdfs']
         psdr_scene.emitters = objects['emitters']
+        psdr_scene.phases = objects['phases']
+        psdr_scene.mediums = objects['mediums']
         
         images = []
         for sensor_id in sensor_ids:
@@ -142,6 +169,8 @@ class PSDREnzymeConnector(Connector):
         psdr_scene.shapes = objects['meshes']
         psdr_scene.bsdfs = objects['bsdfs']
         psdr_scene.emitters = objects['emitters']
+        psdr_scene.phases = objects['phases']
+        psdr_scene.mediums = objects['mediums']
         
         for i, sensor_id in enumerate(sensor_ids):
             psdr_scene.camera = objects['sensors'][sensor_id]
