@@ -126,15 +126,19 @@ class Scene:
             'crop': crop
         }
 
-    def add_perspective_camera(self, fov, origin, target, up):
+    def add_perspective_camera(self, fov, origin=(1, 0, 0), target=(0, 0, 0), up=(0, 1, 0), use_to_world=False, to_world=torch.eye(4)):
         id = f'sensors[{len(self.sensors)}]'
         sensor = {
             'type': 'perspective',
-            'fov': self.add_fparam(id + '.fov', fov),
-            'origin': self.add_fparam(id + '.origin', origin),
-            'target': self.add_fparam(id + '.target', target),
-            'up': self.add_fparam(id + '.up', up)
+            'fov': self.add_fparam(id + '.fov', fov)
         }
+        if use_to_world:
+            sensor['to_world'] = self.add_fparam(id + '.to_world', to_world)
+        else:
+            sensor['origin'] = self.add_fparam(id + '.origin', origin)
+            sensor['target'] = self.add_fparam(id + '.target', target)
+            sensor['up'] = self.add_fparam(id + '.up', up)
+
         self.sensors.append(sensor)
 
     def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, uv_positions=[], uv_indices=[], to_world=torch.eye(4), use_face_normal=False):
@@ -187,12 +191,13 @@ class Scene:
         }
         self.emitters.append(emitter)
 
-    def add_env_light(self, env_map):
+    def add_env_light(self, env_map, to_world=torch.eye(4)):
         id = f'emitters[{len(self.emitters)}]'
         emitter = {
             'id': id,
             'type': 'env',
-            'env_map': self.add_fparam(id + '.env_map', env_map)
+            'env_map': self.add_fparam(id + '.env_map', env_map),
+            'to_world': self.add_fparam(id + '.to_world', to_world)
         }
         self.emitters.append(emitter)
         

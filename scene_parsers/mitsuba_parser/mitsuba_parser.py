@@ -45,11 +45,14 @@ class MitsubaParser(SceneParser):
             sensor_n = etree.SubElement(scene_n, 'sensor', type=sensor['type'])
 
             transform_n = etree.SubElement(sensor_n, 'transform', name='toWorld')
-            etree.SubElement(transform_n, 'lookat', 
+            if 'to_world' in sensor:
+                etree.SubElement(transform_n, 'matrix', value=list_to_csl(sensor['to_world'].data.flatten()))
+            else:
+                etree.SubElement(transform_n, 'lookat', 
                     target=list_to_csl(sensor['target'].data),
                     origin=list_to_csl(sensor['origin'].data),
                     up=list_to_csl(sensor['up'].data),
-            )
+                )
 
             etree.SubElement(sensor_n, 'float', name='fov', value=str(sensor['fov'].item()))
 
@@ -72,6 +75,8 @@ class MitsubaParser(SceneParser):
                 write_exr(data_dir / env_map_name, emitter['env_map'].data)
                 emitter_n = etree.SubElement(scene_n, 'emitter', type='envmap')
                 etree.SubElement(emitter_n, 'string', name='filename', value=f"data/{env_map_name}")
+                transform_n = etree.SubElement(emitter_n, 'transform', name='to_world')
+                etree.SubElement(transform_n, 'matrix', value=list_to_csl(emitter['to_world'].data.flatten()))
 
         for bsdf in scene.bsdfs:
             bsdf_type = bsdf['type']
