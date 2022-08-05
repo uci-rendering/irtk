@@ -10,7 +10,7 @@ class PSDREnzymeConnector(Connector):
     ftype = np.float64
     itype = np.int64
     
-    def create_objects(self, scene):
+    def create_objects(self, scene, render_options):
         """
         Create psdr_cpu objects from the scene data.
         """
@@ -34,18 +34,18 @@ class PSDREnzymeConnector(Connector):
             raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
             
         objects['render_options'] = psdr_cpu.RenderOptions(
-            scene.render_options['seed'],
-            scene.render_options['num_samples'],
-            scene.render_options['max_bounces'],
-            scene.render_options['num_samples_primary_edge'],
-            scene.render_options['num_samples_secondary_edge'],
-            scene.render_options['quiet'],
+            render_options['seed'],
+            render_options['num_samples'],
+            render_options['max_bounces'],
+            render_options['num_samples_primary_edge'],
+            render_options['num_samples_secondary_edge'],
+            render_options['quiet'],
         )
         
         film_config = scene.film
         width, height = film_config['resolution']
         objects['film'] = {
-            'shape': (width, height, 3)
+            'shape': (height, width, 3)
         }
         
         rfilters = {'tent': 0, 'box': 1, 'gaussian': 2}
@@ -101,8 +101,8 @@ class PSDREnzymeConnector(Connector):
         
         return objects
     
-    def renderC(self, scene, sensor_ids=[0]):    
-        objects = self.create_objects(scene)
+    def renderC(self, scene, render_options, sensor_ids=[0]):    
+        objects = self.create_objects(scene, render_options)
         
         psdr_scene = psdr_cpu.Scene()
         psdr_scene.shapes = objects['meshes']
@@ -118,7 +118,7 @@ class PSDREnzymeConnector(Connector):
         
         return images
     
-    def renderD(self, image_grads, scene, sensor_ids=[0]):
+    def renderD(self, image_grads, scene, render_options, sensor_ids=[0]):
         assert len(image_grads) == len(sensor_ids) and len(image_grads) > 0
 
         t_dtype = image_grads[0].dtype
@@ -136,7 +136,7 @@ class PSDREnzymeConnector(Connector):
             param_names[i] = param_name
             param_grads.append(torch.zeros(param.data.shape, dtype=t_dtype, device=t_device))
             
-        objects = self.create_objects(scene)
+        objects = self.create_objects(scene, render_options)
         
         psdr_scene = psdr_cpu.Scene()
         psdr_scene.shapes = objects['meshes']

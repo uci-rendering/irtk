@@ -28,7 +28,7 @@ def renderC():
     for cn in cm.get_availability_list():
         print(f'Rendering with connector [{cn}]...')
         render = Renderer(cn, device='cuda', dtype=torch.float32)
-        scene.add_render_options(simple_render_options[cn])
+        render.set_render_options(simple_render_options[cn])
 
         # Render the images without gradient 
         with torch.no_grad():
@@ -52,18 +52,16 @@ def renderD():
     for cn in cm.get_availability_list():
         print(f'Rendering with connector [{cn}]...')
         render = Renderer(cn, device='cuda', dtype=torch.float32)
-        scene.add_render_options(simple_render_options[cn])
+        render.set_render_options(simple_render_options[cn])
 
         # Render target images 
         target_images = render(scene)
         
         # Modify the parameters and set requires_grad 
         scene.param_map['bsdfs[0].reflectance'].set((0.5, 0.6, 0.7))
-        scene.param_map['bsdfs[0].reflectance'].requires_grad = True
-        scene.param_map['bsdfs[0].reflectance'].configure()
+        scene.param_map['bsdfs[0].reflectance'].set_requires_grad()
         scene.param_map['meshes[0].vertex_positions'].data += 1e-4
-        scene.param_map['meshes[0].vertex_positions'].requires_grad = True
-        scene.param_map['meshes[0].vertex_positions'].configure()
+        scene.param_map['meshes[0].vertex_positions'].set_requires_grad()
 
         # Get parameters that requires gradient
         param_names = scene.get_requiring_grad()
