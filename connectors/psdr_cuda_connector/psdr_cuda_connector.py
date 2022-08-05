@@ -163,10 +163,10 @@ class PSDRCudaConnector(Connector):
         # Render the images
         images = []
         for sensor_id in sensor_ids:
-            image = torch.zeros((w * h, c)).to(PSDRCudaConnector.device).to(PSDRCudaConnector.ftype)
+            image = torch.zeros((h * w, c)).to(PSDRCudaConnector.device).to(PSDRCudaConnector.ftype)
             for i in range(npass):
                 image += objects['integrators'][integrator_id].renderC(objects['scene'], sensor_id).torch() / npass
-            image = image.reshape(w, h, c)
+            image = image.reshape(h, w, c)
             images.append(image)
 
         return images

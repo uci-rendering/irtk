@@ -45,7 +45,7 @@ class PSDREnzymeConnector(Connector):
         film_config = scene.film
         width, height = film_config['resolution']
         objects['film'] = {
-            'shape': (width, height, 3)
+            'shape': (height, width, 3)
         }
         
         rfilters = {'tent': 0, 'box': 1, 'gaussian': 2}
