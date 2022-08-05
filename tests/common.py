@@ -71,8 +71,8 @@ def vol_bunny_scene(backend='torch', device='cpu'):
     scene.add_hdr_film(resolution=(256, 256))
 
     scene.add_perspective_camera(fov=13,
-                                 origin=(201.868, 315.266, 383.194),
-                                 target=(202.242, 315.857, 383.908),
+                                 target=(201.868, 315.266, 383.194),
+                                 origin=(202.242, 315.857, 383.908),
                                  up=(-0.260633, 0.806177, -0.531178))
 
     scene.add_null_bsdf()
