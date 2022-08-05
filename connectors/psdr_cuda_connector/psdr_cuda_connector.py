@@ -2,7 +2,7 @@ from multiprocessing.sharedctypes import Value
 from ivt.connector import Connector
 from ivt.scene_parser import SceneParserManager
 from ivt.scene import split_param_name
-from ivt.utils import lookat
+from ivt.transform import lookat
 
 import psdr_cuda
 import enoki
@@ -21,6 +21,9 @@ class PSDRCudaConnector(Connector):
     ftype = torch.float32
     itype = torch.long
 
+    def __init__(self):
+        super().__init__()
+
     def create_scene(self, scene):
         # Create a temporary scene directory with all the data
         tmp_path = Path("__psdr_cuda_tmp__")
@@ -33,7 +36,7 @@ class PSDRCudaConnector(Connector):
         old_path = os.getcwd()
         os.chdir(tmp_path)
         psdr_scene = psdr_cuda.Scene()
-        psdr_scene.load_file(str('scene.xml'), False)
+        psdr_scene.load_file('scene.xml', False)
         os.chdir(old_path)
         
         # Clean up
@@ -41,29 +44,35 @@ class PSDRCudaConnector(Connector):
 
         return psdr_scene
 
-    def create_objects(self, scene):
+    def create_objects(self, scene, render_options):
         objects = {}
         
         psdr_scene = self.create_scene(scene)
         objects['scene'] = psdr_scene
 
-        psdr_scene.opts.spp = scene.render_options['spp']
-        psdr_scene.opts.sppe = scene.render_options['sppe']
-        psdr_scene.opts.sppse = scene.render_options['sppse']
-        psdr_scene.opts.log_level = scene.render_options['log_level']
+        psdr_scene.opts.spp = render_options['spp']
+        psdr_scene.opts.sppe = render_options['sppe']
+        psdr_scene.opts.sppse = render_options['sppse']
+        psdr_scene.opts.log_level = render_options['log_level']
 
-        integrator_config = scene.integrator
-        if integrator_config['type'] == 'direct':
-            objects['integrator'] = psdr_cuda.DirectIntegrator()
-        elif integrator_config['type'] == 'collocated':
-            objects['integrator'] = psdr_cuda.CollocatedIntegrator(integrator_config['params']['intensity'])
-        else:
-            raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
-            
-        objects['scene'].opts.spp = scene.render_options['spp']
-        objects['scene'].opts.sppe = scene.render_options['sppe']
-        objects['scene'].opts.sppse = scene.render_options['sppse']
-        objects['scene'].opts.log_level = scene.render_options['log_level']
+        objects['integrators'] = []
+        for it in range(len(scene.integrators)):
+            integrator_config = scene.integrators[it]
+            if integrator_config['type'] == 'direct':
+                objects['integrators'].append(psdr_cuda.DirectIntegrator())
+                if 'hide_envmap' in integrator_config['params']:
+                    objects['integrators'][it].hide_emitters = integrator_config['params']['hide_envmap']
+            elif integrator_config['type'] == 'collocated':
+                objects['integrators'].append(psdr_cuda.CollocatedIntegrator(integrator_config['params']['intensity']))
+            elif integrator_config['type'] == 'field':
+                objects['integrators'].append(psdr_cuda.FieldExtractionIntegrator(integrator_config['params']['name']))
+            else:
+                raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
+        
+        objects['scene'].opts.spp = render_options['spp']
+        objects['scene'].opts.sppe = render_options['sppe']
+        objects['scene'].opts.sppse = render_options['sppse']
+        objects['scene'].opts.log_level = render_options['log_level']
         
         film_config = scene.film
         width, height = film_config['resolution']
@@ -73,7 +82,7 @@ class PSDRCudaConnector(Connector):
 
         return objects
 
-    def get_objects(self, scene):
+    def get_objects(self, scene, render_options):
         def convert_color(color, c=3):
             if c is None:
                 return color.reshape(-1, )
@@ -93,9 +102,14 @@ class PSDRCudaConnector(Connector):
                 group, idx, prop = split_param_name(param_name)
 
                 if group == 'meshes':
+                    enoki_mesh = psdr_param_map[f'Mesh[{idx}]']
+
                     if prop == 'vertex_positions':
                         enoki_param = Vector3fD(param.data)
-                        psdr_param_map[f'Mesh[{idx}]'].vertex_positions = enoki_param
+                        enoki_mesh.vertex_positions = enoki_param
+                    elif prop == 'to_world':
+                        enoki_param = Matrix4fD(param.data.reshape(1, 4, 4))
+                        enoki_mesh.to_world = enoki_param
 
                 elif group == 'bsdfs': 
                     bsdf_type = scene.bsdfs[idx]['type']
@@ -133,36 +147,36 @@ class PSDRCudaConnector(Connector):
 
         # Create scene objects if there is no cache
         else:
-            objects = self.create_objects(scene)
+            objects = self.create_objects(scene, render_options)
             scene.cached['psdr_cuda'] = objects
             for param_name in scene.get_updated():
                 scene.param_map[param_name].updated = False
             return objects
 
-    def renderC(self, scene, sensor_ids=[0]):
+    def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         # Convert the scene into psdr_cuda objects
-        objects = self.get_objects(scene)
+        objects = self.get_objects(scene, render_options)
         objects['scene'].configure2(sensor_ids)
         w, h, c = objects['film']['shape']
-        npass = scene.render_options['npass']
+        npass = render_options['npass']
 
         # Render the images
         images = []
         for sensor_id in sensor_ids:
-            image = torch.zeros((w * h, c)).to(PSDRCudaConnector.device).to(PSDRCudaConnector.ftype)
+            image = torch.zeros((h * w, c)).to(PSDRCudaConnector.device).to(PSDRCudaConnector.ftype)
             for i in range(npass):
-                image += objects['integrator'].renderC(objects['scene'], sensor_id).torch() / npass
-            image = image.reshape(w, h, c)
+                image += objects['integrators'][integrator_id].renderC(objects['scene'], sensor_id).torch() / npass
+            image = image.reshape(h, w, c)
             images.append(image)
 
         return images
     
-    def renderD(self, image_grads, scene, sensor_ids=[0]):
+    def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
         # Convert the scene into psdr_cuda objects
-        objects = self.get_objects(scene)
+        objects = self.get_objects(scene, render_options)
         objects['scene'].configure2(sensor_ids)
         psdr_param_map = objects['scene'].param_map
-        npass = scene.render_options['npass']
+        npass = render_options['npass']
 
         param_names = scene.get_requiring_grad()
         enoki_params = []
@@ -170,8 +184,13 @@ class PSDRCudaConnector(Connector):
             param = scene.param_map[param_name]
             group, idx, prop = split_param_name(param_name)
             if group == 'meshes':
+                enoki_mesh = psdr_param_map[f'Mesh[{idx}]']
                 if prop == 'vertex_positions':
-                    enoki_param = psdr_param_map[f'Mesh[{idx}]'].vertex_positions
+                    enoki_param = enoki_mesh.vertex_positions
+                    enoki.set_requires_gradient(enoki_param, True)
+                    enoki_params.append(enoki_param)
+                elif prop == 'to_world':
+                    enoki_param = enoki_mesh.to_world
                     enoki.set_requires_gradient(enoki_param, True)
                     enoki_params.append(enoki_param)
 
@@ -207,9 +226,9 @@ class PSDRCudaConnector(Connector):
             image_grad = Vector3fC(image_grads[i].reshape(-1, 3))
             for j in range(npass):
                 if j == 0:
-                    image = objects['integrator'].renderD(objects['scene'], sensor_id) / npass
+                    image = objects['integrators'][integrator_id].renderD(objects['scene'], sensor_id) / npass
                 else:
-                    image += objects['integrator'].renderD(objects['scene'], sensor_id) / npass
+                    image += objects['integrators'][integrator_id].renderD(objects['scene'], sensor_id) / npass
             
             enoki.set_gradient(image, image_grad)
             FloatD.backward()

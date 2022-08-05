@@ -1,8 +1,12 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
 import igl
 import imageio.v3 as iio
 import imageio
 import numpy as np
 import torch
+from skimage.transform import resize
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
@@ -45,14 +49,23 @@ def write_obj(obj_path, v, f, tc=None, ftc=None):
 
     obj_file.close()
 
-def srgb_encoding(v):
-	if (v <= 0.0031308):
-		return (v * 12.92)
-	else:
-		return (1.055*(v**(1.0/2.4))-0.055)
+def linear_to_srgb(l):
+    if l <= 0.00313066844250063:
+        return l * 12.92
+    else:
+        return 1.055*(l**(1.0/2.4))-0.055
+
+def srgb_to_linear(s):
+    if s <= 0.0404482362771082:
+        return s / 12.92
+    else:
+        return ((s+0.055)/1.055) ** 2.4
 
 def to_srgb(image):
-    return np.clip(np.vectorize(srgb_encoding)(to_numpy(image)), 0, 1)
+    return np.clip(np.vectorize(linear_to_srgb)(to_numpy(image)), 0, 1)
+
+def to_linear(image):
+    return np.vectorize(srgb_to_linear)(to_numpy(image))
 
 def to_numpy(data):
     if torch.is_tensor(data):
@@ -68,10 +81,14 @@ def read_png(png_path):
 def write_png(png_path, image):
     image = to_srgb(to_numpy(image))
     image = (image * 255).astype(np.uint8)
+    if image.shape[2] == 1:
+        image = np.repeat(image, 3, axis=2)
     iio.imwrite(png_path, image, extension='.png')
 
 def read_exr(exr_path):
     image = iio.imread(exr_path, extension='.exr')
+    if len(image.shape) == 2:
+        image = np.expand_dims(image, axis=2)
     return image
 
 def write_exr(exr_path, image):
@@ -83,4 +100,9 @@ def write_exr(exr_path, image):
     except OSError:
         imageio.plugins.freeimage.download()
         iio.imwrite(exr_path, image, extension='.exr')
-    
+
+def read_texture(tex_path, res):
+    image = iio.imread(tex_path)
+    if len(image.shape) == 2:
+        image = np.expand_dims(image, axis=2)
+    return resize(image, (res, res))

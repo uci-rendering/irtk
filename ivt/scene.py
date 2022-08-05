@@ -18,11 +18,8 @@ class Parameter:
         self.requires_grad = False
         self.updated = False
         
-        if torch.is_tensor(data):
-            self.requires_grad = data.requires_grad
-        
-        self.configure()
-            
+        self.set(data)
+
     def configure(self):
         assert self.backend in ['torch', 'numpy']
         
@@ -46,6 +43,12 @@ class Parameter:
     def set(self, data):
         self.data = data
         self.updated = True
+        self.configure()
+
+    def set_requires_grad(self, b=True):
+        self.requires_grad = b
+        if self.backend == 'torch':
+            self.data.requires_grad = b
 
     def tolist(self):
         if self.backend == 'torch' or self.backend == 'numpy':
@@ -68,8 +71,7 @@ class Scene:
         assert backend in ['torch', 'numpy']
         
         # Scene data 
-        self.integrator = None 
-        self.render_options = {} 
+        self.integrators = [] 
         self.film = None 
         self.sensors = []
         self.meshes = []
@@ -112,13 +114,11 @@ class Scene:
         return param
         
     def add_integrator(self, integrator_type, integrator_params={}):
-        self.integrator = {
+        integrator = {
             'type': integrator_type,
             'params': integrator_params
         }
-
-    def add_render_options(self, options):
-        self.render_options = options
+        self.integrators.append(integrator)
 
     def add_hdr_film(self, resolution, rfilter='tent', crop=(0, 0, 1, 1)):
         self.film = {
@@ -128,19 +128,23 @@ class Scene:
             'crop': crop
         }
 
-    def add_perspective_camera(self, fov, origin, target, up):
+    def add_perspective_camera(self, fov, origin=(1, 0, 0), target=(0, 0, 0), up=(0, 1, 0), use_to_world=False, to_world=torch.eye(4)):
         id = f'sensors[{len(self.sensors)}]'
         sensor = {
             'type': 'perspective',
-            'fov': self.add_fparam(id + '.fov', fov),
-            'origin': self.add_fparam(id + '.origin', origin),
-            'target': self.add_fparam(id + '.target', target),
-            'up': self.add_fparam(id + '.up', up)
+            'fov': self.add_fparam(id + '.fov', fov)
         }
+        if use_to_world:
+            sensor['to_world'] = self.add_fparam(id + '.to_world', to_world)
+        else:
+            sensor['origin'] = self.add_fparam(id + '.origin', origin)
+            sensor['target'] = self.add_fparam(id + '.target', target)
+            sensor['up'] = self.add_fparam(id + '.up', up)
+
         self.sensors.append(sensor)
 
     def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, med_int_id = None, med_ext_id = None,
-                 uv_positions=[], uv_indices=[], to_world=torch.eye(4)):
+                 uv_positions=[], uv_indices=[], to_world=torch.eye(4), use_face_normal=False):
         id = f'meshes[{len(self.meshes)}]'
         mesh = {
             'id': id,
@@ -150,6 +154,7 @@ class Scene:
             'uv_indices': self.add_iparam(id + '.uv_indices', uv_indices),
             'to_world': self.add_fparam(id + '.to_world', to_world),
             'bsdf_id': bsdf_id,
+            'use_face_normal': use_face_normal
         }
         if med_int_id is not None:
             mesh.update({'med_int_id' : med_int_id})
@@ -215,6 +220,17 @@ class Scene:
         }
         self.mediums.append(medium)
 
+
+    def add_env_light(self, env_map, to_world=torch.eye(4)):
+        id = f'emitters[{len(self.emitters)}]'
+        emitter = {
+            'id': id,
+            'type': 'env',
+            'env_map': self.add_fparam(id + '.env_map', env_map),
+            'to_world': self.add_fparam(id + '.to_world', to_world)
+        }
+        self.emitters.append(emitter)
+        
     def configure(self):
         for param_name in self.param_map:
             param = self.param_map[param_name]
