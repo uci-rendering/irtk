@@ -131,4 +131,3 @@ dmypy.json
 
 # Temporary directories
 tmp_output/
-tests/texture/
