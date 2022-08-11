@@ -82,6 +82,8 @@ class MitsubaParser(SceneParser):
             bsdf_type = bsdf['type']
             bsdf_id = bsdf['id']
             bsdf_n = etree.SubElement(scene_n, 'bsdf', type=bsdf_type, id=bsdf_id)
+            transform_n = etree.SubElement(bsdf_n, 'transform', name='to_world')
+            etree.SubElement(transform_n, 'matrix', value=list_to_csl(bsdf['to_world'].data.flatten()))
 
             if bsdf_type == 'diffuse':
                 add_color(bsdf_id, bsdf['reflectance'].data, 'reflectance')

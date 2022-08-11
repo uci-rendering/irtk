@@ -7,7 +7,7 @@ from ivt.transform import lookat
 import psdr_cuda
 import enoki
 from enoki.cuda import Vector3f as Vector3fC
-from enoki.cuda_autodiff import Vector3f as Vector3fD, Float32 as FloatD, Matrix4f as Matrix4fD
+from enoki.cuda_autodiff import Vector3f as Vector3fD, Float32 as FloatD, Matrix4f as Matrix4fD, Matrix3f as Matrix3fD
 from enoki.cuda_autodiff import Float32 as FloatD
 import torch
 
@@ -103,7 +103,6 @@ class PSDRCudaConnector(Connector):
 
                 if group == 'meshes':
                     enoki_mesh = psdr_param_map[f'Mesh[{idx}]']
-
                     if prop == 'vertex_positions':
                         enoki_param = Vector3fD(param.data)
                         enoki_mesh.vertex_positions = enoki_param
@@ -119,6 +118,9 @@ class PSDRCudaConnector(Connector):
                         if prop == 'reflectance':
                             enoki_param = Vector3fD(convert_color(param.data))
                             enoki_bsdf.reflectance.data = enoki_param
+                        elif prop == 'to_world':
+                            enoki_param = Matrix3fD(param.data.reshape(1, 3, 3))
+                            enoki_bsdf.reflectance.to_world = enoki_param
 
                     elif bsdf_type == 'microfacet':
                         if prop == 'diffuse_reflectance':
@@ -200,6 +202,10 @@ class PSDRCudaConnector(Connector):
                 if bsdf_type == 'diffuse':
                     if prop == 'reflectance':
                         enoki_param = enoki_bsdf.reflectance.data 
+                        enoki.set_requires_gradient(enoki_param, True)
+                        enoki_params.append(enoki_param)
+                    elif prop == 'to_world':
+                        enoki_param = enoki_bsdf.reflectance.to_world 
                         enoki.set_requires_gradient(enoki_param, True)
                         enoki_params.append(enoki_param)
                     else:

@@ -155,16 +155,17 @@ class Scene:
         }
         self.meshes.append(mesh)
 
-    def add_diffuse_bsdf(self, reflectance):
+    def add_diffuse_bsdf(self, reflectance, to_world=torch.eye(3)):
         id = f'bsdfs[{len(self.bsdfs)}]'
         bsdf = {
             'id': id,
             'type': 'diffuse',
-            'reflectance': self.add_fparam(id + '.reflectance', reflectance)
+            'reflectance': self.add_fparam(id + '.reflectance', reflectance),
+            'to_world': self.add_fparam(id + '.to_world', to_world)
         }
         self.bsdfs.append(bsdf)
 
-    def add_microfacet_bsdf(self, diffuse_reflectance, specular_reflectance, roughness):
+    def add_microfacet_bsdf(self, diffuse_reflectance, specular_reflectance, roughness, to_world=torch.eye(3)):
         id = f'bsdfs[{len(self.bsdfs)}]'
         bsdf = {
             'id': id,
@@ -172,6 +173,7 @@ class Scene:
             'diffuse_reflectance': self.add_fparam(id + '.diffuse_reflectance', diffuse_reflectance),
             'specular_reflectance': self.add_fparam(id + '.specular_reflectance', specular_reflectance),
             'roughness': self.add_fparam(id + '.roughness', roughness),
+            'to_world': self.add_fparam(id + '.to_world', to_world)
         }
         self.bsdfs.append(bsdf)
         
