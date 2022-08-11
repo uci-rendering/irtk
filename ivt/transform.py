@@ -74,3 +74,51 @@ def scale(size):
         exit()
 
     return to_world
+
+# texture map transform (2d)
+def translate2D(t_vec):
+    device = t_vec.device
+    dtype = t_vec.dtype 
+
+    to_world = torch.eye(3).to(device).to(dtype)
+    to_world[:2, 2] = t_vec
+
+    return to_world
+
+def rotate2D(angle, use_degree=True):
+    device = angle.device
+    dtype = angle.dtype 
+
+    to_world = torch.eye(3).to(device).to(dtype)
+    if not torch.is_tensor(angle):
+        angle = torch.tensor(angle).to(device).to(dtype)
+    if use_degree:
+        angle = torch.deg2rad(angle)
+
+    sin_theta = torch.sin(angle)
+    cos_theta = torch.cos(angle)
+
+    R = cos_theta * torch.eye(2).to(device).to(dtype)
+
+    R[0 ,1] = -sin_theta
+    R[1 ,0] = sin_theta
+
+    to_world[:2, :2] = R
+
+    return to_world
+
+def scale2D(size):
+    device = size.device
+    dtype = size.dtype 
+
+    to_world = torch.eye(3).to(device).to(dtype)
+
+    if size.size(dim=0) == 1:
+        to_world[:2, :2] = torch.diag(size).to(device).to(dtype) * torch.eye(2).to(device).to(dtype)
+    elif size.size(dim=0) == 2:
+        to_world[:2, :2] = torch.diag(size).to(device).to(dtype)
+    else:
+        print("error transform.py for scale")
+        exit()
+
+    return to_world
