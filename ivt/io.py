@@ -87,11 +87,11 @@ def read_png(png_path):
     image = iio.imread(png_path, extension='.png')
     if len(image.shape) == 4:
         image = image[0]
-    if len(image.shape) == 3:
+    elif len(image.shape) == 3:
         image = image[:, :, :3].astype(float) / 255
     elif len(image.shape) == 2:
         image = image.astype(float) / 255
-    return image
+    return to_linear(image)
 
 def write_png(png_path, image):
     image = to_srgb(to_numpy(image))
@@ -122,25 +122,14 @@ def read_texture(tex_path, res):
         image = np.expand_dims(image, axis=2)
     return resize(image, (res, res))
 
-# read images
-def read_pattern(filename, res):
-    img = imageio.imread(filename)
-    if img.dtype == np.float32:
-        return resize(np.power(img, 2.2).astype("float32"), (res, res))
-    if img.dtype == np.uint8:
-        img = img.astype(np.float32) / 255.0
-        return resize(np.power(img, 2.2).astype("float32"), (res, res))
-    elif img.dtype == np.uint16:
-        img = img.astype(np.float32) / 65535.0
-        return resize(np.power(img, 2.2).astype("float32"), (res, res))
+def read_image(image_path):
+    image = imageio.imread(image_path).astype("float32")
+    if image.dtype == np.uint8:
+        image /= 255.0
+    elif image.dtype == np.uint16:
+        image /= 65535.0
+    return to_linear(image)
 
-def read_png2exr(filename):
-    img = imageio.imread(filename)
-    if img.dtype == np.float32:
-        return np.power(img, 2.2).astype("float32")
-    if img.dtype == np.uint8:
-        img = img.astype(np.float32) / 255.0
-        return np.power(img, 2.2).astype("float32")
-    elif img.dtype == np.uint16:
-        img = img.astype(np.float32) / 65535.0
-        return np.power(img, 2.2).astype("float32")
+def read_pattern(pat_path, res):
+    image = to_linear(read_image(pat_path))
+    return resize(image, (res, res))
