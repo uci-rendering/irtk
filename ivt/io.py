@@ -7,6 +7,8 @@ import imageio
 import numpy as np
 import torch
 from skimage.transform import resize
+import xatlas
+import pymeshfix
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
@@ -48,6 +50,14 @@ def write_obj(obj_path, v, f, tc=None, ftc=None):
                 obj_file.write(f"f {' '.join(f2s(f_))}\n")
 
     obj_file.close()
+
+def unwrap_uv(v, f):
+    vmapping, f, tc = xatlas.parametrize(v, f)
+    return v[vmapping], f, tc, f
+
+def fix_mesh(v, f):
+    v, f = pymeshfix.clean_from_arrays(v, f)
+    return v, f
 
 def linear_to_srgb(l):
     m = l <= 0.00313066844250063

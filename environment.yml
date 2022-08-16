@@ -16,3 +16,5 @@ dependencies:
   - pip:
     - cholespy
     - largesteps
+    - xatlas
+    - pymeshfix
