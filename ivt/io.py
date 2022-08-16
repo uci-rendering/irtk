@@ -7,6 +7,8 @@ import imageio
 import numpy as np
 import torch
 from skimage.transform import resize
+import xatlas
+import pymeshfix
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
@@ -49,23 +51,31 @@ def write_obj(obj_path, v, f, tc=None, ftc=None):
 
     obj_file.close()
 
+def unwrap_uv(v, f):
+    vmapping, f, tc = xatlas.parametrize(v, f)
+    return v[vmapping], f, tc, f
+
+def fix_mesh(v, f):
+    v, f = pymeshfix.clean_from_arrays(v, f)
+    return v, f
+
 def linear_to_srgb(l):
-    if l <= 0.00313066844250063:
-        return l * 12.92
-    else:
-        return 1.055*(l**(1.0/2.4))-0.055
+    m = l <= 0.00313066844250063
+    l[m] = l * 12.92
+    l[~m] = 1.055*(l[~m]**(1.0/2.4))-0.055
+    return l
 
 def srgb_to_linear(s):
-    if s <= 0.0404482362771082:
-        return s / 12.92
-    else:
-        return ((s+0.055)/1.055) ** 2.4
+    m = s <= 0.0404482362771082
+    s[m] = s[m] / 12.92
+    s[~m] = ((s[~m]+0.055)/1.055) ** 2.4
+    return s
 
 def to_srgb(image):
-    return np.clip(np.vectorize(linear_to_srgb)(to_numpy(image)), 0, 1)
+    return np.clip(linear_to_srgb(to_numpy(image)), 0, 1)
 
 def to_linear(image):
-    return np.vectorize(srgb_to_linear)(to_numpy(image))
+    return srgb_to_linear(to_numpy(image))
 
 def to_numpy(data):
     if torch.is_tensor(data):
