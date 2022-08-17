@@ -76,7 +76,7 @@ def srgb_to_linear(s):
     m = s <= 0.0404482362771082
     l[m] = s[m] / 12.92
     l[~m] = ((s[~m]+0.055)/1.055) ** 2.4
-    return s
+    return l
 
 def to_srgb(image):
     return np.clip(linear_to_srgb(to_numpy(image)), 0, 1)
@@ -91,11 +91,11 @@ def to_numpy(data):
         return data
 
 def read_png(png_path):
-    image = iio.imread(png_path, extension='.png').astype("float32")
+    image = iio.imread(png_path, extension='.png')
     if image.dtype == np.uint8:
-        image /= 255.0
+        image = image.astype("float32") / 255.0
     elif image.dtype == np.uint16:
-        image /= 65535.0
+        image = image.astype("float32") / 65535.0
 
     if len(image.shape) == 4:
         image = image[0]
