@@ -43,7 +43,7 @@ class PSDREnzymeConnector(Connector):
         )
         
         film_config = scene.film
-        width, height = film_config['resolution']
+        height, width = film_config['resolution']
         objects['film'] = {
             'shape': (height, width, 3)
         }

@@ -75,9 +75,9 @@ class PSDRCudaConnector(Connector):
         objects['scene'].opts.log_level = render_options['log_level']
         
         film_config = scene.film
-        width, height = film_config['resolution']
+        height, width = film_config['resolution']
         objects['film'] = {
-            'shape': (width, height, 3)
+            'shape': (height, width, 3)
         }
 
         return objects
@@ -159,7 +159,7 @@ class PSDRCudaConnector(Connector):
         # Convert the scene into psdr_cuda objects
         objects = self.get_objects(scene, render_options)
         objects['scene'].configure2(sensor_ids)
-        w, h, c = objects['film']['shape']
+        h, w, c = objects['film']['shape']
         npass = render_options['npass']
 
         # Render the images
