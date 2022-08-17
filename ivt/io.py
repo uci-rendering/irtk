@@ -66,7 +66,7 @@ def remesh(v, f, iter=10, edge_length=0.1):
 
 def linear_to_srgb(l):
     m = l <= 0.00313066844250063
-    l[m] = l * 12.92
+    l[m] = l[m] * 12.92
     l[~m] = 1.055*(l[~m]**(1.0/2.4))-0.055
     return l
 
