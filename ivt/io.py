@@ -84,13 +84,19 @@ def to_numpy(data):
         return data
 
 def read_png(png_path):
-    image = iio.imread(png_path, extension='.png')
+    image = iio.imread(png_path, extension='.png').astype("float32")
+    if image.dtype == np.uint8:
+        image /= 255.0
+    elif image.dtype == np.uint16:
+        image /= 65535.0
+
     if len(image.shape) == 4:
         image = image[0]
-    elif len(image.shape) == 3:
-        image = image[:, :, :3].astype(float) / 255
-    elif len(image.shape) == 2:
-        image = image.astype(float) / 255
+
+    # Only read the RGB channels
+    if len(image.shape) == 3:
+        image = image[:, :, :3]
+
     return to_linear(image)
 
 def write_png(png_path, image):
@@ -116,20 +122,5 @@ def write_exr(exr_path, image):
         imageio.plugins.freeimage.download()
         iio.imwrite(exr_path, image, extension='.exr')
 
-def read_texture(tex_path, res):
-    image = iio.imread(tex_path)
-    if len(image.shape) == 2:
-        image = np.expand_dims(image, axis=2)
-    return resize(image, (res, res))
-
-def read_image(image_path):
-    image = imageio.imread(image_path).astype("float32")
-    if image.dtype == np.uint8:
-        image /= 255.0
-    elif image.dtype == np.uint16:
-        image /= 65535.0
-    return to_linear(image)
-
-def read_pattern(pat_path, res):
-    image = to_linear(read_image(pat_path))
-    return resize(image, (res, res))
+def resize_image(image, height, width):
+    return resize(image, (height, width))
