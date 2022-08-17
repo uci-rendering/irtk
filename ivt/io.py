@@ -9,6 +9,7 @@ import torch
 from skimage.transform import resize
 import xatlas
 import pymeshfix
+from gpytoolbox import remesh_botsch
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
@@ -57,6 +58,10 @@ def unwrap_uv(v, f):
 
 def fix_mesh(v, f):
     v, f = pymeshfix.clean_from_arrays(v, f)
+    return v, f
+
+def remesh(v, f, iter=10, edge_length=0.1):
+    v, f = remesh_botsch(v, f, i=iter, h=edge_length)
     return v, f
 
 def linear_to_srgb(l):
