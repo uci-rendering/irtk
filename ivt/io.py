@@ -65,15 +65,17 @@ def remesh(v, f, iter=10, edge_length=0.1):
     return v, f
 
 def linear_to_srgb(l):
+    s = np.zeros_like(l)
     m = l <= 0.00313066844250063
-    l[m] = l[m] * 12.92
-    l[~m] = 1.055*(l[~m]**(1.0/2.4))-0.055
-    return l
+    s[m] = l[m] * 12.92
+    s[~m] = 1.055*(l[~m]**(1.0/2.4))-0.055
+    return s
 
 def srgb_to_linear(s):
+    l = np.zeros_like(s)
     m = s <= 0.0404482362771082
-    s[m] = s[m] / 12.92
-    s[~m] = ((s[~m]+0.055)/1.055) ** 2.4
+    l[m] = s[m] / 12.92
+    l[~m] = ((s[~m]+0.055)/1.055) ** 2.4
     return s
 
 def to_srgb(image):
