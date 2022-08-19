@@ -61,8 +61,8 @@ class MitsubaParser(SceneParser):
                 etree.SubElement(sampler_n, 'integer', name='sample_count', value='1')
                 film = scene.film
                 film_n = etree.SubElement(sensor_n, 'film', type=film['type'])
-                etree.SubElement(film_n, 'integer', name='width', value=str(film['resolution'][0]))
-                etree.SubElement(film_n, 'integer', name='height', value=str(film['resolution'][1]))
+                etree.SubElement(film_n, 'integer', name='width', value=str(film['resolution'][1]))
+                etree.SubElement(film_n, 'integer', name='height', value=str(film['resolution'][0]))
                 etree.SubElement(film_n, 'rfilter', type=film['rfilter'])
 
         area_lights = {}
