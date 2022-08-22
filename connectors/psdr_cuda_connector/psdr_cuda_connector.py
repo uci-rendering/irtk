@@ -55,6 +55,8 @@ class PSDRCudaConnector(Connector):
         psdr_scene.opts.sppse = render_options['sppse']
         psdr_scene.opts.log_level = render_options['log_level']
 
+        psdr_scene.configure()
+
         objects['integrators'] = []
         for it in range(len(scene.integrators)):
             integrator_config = scene.integrators[it]
@@ -142,6 +144,16 @@ class PSDRCudaConnector(Connector):
                         if prop == 'origin':
                             to_world = lookat(sensor['origin'].data, sensor['target'].data, sensor['up'].data).to('cuda').to(torch.float32)
                             enoki_sensor.to_world = Matrix4fD(to_world.reshape(1, 4, 4))
+                
+                elif group == 'emitters':
+                    emitter = scene.emitters[idx]
+                    emitter_type = emitter['type']
+                    enoki_emitter = psdr_param_map[f'Emitter[{idx}]']
+
+                    if emitter_type == 'env':
+                        if prop == 'to_world':
+                            to_world = emitter['to_world'].data
+                            enoki_emitter.to_world = Matrix4fD(to_world.reshape(1, 4, 4))
                             
                 param.updated = False
 
