@@ -40,6 +40,9 @@ class Parameter:
             self.data = np.array(self.data, dtype=self.dtype)
             self.device = 'cpu'
             
+    def numpy(self):
+        return self.data.detach().cpu().numpy().astype(dtype=self.dtype)
+
     def set(self, data):
         self.data = data
         self.updated = True
@@ -219,7 +222,42 @@ class Scene:
             'phase_id': phase_id if phase_id is not None else self.add_isotropic_phase()
         }
         self.mediums.append(medium)
+    
+    def add_heterogeneous_medium(self, sigmaT, albedo, scale= 1., phase_id=None):
+        id = f'mediums[{len(self.mediums)}]'
 
+        def add_volume(volume, name):
+            assert name in ['sigmaT', 'albedo']
+            if type(volume) == dict:
+                return {
+                    'type': 'gridvolume',
+                    'data': self.add_fparam(id + '.' + name, volume['data']),
+                    'res': volume['res'],
+                    'nchannel': volume['nchannel'],
+                    'min': volume['min'],
+                    'max': volume['max']
+                }
+            elif type(volume) == list:
+                return {
+                    'type': 'constvolume',
+                    'data': self.add_fparam(id + '.' + name, np.array(volume)),
+                }                   
+            elif type(volume) == float:
+                return {
+                    'type': 'constvolume',
+                    'data': self.add_fparam(id + '.' + name, np.array([volume]*3)),
+                }
+            else:
+                raise ValueError('Unknown volume type')
+        medium = {
+            'id': id,
+            'type': 'heterogeneous',
+            'sigmaT': add_volume(sigmaT, 'sigmaT'),
+            'albedo': add_volume(albedo, 'albedo'),
+            'scale': self.add_fparam(id + '.scale', scale),
+            'phase_id': phase_id if phase_id is not None else self.add_isotropic_phase()
+        }
+        self.mediums.append(medium)
 
     def add_env_light(self, env_map, to_world=torch.eye(4)):
         id = f'emitters[{len(self.emitters)}]'

@@ -106,3 +106,46 @@ def read_texture(tex_path, res):
     if len(image.shape) == 2:
         image = np.expand_dims(image, axis=2)
     return resize(image, (res, res))
+
+
+class FileStream:
+    def __init__(self, path):
+        self.path = path
+        self.file = open(path, 'rb')
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.file.close()
+
+    def read(self, count: int, dtype=np.byte):
+        data = self.file.read(count * np.dtype(dtype).itemsize)
+        return np.frombuffer(data, dtype=dtype)
+
+
+def read_volume(path):
+    with FileStream(path) as s:
+        header = s.read(3, dtype=np.byte)
+        assert header.tobytes() == b'VOL'
+        version = s.read(1, dtype=np.uint8)[0]
+        assert version == 3
+        data_type = s.read(1, dtype=np.int32)[0]
+        assert data_type == 1
+        res = s.read(3, dtype=np.int32)
+        nchannel = s.read(1, dtype=np.int32)[0]
+        bbox_min = s.read(3, dtype=np.float32)
+        bbox_max = s.read(3, dtype=np.float32)
+        assert np.all(bbox_max > bbox_min)
+        data = s.read(np.prod(res) * nchannel, dtype=np.float32)
+        return {
+            'header': header,
+            'version': version,
+            'data_type': data_type,
+            'res': res,
+            'nchannel': nchannel,
+            'min': bbox_min,
+            'max': bbox_max,
+            'data': data
+        }
+
