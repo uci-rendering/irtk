@@ -90,11 +90,11 @@ def to_numpy(data):
     else:
         return data
 
-def read_png(png_path):
+def read_png(png_path, is_srgb=True):
     image = iio.imread(png_path, extension='.png')
-    if image.dtype == np.uint8:
+    if image.dtype == np.uint8 or image.dtype == np.int16:
         image = image.astype("float32") / 255.0
-    elif image.dtype == np.uint16:
+    elif image.dtype == np.uint16 or image.dtype == np.int32:
         image = image.astype("float32") / 65535.0
 
     if len(image.shape) == 4:
@@ -104,7 +104,10 @@ def read_png(png_path):
     if len(image.shape) == 3:
         image = image[:, :, :3]
 
-    return to_linear(image)
+    if is_srgb:
+        return to_linear(image)
+    else:
+        return image
 
 def write_png(png_path, image):
     image = to_srgb(to_numpy(image))
