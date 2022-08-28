@@ -21,6 +21,8 @@ def lookat(origin, target, up):
     return to_world
 
 def translate(t_vec):
+    if not torch.is_tensor(t_vec):
+        t_vec = torch.tensor(t_vec, dtype=torch.float, device='cuda')
     device = t_vec.device
     dtype = t_vec.dtype 
 
@@ -30,6 +32,8 @@ def translate(t_vec):
     return to_world
 
 def rotate(axis, angle, use_degree=True):
+    if not torch.is_tensor(axis):
+        axis = torch.tensor(axis, dtype=torch.float, device='cuda')
     device = axis.device
     dtype = axis.dtype 
 
@@ -60,13 +64,15 @@ def rotate(axis, angle, use_degree=True):
     return to_world
 
 def scale(size):
+    if not torch.is_tensor(size):
+        size = torch.tensor(size, dtype=torch.float, device='cuda')
     device = size.device
     dtype = size.dtype 
 
     to_world = torch.eye(4).to(device).to(dtype)
 
-    if size.size(dim=0) == 1:
-        to_world[:3, :3] = torch.diag(size).to(device).to(dtype) * torch.eye(3).to(device).to(dtype)
+    if size.size() == () or size.size(dim=0) == 1:
+        to_world[:3, :3] = torch.eye(3).to(device).to(dtype) * size
     elif size.size(dim=0) == 3:
         to_world[:3, :3] = torch.diag(size).to(device).to(dtype)
     else:
