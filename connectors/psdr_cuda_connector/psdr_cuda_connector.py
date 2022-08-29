@@ -68,6 +68,8 @@ class PSDRCudaConnector(Connector):
                 objects['integrators'].append(psdr_cuda.CollocatedIntegrator(integrator_config['params']['intensity']))
             elif integrator_config['type'] == 'field':
                 objects['integrators'].append(psdr_cuda.FieldExtractionIntegrator(integrator_config['params']['name']))
+            elif integrator_config['type'] == 'path':
+                objects['integrators'].append(psdr_cuda.PathTracer(integrator_config['params']['max_depth']))
             else:
                 raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
         
@@ -152,8 +154,11 @@ class PSDRCudaConnector(Connector):
 
                     if emitter_type == 'env':
                         if prop == 'to_world':
-                            to_world = emitter['to_world'].data
-                            enoki_emitter.to_world = Matrix4fD(to_world.reshape(1, 4, 4))
+                            enoki_param = Matrix4fD(param.data.reshape(1, 4, 4))
+                            enoki_emitter.to_world = enoki_param
+                        elif prop == 'env_map':
+                            enoki_param = Vector3fD(convert_color(param.data))
+                            enoki_emitter.radiance.data = enoki_param
                             
                 param.updated = False
 
@@ -237,6 +242,14 @@ class PSDRCudaConnector(Connector):
                         enoki_params.append(enoki_param)
                     else:
                         raise ValueError(f"property not supported: {prop}")
+            elif group == 'emitters':
+                emitter_type = scene.emitters[idx]['type']
+                enoki_emitter = objects['scene'].param_map[f'Emitter[{idx}]']
+                if emitter_type == 'env':
+                    if prop == 'env_map':
+                        enoki_param = enoki_emitter.radiance.data
+                        enoki.set_requires_gradient(enoki_param, True)
+                        enoki_params.append(enoki_param)
 
         objects['scene'].configure2(sensor_ids)
 
