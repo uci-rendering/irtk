@@ -28,6 +28,13 @@ pip install scene_parsers/*
 ```
 If you want to modify the code but don't want to repeatedly install them, add `-e` after `install`, such as `pip install -e .`.
 
+Notice that you can't use wildcards directly in Powershell. You can do the following instead
+```
+pip install . 
+pip install (get-item .\connectors\*)
+pip install (get-item .\scene_parsers\*)
+```
+
 ## Run a simple test
 I created a simple inverse rendering experiment in `tests/inv_rendering_test.py`. After all the requirements are met, run
 ```
