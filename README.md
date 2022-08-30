@@ -8,6 +8,11 @@ Clone the repository. Make sure you have Anaconda installed. To avoid package co
 conda env create -f environment.yml
 conda activate ivt
 ```
+If `environment.yml` is updated and you want to update your environemnt accordingly, you can run
+```
+conda env update --name ivt --file environment.yml
+```
+Add a `--prune` at the end if you want to remove extra packages not listed in `environment.yml`.
 
 ## Install the backends
 For now, only `psdr-enzyme` is supported. A note for compiling `psdr-enzyme`:
