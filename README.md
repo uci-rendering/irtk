@@ -40,3 +40,19 @@ I created a simple inverse rendering experiment in `tests/inv_rendering_test.py`
 ```
 python tests/inv_rendering_test.py
 ```
+
+## Run shape optimization with remeshing
+```
+cd pipelines
+
+# Create a scene with a bunny and cache it
+python scenes/bunny.py
+
+# Render target images using the cached scene
+python render_target.py configs/bunny_shape.json
+
+# Run shape optimization with remeshing
+python shape_opt_remesh.py configs/bunny_shape.json
+```
+
+
