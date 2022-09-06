@@ -1,7 +1,7 @@
 {
-    "cached_scene_path": "cached_scenes/bunny.pt",
-    "target_images_path": "target_images/bunny",
-    "result_path": "results/bunny",
+    "cached_scene_path": "cached_scenes/knot.pt",
+    "target_images_path": "target_images/knot",
+    "result_path": "results/knot",
     "init_mesh_path": "data/meshes/sphere_low_res.obj",
 
     "image_res": [512, 512],
@@ -13,7 +13,7 @@
     "obj_lr": 1e-2,
     "obj_lambda": 20,
     "num_remesh": 20,
-    "init_edge_length": 0.3,
+    "init_edge_length": 0.2,
     "edge_length_decay": 0.8,
 
     "connector_name": "psdr_cuda",
