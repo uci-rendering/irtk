@@ -22,7 +22,17 @@ class Parameter:
 
     def configure(self):
         assert self.backend in ['torch', 'numpy']
-        
+        # if torch.is_tensor(self.data):
+            # self.data = self.data.to(self.dtype).to(self.device)
+        # else:
+            # self.data = torch.tensor(self.data, dtype=self.dtype, device=self.device)
+
+        # if self.data.requires_grad:
+        #     self.requires_grad = True
+        # else:
+        #     self.data.requires_grad = self.requires_grad
+
+        # self.data = torch.tensor(self.data, dtype=torch.float, device=self.device)
         if self.backend == 'torch':
             if torch.is_tensor(self.data):
                 self.data = self.data.to(self.dtype).to(self.device)
@@ -35,11 +45,11 @@ class Parameter:
                 self.data.requires_grad = self.requires_grad
                 
         elif self.backend == 'numpy':
-            if torch.is_tensor(self.data):
-                self.data = self.data.detach().cpu()
-            self.data = np.array(self.data, dtype=self.dtype)
+            # if torch.is_tensor(self.data):
+            #     self.data = self.data.detach().cpu()
+            # self.data = np.array(self.data, dtype=self.dtype)
             self.device = 'cpu'
-            
+    
     def numpy(self):
         return self.data.detach().cpu().numpy().astype(dtype=self.dtype)
 
@@ -119,8 +129,9 @@ class Scene:
     def add_integrator(self, integrator_type, integrator_params={}):
         integrator = {
             'type': integrator_type,
-            'params': integrator_params
+            'props': integrator_params
         }
+        # integrator = integrator_type
         self.integrators.append(integrator)
 
     def add_hdr_film(self, resolution, rfilter='tent', crop=(0, 0, 1, 1)):
@@ -211,49 +222,50 @@ class Scene:
         }
         self.phases.append(phase)
         return i
-
+    
+    def add_volume(self, id, volume, name):
+        assert name in ['sigmaT', 'albedo']
+        if type(volume) == dict:
+            return {
+                'type': 'gridvolume',
+                'data': self.add_fparam(id + '.' + name, volume['data']),
+                'res': volume['res'],
+                'nchannel': volume['nchannel'],
+                'min': volume['min'],
+                'max': volume['max']
+            }
+        elif type(volume) == list:
+            return {
+                'type': 'constvolume',
+                'data': self.add_fparam(id + '.' + name, np.array(volume)),
+            }                   
+        elif type(volume) == float:
+            return {
+                'type': 'constvolume',
+                'data': self.add_fparam(id + '.' + name, np.array([volume]*3)),
+            }
+        else:
+            raise ValueError('Unknown volume type')
+    
     def add_homogeneous_medium(self, sigmaT, albedo, phase_id=None):
         id = f'mediums[{len(self.mediums)}]'
         medium = {
             'id': id,
             'type': 'homogeneous',
             'sigmaT': self.add_fparam(id + '.sigmaT', sigmaT),
-            'albedo': self.add_fparam(id + '.albedo', albedo),
+            # 'albedo': self.add_fparam(id + '.albedo', albedo),
+            'albedo': self.add_volume(id, albedo, 'albedo'),
             'phase_id': phase_id if phase_id is not None else self.add_isotropic_phase()
         }
         self.mediums.append(medium)
     
     def add_heterogeneous_medium(self, sigmaT, albedo, scale= 1., phase_id=None):
         id = f'mediums[{len(self.mediums)}]'
-
-        def add_volume(volume, name):
-            assert name in ['sigmaT', 'albedo']
-            if type(volume) == dict:
-                return {
-                    'type': 'gridvolume',
-                    'data': self.add_fparam(id + '.' + name, volume['data']),
-                    'res': volume['res'],
-                    'nchannel': volume['nchannel'],
-                    'min': volume['min'],
-                    'max': volume['max']
-                }
-            elif type(volume) == list:
-                return {
-                    'type': 'constvolume',
-                    'data': self.add_fparam(id + '.' + name, np.array(volume)),
-                }                   
-            elif type(volume) == float:
-                return {
-                    'type': 'constvolume',
-                    'data': self.add_fparam(id + '.' + name, np.array([volume]*3)),
-                }
-            else:
-                raise ValueError('Unknown volume type')
         medium = {
             'id': id,
             'type': 'heterogeneous',
-            'sigmaT': add_volume(sigmaT, 'sigmaT'),
-            'albedo': add_volume(albedo, 'albedo'),
+            'sigmaT': self.add_volume(id, sigmaT, 'sigmaT'),
+            'albedo': self.add_volume(id, albedo, 'albedo'),
             'scale': self.add_fparam(id + '.scale', scale),
             'phase_id': phase_id if phase_id is not None else self.add_isotropic_phase()
         }
