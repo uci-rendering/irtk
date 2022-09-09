@@ -175,6 +175,7 @@ class PSDRCudaConnector(Connector):
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         # Convert the scene into psdr_cuda objects
         objects = self.get_objects(scene, render_options)
+        objects['scene'].opts.spp = render_options['spp_c'] if 'spp_c' in render_options else render_options['spp']
         objects['scene'].configure2(sensor_ids)
         h, w, c = objects['film']['shape']
         npass = render_options['npass']
@@ -187,12 +188,12 @@ class PSDRCudaConnector(Connector):
                 image += objects['integrators'][integrator_id].renderC(objects['scene'], sensor_id).torch() / npass
             image = image.reshape(h, w, c)
             images.append(image)
-
         return images
     
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
         # Convert the scene into psdr_cuda objects
         objects = self.get_objects(scene, render_options)
+        objects['scene'].opts.spp = render_options['spp']
         objects['scene'].configure2(sensor_ids)
         psdr_param_map = objects['scene'].param_map
         npass = render_options['npass']
@@ -250,19 +251,19 @@ class PSDRCudaConnector(Connector):
                         enoki_param = enoki_emitter.radiance.data
                         enoki.set_requires_gradient(enoki_param, True)
                         enoki_params.append(enoki_param)
-
         objects['scene'].configure2(sensor_ids)
 
+        param_grads = [torch.zeros_like(enoki_param.torch().cuda()) for enoki_param in enoki_params]
+
         for i, sensor_id in enumerate(sensor_ids):
-            image_grad = Vector3fC(image_grads[i].reshape(-1, 3))
+            image_grad = Vector3fC(image_grads[i].reshape(-1, 3) / npass) 
             for j in range(npass):
-                if j == 0:
-                    image = objects['integrators'][integrator_id].renderD(objects['scene'], sensor_id) / npass
-                else:
-                    image += objects['integrators'][integrator_id].renderD(objects['scene'], sensor_id) / npass
-            
-            enoki.set_gradient(image, image_grad)
-            FloatD.backward()
+                image = objects['integrators'][integrator_id].renderD(objects['scene'], sensor_id)
+                enoki.set_gradient(image, image_grad)
+                FloatD.backward()
+
+                for param_grad, enoki_param in zip(param_grads, enoki_params):
+                    param_grad += torch.nan_to_num(enoki.gradient(enoki_param).torch().cuda())
 
             # garbage collection
             del image, image_grad
