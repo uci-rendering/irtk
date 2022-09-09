@@ -23,7 +23,7 @@ async def write_results(out_path, cp_data):
 
     torch.save(cp_data['loss'], out_path.parent / 'loss.pt')
 
-def run(config):
+def optimize_shape(config):
     result_path = Path(config['result_path'])
     result_path.mkdir(parents=True, exist_ok=True) 
 
@@ -118,11 +118,15 @@ def run(config):
 
                 asyncio.run(write_results(result_path / str(iter), cp_data))
 
+    print('Done')
+
+    return V_data.detach().cpu().numpy(), F_data.detach().cpu().numpy()
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('config_file', type=str)
     args = parser.parse_args()
     with open(args.config_file, 'r') as f:
         config = json.load(f)
-    run(config)
+    optimize_shape(config)
 

@@ -8,6 +8,11 @@ Clone the repository. Make sure you have Anaconda installed. To avoid package co
 conda env create -f environment.yml
 conda activate ivt
 ```
+If `environment.yml` is updated and you want to update your environemnt accordingly, you can run
+```
+conda env update --name ivt --file environment.yml
+```
+Add a `--prune` at the end if you want to remove extra packages not listed in `environment.yml`.
 
 ## Install the backends
 For now, only `psdr-enzyme` is supported. A note for compiling `psdr-enzyme`:
@@ -23,8 +28,31 @@ pip install scene_parsers/*
 ```
 If you want to modify the code but don't want to repeatedly install them, add `-e` after `install`, such as `pip install -e .`.
 
+Notice that you can't use wildcards directly in Powershell. You can do the following instead
+```
+pip install . 
+pip install (get-item .\connectors\*)
+pip install (get-item .\scene_parsers\*)
+```
+
 ## Run a simple test
 I created a simple inverse rendering experiment in `tests/inv_rendering_test.py`. After all the requirements are met, run
 ```
 python tests/inv_rendering_test.py
 ```
+
+## Run shape optimization with remeshing
+```
+cd pipelines
+
+# Create a scene with a bunny and cache it
+python scenes/bunny.py
+
+# Render target images using the cached scene
+python render_target.py configs/bunny_shape.json
+
+# Run shape optimization with remeshing
+python shape_opt_remesh.py configs/bunny_shape.json
+```
+
+
