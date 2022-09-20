@@ -12,7 +12,7 @@ cached_scenes_path.mkdir(parents=True, exist_ok=True)
 
 scene_name = 'buddha'
 
-scene = Scene(backend='torch', device='cuda')
+scene = Scene(device='cuda')
 
 num_sensors = 104
 radius = 3

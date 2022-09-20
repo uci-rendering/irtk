@@ -3,15 +3,10 @@ import torch
 import numpy as np
 
 class Parameter:
-    """
-    A class to store parameters using different backends such as torch and numpy.
-    It tracks requires_grad even if the backend doesn't support autodiff. 
-    """
     
-    def __init__(self, data, backend='torch', dtype=torch.float32, device='cpu', is_float=True):
+    def __init__(self, data, dtype=torch.float32, device='cpu', is_float=True):
         
         self.data = data
-        self.backend = backend
         self.dtype = dtype
         self.device = device
         self.is_float = is_float
@@ -21,25 +16,16 @@ class Parameter:
         self.set(data)
 
     def configure(self):
-        assert self.backend in ['torch', 'numpy']
-        
-        if self.backend == 'torch':
-            if torch.is_tensor(self.data):
-                self.data = self.data.to(self.dtype).to(self.device)
-            else:
-                self.data = torch.tensor(self.data, dtype=self.dtype, device=self.device)
+        if torch.is_tensor(self.data):
+            self.data = self.data.to(self.dtype).to(self.device)
+        else:
+            self.data = torch.tensor(self.data, dtype=self.dtype, device=self.device)
 
-            if self.data.requires_grad:
-                self.requires_grad = True
-            else:
-                self.data.requires_grad = self.requires_grad
-                
-        elif self.backend == 'numpy':
-            if torch.is_tensor(self.data):
-                self.data = self.data.detach().cpu()
-            self.data = np.array(self.data, dtype=self.dtype)
-            self.device = 'cpu'
-            
+        if self.data.requires_grad:
+            self.requires_grad = True
+        else:
+            self.data.requires_grad = self.requires_grad
+
     def set(self, data):
         self.data = data
         self.updated = True
@@ -47,29 +33,20 @@ class Parameter:
 
     def set_requires_grad(self, b=True):
         self.requires_grad = b
-        if self.backend == 'torch':
-            self.data.requires_grad = b
+        self.data.requires_grad = b
 
     def tolist(self):
-        if self.backend == 'torch' or self.backend == 'numpy':
-            return self.data.tolist()
-        else:
-            assert False
+        return self.data.tolist()
 
     def item(self):
-        if self.backend == 'torch' or self.backend == 'numpy':
-            return self.data.item()
-        else:
-            assert False
+        return self.data.item()
             
     def __repr__(self):
         return repr(self.data)
 
 class Scene:
 
-    def __init__(self, backend='torch', device='cpu', ftype=None, itype=None):
-        assert backend in ['torch', 'numpy']
-        
+    def __init__(self, device='cpu', ftype=torch.float32, itype=torch.long):
         # Scene data 
         self.integrators = [] 
         self.film = None 
@@ -84,30 +61,15 @@ class Scene:
         # A map from all parameter names to their corresponding parameters.
         self.param_map = OrderedDict()
 
-        self.backend = backend
         self.device = device
         
-        if backend == 'numpy': device = 'cpu'
-        
-        if ftype is None:
-            if backend == 'torch':
-                self.ftype = torch.float32
-            elif backend == 'numpy':
-                self.ftype = np.float64
-        
-        if itype is None:
-            if backend == 'torch':
-                self.itype = torch.long
-            elif backend == 'numpy':
-                self.itype = np.int64
-            
     def add_iparam(self, param_name, array):
-        param = Parameter(array, self.backend, self.itype, self.device, is_float=False)
+        param = Parameter(array, self.itype, self.device, is_float=False)
         self.param_map[param_name] = param 
         return param
     
     def add_fparam(self, param_name, array):
-        param = Parameter(array, self.backend, self.ftype, self.device)
+        param = Parameter(array, self.ftype, self.device)
         self.param_map[param_name] = param 
         return param
         
@@ -202,14 +164,6 @@ class Scene:
             'to_world': self.add_fparam(id + '.to_world', to_world)
         }
         self.emitters.append(emitter)
-        
-    def configure(self):
-        for param_name in self.param_map:
-            param = self.param_map[param_name]
-            param.backend = self.backend
-            param.dtype = self.ftype if param.is_float else self.itype
-            param.device = self.device
-            param.configure()
             
     def get_requiring_grad(self):
         return [param_name for param_name in self.param_map if self.param_map[param_name].requires_grad]
@@ -221,9 +175,6 @@ class Scene:
         s = '\n'.join([f'{param_name}: {self.param_map[param_name]}' for param_name in self.param_map])
 
         return s
-
-    def validate(self):
-        pass
     
 def split_param_name(param_name):
     group, idx, prop = param_name.replace('[', '.').replace(']', '').split('.')

@@ -25,10 +25,10 @@ simple_render_options = {
     }
 }
 
-def simple_scene(backend='torch', device='cuda'):
+def simple_scene(device='cuda'):
     meshes_path = Path('tests', 'scenes', 'bunny', 'meshes')
     
-    scene = Scene(backend=backend, device=device)
+    scene = Scene(device=device)
     
     scene.add_integrator('direct')
     
@@ -53,9 +53,9 @@ def simple_scene(backend='torch', device='cuda'):
     
     return scene
 
-def kai_scene(backend='torch', device='cuda'):
+def kai_scene(device='cuda'):
     meshes_path = Path('tests', 'scenes', 'room')
-    scene = Scene(backend=backend, device=device)
+    scene = Scene(device=device)
     scene.add_integrator('collocated', {'intensity': 2000})
     scene.add_integrator('field', {'name': "segmentation"})
     scene.add_hdr_film(resolution=(1024, 1024))

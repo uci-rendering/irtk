@@ -16,7 +16,6 @@ from shutil import rmtree
 import os
 
 class PSDRCudaConnector(Connector):
-    backend = 'torch'
     device = 'cuda'
     ftype = torch.float32
     itype = torch.long
