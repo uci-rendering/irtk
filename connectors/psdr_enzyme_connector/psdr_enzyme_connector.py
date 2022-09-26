@@ -85,6 +85,7 @@ class PSDREnzymeConnector(Connector):
             props.setVectorX3i('indices', mesh_config['vertex_indices'].numpy())
             props.setVectorX2('uvs', mesh_config['uv_positions'].numpy())
             props.setVectorX3i('uv_indices', mesh_config['uv_indices'].numpy())
+            props.set('to_world', mesh_config['to_world'].numpy())
             props.set('bsdf_id', mesh_config['bsdf_id'])
             if 'med_ext_id' in mesh_config:
                 props.set('med_ext_id', mesh_config['med_ext_id'])
