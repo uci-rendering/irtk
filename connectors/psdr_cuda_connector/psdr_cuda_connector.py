@@ -16,10 +16,6 @@ from shutil import rmtree
 import os
 
 class PSDRCudaConnector(Connector):
-    device = 'cuda'
-    ftype = torch.float32
-    itype = torch.long
-
     def __init__(self):
         super().__init__()
 
@@ -182,7 +178,7 @@ class PSDRCudaConnector(Connector):
         # Render the images
         images = []
         for sensor_id in sensor_ids:
-            image = torch.zeros((h * w, c)).to(PSDRCudaConnector.device).to(PSDRCudaConnector.ftype)
+            image = torch.zeros((h * w, c)).to(scene.device).to(scene.ftype)
             for i in range(npass):
                 image += objects['integrators'][integrator_id].renderC(objects['scene'], sensor_id).torch() / npass
             image = image.reshape(h, w, c)

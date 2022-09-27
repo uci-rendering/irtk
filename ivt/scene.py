@@ -1,52 +1,62 @@
 from collections import OrderedDict
 import torch
 import numpy as np
+from abc import ABC, abstractmethod
 
-class Parameter:
-    
-    def __init__(self, data, dtype=torch.float32, device='cpu', is_float=True):
-        
-        self.data = data
+
+
+class Parameter(ABC):
+    @abstractmethod
+    def __init__(self, dtype, device):
         self.dtype = dtype
         self.device = device
-        self.is_float = is_float
-        self.requires_grad = False
-        self.updated = False
-        
-        self.set(data)
+        self._requires_grad = False
+        self._updated = False
 
-    def configure(self):
-        if torch.is_tensor(self.data):
-            self.data = self.data.to(self.dtype).to(self.device)
+    @property
+    @abstractmethod
+    def data(self):
+        pass
+    
+    @property
+    def requires_grad(self):
+        return self._requires_grad
+
+    @requires_grad.setter
+    def requires_grad(self, b_requires_grad):
+        self._requires_grad = b_requires_grad
+
+    def to_tensor(self, array):
+        if torch.is_tensor(array):
+            array = array.to(self.dtype).to(self.device)
         else:
-            self.data = torch.tensor(self.data, dtype=self.dtype, device=self.device)
+            array = torch.tensor(array, dtype=self.dtype, device=self.device)
+        return array
 
-        if self.data.requires_grad:
-            self.requires_grad = True
-        else:
-            self.data.requires_grad = self.requires_grad
+class DefaultParameter(Parameter):
+    def __init__(self, dtype, device):
+        super().__init__(dtype, device)
+        self._raw_data = []
 
-    def set(self, data):
-        self.data = data
-        self.updated = True
-        self.configure()
+    @property
+    def raw_data(self):
+        return self._raw_data 
 
-    def set_requires_grad(self, b=True):
-        self.requires_grad = b
-        self.data.requires_grad = b
+    @raw_data.setter
+    def raw_data(self, raw_data):
+        self._raw_data = self.to_tensor(raw_data)
 
-    def tolist(self):
-        return self.data.tolist()
-
-    def item(self):
-        return self.data.item()
-            
-    def __repr__(self):
-        return repr(self.data)
+    @property
+    def data(self):
+        return self._raw_data
+    
+    @Parameter.requires_grad.setter
+    def requires_grad(self, requires_grad):
+        self._requires_grad = requires_grad
+        self._raw_data.requires_grad = requires_grad
 
 class Scene:
-
-    def __init__(self, device='cpu', ftype=torch.float32, itype=torch.long):
+    def __init__(self, device='cuda', ftype=torch.float32, itype=torch.long):
         # Scene data 
         self.integrators = [] 
         self.film = None 
@@ -62,14 +72,24 @@ class Scene:
         self.param_map = OrderedDict()
 
         self.device = device
+        self.ftype = ftype
+        self.itype = itype
         
-    def add_iparam(self, param_name, array):
-        param = Parameter(array, self.itype, self.device, is_float=False)
+    def add_iparam(self, param_name, param_data):
+        if issubclass(type(param_data), Parameter):
+            param = param_data
+        else:
+            param = DefaultParameter(self.itype, self.device)
+            param.raw_data = param_data
         self.param_map[param_name] = param 
         return param
     
-    def add_fparam(self, param_name, array):
-        param = Parameter(array, self.ftype, self.device)
+    def add_fparam(self, param_name, param_data):
+        if issubclass(type(param_data), Parameter):
+            param = param_data
+        else:
+            param = DefaultParameter(self.ftype, self.device)
+            param.raw_data = param_data
         self.param_map[param_name] = param 
         return param
         
