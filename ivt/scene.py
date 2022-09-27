@@ -1,59 +1,7 @@
 from collections import OrderedDict
 import torch
 import numpy as np
-from abc import ABC, abstractmethod
-
-
-
-class Parameter(ABC):
-    @abstractmethod
-    def __init__(self, dtype, device):
-        self.dtype = dtype
-        self.device = device
-        self._requires_grad = False
-        self._updated = False
-
-    @property
-    @abstractmethod
-    def data(self):
-        pass
-    
-    @property
-    def requires_grad(self):
-        return self._requires_grad
-
-    @requires_grad.setter
-    def requires_grad(self, b_requires_grad):
-        self._requires_grad = b_requires_grad
-
-    def to_tensor(self, array):
-        if torch.is_tensor(array):
-            array = array.to(self.dtype).to(self.device)
-        else:
-            array = torch.tensor(array, dtype=self.dtype, device=self.device)
-        return array
-
-class DefaultParameter(Parameter):
-    def __init__(self, dtype, device):
-        super().__init__(dtype, device)
-        self._raw_data = []
-
-    @property
-    def raw_data(self):
-        return self._raw_data 
-
-    @raw_data.setter
-    def raw_data(self, raw_data):
-        self._raw_data = self.to_tensor(raw_data)
-
-    @property
-    def data(self):
-        return self._raw_data
-    
-    @Parameter.requires_grad.setter
-    def requires_grad(self, requires_grad):
-        self._requires_grad = requires_grad
-        self._raw_data.requires_grad = requires_grad
+from .parameter import Parameter, DefaultParameter
 
 class Scene:
     def __init__(self, device='cuda', ftype=torch.float32, itype=torch.long):
@@ -74,24 +22,20 @@ class Scene:
         self.device = device
         self.ftype = ftype
         self.itype = itype
+
+    def add_param(self, param_name, param_data, dtype):
+        if issubclass(type(param_data), Parameter):
+            param = param_data
+        else:
+            param = DefaultParameter(param_data, dtype, self.device)
+        self.param_map[param_name] = param 
+        return param
         
     def add_iparam(self, param_name, param_data):
-        if issubclass(type(param_data), Parameter):
-            param = param_data
-        else:
-            param = DefaultParameter(self.itype, self.device)
-            param.raw_data = param_data
-        self.param_map[param_name] = param 
-        return param
+        return self.add_param(param_name, param_data, self.itype)
     
     def add_fparam(self, param_name, param_data):
-        if issubclass(type(param_data), Parameter):
-            param = param_data
-        else:
-            param = DefaultParameter(self.ftype, self.device)
-            param.raw_data = param_data
-        self.param_map[param_name] = param 
-        return param
+        return self.add_param(param_name, param_data, self.ftype)
         
     def add_integrator(self, integrator_type, integrator_params={}):
         integrator = {
