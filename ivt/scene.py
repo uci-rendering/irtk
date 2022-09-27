@@ -226,7 +226,7 @@ class Scene:
     def add_volume(self, id, volume, name):
         assert name in ['sigmaT', 'albedo']
         if type(volume) == dict:
-            return {
+            ret =  {
                 'type': 'gridvolume',
                 'data': self.add_fparam(id + '.' + name, volume['data']),
                 'res': volume['res'],
@@ -234,6 +234,10 @@ class Scene:
                 'min': volume['min'],
                 'max': volume['max']
             }
+            if 'to_world' in volume:
+                ret.update({'to_world': self.add_fparam(
+                    id + '.to_world', volume['to_world'])})
+            return ret
         elif type(volume) == list:
             return {
                 'type': 'constvolume',

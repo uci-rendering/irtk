@@ -153,11 +153,13 @@ class PSDREnzymeConnector(Connector):
 
         def create_volume(volume_config):
             if volume_config['type'] == 'gridvolume':
-                return psdr_cpu.VolumeGrid(volume_config['res'],
+                return psdr_cpu.VolumeGrid(volume_config['res'].numpy(),
                                             volume_config['nchannel'],
                                             volume_config['min'],
                                             volume_config['max'],
-                                            volume_config['data'].numpy())
+                                            volume_config['data'].numpy(),
+                                            volume_config.get('to_world', torch.eye(4)).numpy())
+
             elif volume_config['type'] == 'constvolume':
                 return psdr_cpu.VolumeGrid(volume_config['data'].numpy())
             else:
