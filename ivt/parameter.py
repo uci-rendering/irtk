@@ -6,7 +6,7 @@ class Parameter(ABC):
         self.dtype = dtype
         self.device = device
         self._requires_grad = False
-        self._updated = False
+        self.updated = False
 
     @property
     @abstractmethod
@@ -31,21 +31,18 @@ class Parameter(ABC):
 class DefaultParameter(Parameter):
     def __init__(self, raw_data, dtype, device):
         super().__init__(dtype, device)
-        self._raw_data = raw_data
+        self.set(raw_data)
 
-    @property
-    def raw_data(self):
-        return self._raw_data 
-
-    @raw_data.setter
-    def raw_data(self, raw_data):
-        self._raw_data = self.to_tensor(raw_data)
+    def set(self, raw_data):
+        self.raw_data = self.to_tensor(raw_data)
+        self.updated = True
+        self.requires_grad = self.raw_data.requires_grad
 
     @property
     def data(self):
-        return self._raw_data
+        return self.raw_data
     
     @Parameter.requires_grad.setter
     def requires_grad(self, requires_grad):
         self._requires_grad = requires_grad
-        self._raw_data.requires_grad = requires_grad
+        self.raw_data.requires_grad = requires_grad

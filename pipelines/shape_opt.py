@@ -64,13 +64,12 @@ def optimize_shape(config):
         scene.meshes[0]['vertex_indices'].set(f)
 
     V = scene.meshes[0]['vertex_positions']
-    V_data = V.data.clone().requires_grad_()
+    V.requires_grad = True
     F = scene.meshes[0]['vertex_indices']
-    F_data = F.data.clone()
 
     # Optimizer related stuff
     obj_optimizer = LargeStepsOptimizer(
-        V_data, F_data, 
+        V.data, F.data, 
         lr=config['obj_lr'], lmbda=config['obj_lambda'])
     num_epochs = config['num_epochs']
     batch_size = config['batch_size']
@@ -89,15 +88,14 @@ def optimize_shape(config):
 
             obj_optimizer.zero_grad()
             
-            V.set(V_data)
-
-            params = [scene.param_map[param_name].data for param_name in scene.get_requiring_grad()]
-            opt_images = render(scene, params, sensor_ids=sensor_ids)
+            opt_images = render(scene, sensor_ids=sensor_ids)
             
             loss = l1_loss(tar_images[sensor_ids], opt_images)
             loss.backward()
 
             obj_optimizer.step()
+
+            V.updated = True
 
             t1 = time()
 
@@ -111,8 +109,8 @@ def optimize_shape(config):
                 cp_data = {
                     'tar_images': tar_images[vis_sensor_ids],
                     'vis_images': vis_images,
-                    'V': V_data,
-                    'F': F_data,
+                    'V': V.data,
+                    'F': F.data,
                     'loss': loss_record
                 }
 
@@ -120,7 +118,7 @@ def optimize_shape(config):
 
     print('Done')
 
-    return V_data.detach().cpu().numpy(), F_data.detach().cpu().numpy()
+    return V.data.detach().cpu().numpy(), F.data.detach().cpu().numpy()
 
 if __name__ == '__main__':
     parser = ArgumentParser()
