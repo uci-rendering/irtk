@@ -19,8 +19,12 @@ class Parameter(ABC):
         return self._requires_grad
 
     @requires_grad.setter
-    def requires_grad(self, b_requires_grad):
-        self._requires_grad = b_requires_grad
+    def requires_grad(self, requires_grad):
+        self._requires_grad = requires_grad
+
+    def requires_grad_(self, requires_grad=True):
+        self.requires_grad = requires_grad
+        return self
 
     def to_tensor(self, array):
         if torch.is_tensor(array):

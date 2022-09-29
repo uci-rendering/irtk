@@ -63,8 +63,7 @@ def optimize_shape(config):
         scene.meshes[0]['vertex_positions'].set(v)
         scene.meshes[0]['vertex_indices'].set(f)
 
-    V = scene.meshes[0]['vertex_positions']
-    V.requires_grad = True
+    V = scene.meshes[0]['vertex_positions'].requires_grad_()
     F = scene.meshes[0]['vertex_indices']
 
     # Optimizer related stuff
