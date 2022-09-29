@@ -43,7 +43,7 @@ class Renderer(torch.nn.Module):
         if torch.is_tensor(sensor_ids):
             sensor_ids = sensor_ids.flatten().tolist()
 
-        params = [scene.param_map[param_name].data for param_name in scene.get_requiring_grad()]
+        params = [scene[param_name].data for param_name in scene.get_requiring_grad()]
         
         images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, self.device, self.dtype, *params)
         return images

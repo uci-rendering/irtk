@@ -1,3 +1,4 @@
+from ast import Param
 import torch
 from abc import ABC, abstractmethod
 
@@ -28,21 +29,21 @@ class Parameter(ABC):
             array = torch.tensor(array, dtype=self.dtype, device=self.device)
         return array
 
-class DefaultParameter(Parameter):
+class NaiveParameter(Parameter):
     def __init__(self, raw_data, dtype, device):
         super().__init__(dtype, device)
         self.set(raw_data)
 
     def set(self, raw_data):
-        self.raw_data = self.to_tensor(raw_data)
+        self._raw_data = self.to_tensor(raw_data)
         self.updated = True
-        self.requires_grad = self.raw_data.requires_grad
+        self.requires_grad = self._raw_data.requires_grad
 
     @property
     def data(self):
-        return self.raw_data
+        return self._raw_data
     
     @Parameter.requires_grad.setter
     def requires_grad(self, requires_grad):
         self._requires_grad = requires_grad
-        self.raw_data.requires_grad = requires_grad
+        self._raw_data.requires_grad = requires_grad

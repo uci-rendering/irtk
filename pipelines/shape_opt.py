@@ -95,8 +95,6 @@ def optimize_shape(config):
 
             obj_optimizer.step()
 
-            V.updated = True
-
             t1 = time()
 
             loss_record.append(loss.item())
