@@ -2,6 +2,8 @@ from collections import OrderedDict
 import torch
 import numpy as np
 
+from ivt.connector import ConnectorManager
+
 class Parameter:
     """
     A class to store parameters using different backends such as torch and numpy.
@@ -306,6 +308,11 @@ class Scene:
 
     def validate(self):
         pass
+
+    def to(self, connector_name):
+        cm = ConnectorManager()
+        connector = cm.get_connector(connector_name)
+        return connector.create_scene(self)
     
 def split_param_name(param_name):
     group, idx, prop = param_name.replace('[', '.').replace(']', '').split('.')
