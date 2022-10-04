@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 class Parameter(ABC):
     def __init__(self, dtype, device):
-        self.dtype = dtype
-        self.device = device
+        self._dtype = dtype
+        self._device = device
         self._requires_grad = False
         self.updated = False
 
@@ -17,6 +17,14 @@ class Parameter(ABC):
     @abstractmethod
     def raw_data(self):
         pass
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    @property
+    def device(self):
+        return self._device
     
     @property
     def requires_grad(self):
@@ -59,7 +67,8 @@ class NaiveParameter(Parameter):
     @Parameter.requires_grad.setter
     def requires_grad(self, requires_grad):
         self._requires_grad = requires_grad
-        self._raw_data.requires_grad = requires_grad
+        if requires_grad and not self._raw_data.requires_grad:
+            self._raw_data.requires_grad = requires_grad
 
 class FixedRangeTexture(Parameter):
     def __init__(self, t_res, v_min=0.0, v_max=1.0, dtype=torch.float32, device='cuda'):
