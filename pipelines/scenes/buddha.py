@@ -22,8 +22,7 @@ up = (0, 1, 0)
 for origin in sample_sphere(num_sensors, radius, 'fibonacci'):
     scene.add_perspective_camera(fov, origin, target, up)
 
-v, tc, n, f, ftc, fn = read_obj(meshes_path / 'buddha.obj')
-scene.add_mesh(v, f, 0)
+scene.add_obj(meshes_path / 'buddha.obj', 0)
 
 scene.add_diffuse_bsdf((0.7, 0.8, 0.2))
 

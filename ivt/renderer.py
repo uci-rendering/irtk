@@ -1,7 +1,6 @@
 from ivt.connector import ConnectorManager
 import torch 
 import numpy as np
-from copy import deepcopy
 
 class RenderFunction(torch.autograd.Function):
 

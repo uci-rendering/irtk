@@ -1,8 +1,6 @@
-from urllib.robotparser import RequestRate
 import torch
-import numpy as np
 from .parameter import Parameter, NaiveParameter
-from functools import reduce
+from ivt.io import read_obj
 
 class Scene:
     def __init__(self, device='cuda', ftype=torch.float32, itype=torch.long):
@@ -107,6 +105,10 @@ class Scene:
         }
         self.__mark_diff(id, ['vertex_positions', 'to_world'])
         self.meshes.append(mesh)
+
+    def add_obj(self, obj_path, bsdf_id, to_world=torch.eye(4), use_face_normal=False):
+        v, tc, _, f, ftc, _ = read_obj(obj_path)
+        self.add_mesh(v, f, bsdf_id, tc, ftc, to_world, use_face_normal)
 
     def add_diffuse_bsdf(self, reflectance, to_world=torch.eye(3)):
         id = self.__make_id('bsdfs')
