@@ -16,11 +16,6 @@ from shutil import rmtree
 import os
 
 class PSDRCudaConnector(Connector):
-    backend = 'torch'
-    device = 'cuda'
-    ftype = torch.float32
-    itype = torch.long
-
     def __init__(self):
         super().__init__()
 
@@ -99,10 +94,10 @@ class PSDRCudaConnector(Connector):
         if 'psdr_cuda' in scene.cached:
             objects = scene.cached['psdr_cuda']
             psdr_param_map = objects['scene'].param_map
-            updated_params = scene.get_updated()
+            updated_params = scene.get_requiring_grad()
 
             for param_name in updated_params:
-                param = scene.param_map[param_name]
+                param = scene[param_name]
                 group, idx, prop = split_param_name(param_name)
 
                 if group == 'meshes':
@@ -160,16 +155,12 @@ class PSDRCudaConnector(Connector):
                             enoki_param = Vector3fD(convert_color(param.data))
                             enoki_emitter.radiance.data = enoki_param
                             
-                param.updated = False
-
             return objects
 
         # Create scene objects if there is no cache
         else:
             objects = self.create_objects(scene, render_options)
             scene.cached['psdr_cuda'] = objects
-            for param_name in scene.get_updated():
-                scene.param_map[param_name].updated = False
             return objects
 
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
@@ -183,7 +174,7 @@ class PSDRCudaConnector(Connector):
         # Render the images
         images = []
         for sensor_id in sensor_ids:
-            image = torch.zeros((h * w, c)).to(PSDRCudaConnector.device).to(PSDRCudaConnector.ftype)
+            image = torch.zeros((h * w, c)).to(scene.device).to(scene.ftype)
             for i in range(npass):
                 image += objects['integrators'][integrator_id].renderC(objects['scene'], sensor_id).torch() / npass
             image = image.reshape(h, w, c)
@@ -201,7 +192,7 @@ class PSDRCudaConnector(Connector):
         param_names = scene.get_requiring_grad()
         enoki_params = []
         for param_name in param_names:
-            param = scene.param_map[param_name]
+            param = scene[param_name]
             group, idx, prop = split_param_name(param_name)
             if group == 'meshes':
                 enoki_mesh = psdr_param_map[f'Mesh[{idx}]']
@@ -270,6 +261,6 @@ class PSDRCudaConnector(Connector):
             enoki.cuda_malloc_trim()
 
         for i in range(len(param_names)):
-            param_grads[i] = param_grads[i].reshape(scene.param_map[param_names[i]].data.shape)
+            param_grads[i] = param_grads[i].reshape(scene[param_names[i]].data.shape)
         
         return param_grads

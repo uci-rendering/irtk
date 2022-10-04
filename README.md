@@ -26,7 +26,7 @@ pip install .
 pip install connectors/*
 pip install scene_parsers/*
 ```
-If you want to modify the code but don't want to repeatedly install them, add `-e` after `install`, such as `pip install -e .`.
+If you want to modify the code but don't want to repeatedly install them, add `-e` after `install` (highly recommended if you are going to change the code), such as `pip install -e .`.
 
 Notice that you can't use wildcards directly in Powershell. You can do the following instead
 ```
@@ -35,24 +35,25 @@ pip install (get-item .\connectors\*)
 pip install (get-item .\scene_parsers\*)
 ```
 
-## Run a simple test
-I created a simple inverse rendering experiment in `tests/inv_rendering_test.py`. After all the requirements are met, run
-```
-python tests/inv_rendering_test.py
-```
+## Run examples
+There are some inverse rendering examples in the `examples` directory. Follow the instructions below to run them.
 
-## Run shape optimization with remeshing
+First, go the `examples` directory:
 ```
-cd pipelines
-
-# Create a scene with a bunny and cache it
-python scenes/bunny.py
-
-# Render target images using the cached scene
-python render_target.py configs/bunny_shape.json
-
-# Run shape optimization with remeshing
-python shape_opt_remesh.py configs/bunny_shape.json
+cd examples
 ```
+Create a scene with a armadillo and cache it. This cached scene will be used to render the target images and initialize the optimization.
+```
+python scenes/armadillo.py
+```
+Pick a config file from the `configs` directory, such as `armadillo_joint_ch.json`. It contains settings of a particular inverse rendering problem. Render the target images for this config file:
+```
+python render_target.py configs/[config_file]
+```
+Finally, run the optimization:
+```
+python opt.py configs/[config_file]
+```
+Some inverse rendering problems might share the same set of target images, so you might not need to rerender the target images when switching tasks. Check the config file for details.
 
 
