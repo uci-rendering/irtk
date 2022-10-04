@@ -1,6 +1,6 @@
 import torch
 from .parameter import Parameter, NaiveParameter
-from ivt.io import read_obj
+from .io import read_obj
 
 class Scene:
     def __init__(self, device='cuda', ftype=torch.float32, itype=torch.long):

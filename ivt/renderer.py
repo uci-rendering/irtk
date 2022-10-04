@@ -1,4 +1,4 @@
-from ivt.connector import ConnectorManager
+from .connector import ConnectorManager
 import torch 
 import numpy as np
 
