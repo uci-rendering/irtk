@@ -1,75 +1,9 @@
-from collections import OrderedDict
 import torch
-import numpy as np
-
-class Parameter:
-    """
-    A class to store parameters using different backends such as torch and numpy.
-    It tracks requires_grad even if the backend doesn't support autodiff. 
-    """
-    
-    def __init__(self, data, backend='torch', dtype=torch.float32, device='cpu', is_float=True):
-        
-        self.data = data
-        self.backend = backend
-        self.dtype = dtype
-        self.device = device
-        self.is_float = is_float
-        self.requires_grad = False
-        self.updated = False
-        
-        self.set(data)
-
-    def configure(self):
-        assert self.backend in ['torch', 'numpy']
-        
-        if self.backend == 'torch':
-            if torch.is_tensor(self.data):
-                self.data = self.data.to(self.dtype).to(self.device)
-            else:
-                self.data = torch.tensor(self.data, dtype=self.dtype, device=self.device)
-
-            if self.data.requires_grad:
-                self.requires_grad = True
-            else:
-                self.data.requires_grad = self.requires_grad
-                
-        elif self.backend == 'numpy':
-            if torch.is_tensor(self.data):
-                self.data = self.data.detach().cpu()
-            self.data = np.array(self.data, dtype=self.dtype)
-            self.device = 'cpu'
-            
-    def set(self, data):
-        self.data = data
-        self.updated = True
-        self.configure()
-
-    def set_requires_grad(self, b=True):
-        self.requires_grad = b
-        if self.backend == 'torch':
-            self.data.requires_grad = b
-
-    def tolist(self):
-        if self.backend == 'torch' or self.backend == 'numpy':
-            return self.data.tolist()
-        else:
-            assert False
-
-    def item(self):
-        if self.backend == 'torch' or self.backend == 'numpy':
-            return self.data.item()
-        else:
-            assert False
-            
-    def __repr__(self):
-        return repr(self.data)
+from .parameter import Parameter, NaiveParameter
+from .io import read_obj
 
 class Scene:
-
-    def __init__(self, backend='torch', device='cpu', ftype=None, itype=None):
-        assert backend in ['torch', 'numpy']
-        
+    def __init__(self, device='cuda', ftype=torch.float32, itype=torch.long):
         # Scene data 
         self.integrators = [] 
         self.film = None 
@@ -78,41 +12,55 @@ class Scene:
         self.bsdfs = []
         self.emitters = []
 
-        # Cached scenes
-        self.cached = {}
-        
-        # A map from all parameter names to their corresponding parameters.
-        self.param_map = OrderedDict()
+        self._alias = {}
+        self._diff_param_names = [] # names of all differentiable parameters
 
-        self.backend = backend
+        self.cached = {} # Cached scenes
+
         self.device = device
-        
-        if backend == 'numpy': device = 'cpu'
-        
-        if ftype is None:
-            if backend == 'torch':
-                self.ftype = torch.float32
-            elif backend == 'numpy':
-                self.ftype = np.float64
-        
-        if itype is None:
-            if backend == 'torch':
-                self.itype = torch.long
-            elif backend == 'numpy':
-                self.itype = np.int64
-            
-    def add_iparam(self, param_name, array):
-        param = Parameter(array, self.backend, self.itype, self.device, is_float=False)
-        self.param_map[param_name] = param 
-        return param
+        self.ftype = ftype
+        self.itype = itype
+
+    def add_alias(self, param_name, alias):
+        self._alias[alias] = param_name
     
-    def add_fparam(self, param_name, array):
-        param = Parameter(array, self.backend, self.ftype, self.device)
-        self.param_map[param_name] = param 
+    def __getitem__(self, param_name):
+        if param_name in self._alias:
+            param_name = self._alias[param_name]
+        group, idx, prop = split_param_name(param_name)
+        return getattr(self, group)[idx][prop]
+
+    def __setitem__(self, param_name, param):
+        if param_name in self._alias:
+            param_name = self._alias[param_name]
+        group, idx, prop = split_param_name(param_name)
+        getattr(self, group)[idx][prop] = param
+
+    def __make_param(self, param_data, dtype):
+        if issubclass(type(param_data), Parameter):
+            param = param_data
+        else:
+            param = NaiveParameter(param_data, dtype, self.device)
         return param
+        
+    def __make_iparam(self, param_data):
+        return self.__make_param(param_data, self.itype)
+    
+    def __make_fparam(self, param_data):
+        return self.__make_param(param_data, self.ftype)
+
+    def __make_id(self, group_name):
+        return f'{group_name}[{len(getattr(self, group_name))}]'
+
+    def __mark_diff(self, id, props):
+        for prop in props:
+            param_name = id + f'.{prop}'
+            self._diff_param_names.append(param_name)
         
     def add_integrator(self, integrator_type, integrator_params={}):
+        id = self.__make_id('integrators')
         integrator = {
+            'id': id,
             'type': integrator_type,
             'params': integrator_params
         }
@@ -122,110 +70,96 @@ class Scene:
         self.film = {
             'type': 'hdrfilm',
             'resolution': resolution,
-            'rfilter': 'tent',
+            'rfilter': rfilter,
             'crop': crop
         }
 
     def add_perspective_camera(self, fov, origin=(1, 0, 0), target=(0, 0, 0), up=(0, 1, 0), use_to_world=False, to_world=torch.eye(4)):
-        id = f'sensors[{len(self.sensors)}]'
+        id = self.__make_id('sensors')
         sensor = {
+            'id': id,
             'type': 'perspective',
-            'fov': self.add_fparam(id + '.fov', fov)
+            'fov': self.__make_fparam(fov)
         }
         if use_to_world:
-            sensor['to_world'] = self.add_fparam(id + '.to_world', to_world)
+            sensor['to_world'] = self.__make_fparam(to_world)
+            self.__mark_diff(id, ['to_world'])
         else:
-            sensor['origin'] = self.add_fparam(id + '.origin', origin)
-            sensor['target'] = self.add_fparam(id + '.target', target)
-            sensor['up'] = self.add_fparam(id + '.up', up)
+            sensor['origin'] = self.__make_fparam(origin)
+            sensor['target'] = self.__make_fparam(target)
+            sensor['up'] = self.__make_fparam(up)
 
         self.sensors.append(sensor)
 
     def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, uv_positions=[], uv_indices=[], to_world=torch.eye(4), use_face_normal=False):
-        id = f'meshes[{len(self.meshes)}]'
+        id = self.__make_id('meshes')
         mesh = {
             'id': id,
-            'vertex_positions': self.add_fparam(id + '.vertex_positions', vertex_positions),
-            'vertex_indices': self.add_iparam(id + '.vertex_indices', vertex_indices),
-            'uv_positions': self.add_fparam(id + '.uv_positions', uv_positions),
-            'uv_indices': self.add_iparam(id + '.uv_indices', uv_indices),
-            'to_world': self.add_fparam(id + '.to_world', to_world),
+            'vertex_positions': self.__make_fparam(vertex_positions),
+            'vertex_indices': self.__make_iparam(vertex_indices),
+            'uv_positions': self.__make_fparam(uv_positions),
+            'uv_indices': self.__make_iparam(uv_indices),
+            'to_world': self.__make_fparam(to_world),
             'bsdf_id': bsdf_id,
             'use_face_normal': use_face_normal
         }
+        self.__mark_diff(id, ['vertex_positions', 'to_world'])
         self.meshes.append(mesh)
 
+    def add_obj(self, obj_path, bsdf_id, to_world=torch.eye(4), use_face_normal=False):
+        v, tc, _, f, ftc, _ = read_obj(obj_path)
+        self.add_mesh(v, f, bsdf_id, tc, ftc, to_world, use_face_normal)
+
     def add_diffuse_bsdf(self, reflectance, to_world=torch.eye(3)):
-        id = f'bsdfs[{len(self.bsdfs)}]'
+        id = self.__make_id('bsdfs')
         bsdf = {
             'id': id,
             'type': 'diffuse',
-            'reflectance': self.add_fparam(id + '.reflectance', reflectance),
-            'to_world': self.add_fparam(id + '.to_world', to_world)
+            'reflectance': self.__make_fparam(reflectance),
+            'to_world': self.__make_fparam(to_world)
         }
+        self.__mark_diff(id, ['reflectance', 'to_world'])
         self.bsdfs.append(bsdf)
 
     def add_microfacet_bsdf(self, diffuse_reflectance, specular_reflectance, roughness, to_world=torch.eye(3)):
-        id = f'bsdfs[{len(self.bsdfs)}]'
+        id = self.__make_id('bsdfs')
         bsdf = {
             'id': id,
             'type': 'microfacet',
-            'diffuse_reflectance': self.add_fparam(id + '.diffuse_reflectance', diffuse_reflectance),
-            'specular_reflectance': self.add_fparam(id + '.specular_reflectance', specular_reflectance),
-            'roughness': self.add_fparam(id + '.roughness', roughness),
-            'to_world': self.add_fparam(id + '.to_world', to_world)
+            'diffuse_reflectance': self.__make_fparam(diffuse_reflectance),
+            'specular_reflectance': self.__make_fparam(specular_reflectance),
+            'roughness': self.__make_fparam(roughness),
+            'to_world': self.__make_fparam(to_world)
         }
-        self.bsdfs.append(bsdf)
-        
-    def add_null_bsdf(self):
-        bsdf = {
-            'type': 'null',
-        }
+        self.__mark_diff(id, ['diffuse_reflectance', 'specular_reflectance', 'roughness', 'to_world'])
         self.bsdfs.append(bsdf)
     
     def add_area_light(self, mesh_id, radiance):
-        id = f'emitters[{len(self.emitters)}]'
+        id = self.__make_id('emitters')
         emitter = {
-            'id': id,
+            'id': id, 
             'type': 'area',
             'mesh_id': mesh_id,
-            'radiance': self.add_fparam(id + '.radiance', radiance)
+            'radiance': self.__make_fparam(radiance)
         }
+        self.__mark_diff(id, ['radiance'])
         self.emitters.append(emitter)
 
     def add_env_light(self, env_map, to_world=torch.eye(4)):
-        id = f'emitters[{len(self.emitters)}]'
+        id = self.__make_id('emitters')
         emitter = {
             'id': id,
             'type': 'env',
-            'env_map': self.add_fparam(id + '.env_map', env_map),
-            'to_world': self.add_fparam(id + '.to_world', to_world)
+            'env_map': self.__make_fparam(env_map),
+            'to_world': self.__make_fparam(to_world)
         }
+        self.__mark_diff(id, ['env_map', 'to_world'])
         self.emitters.append(emitter)
-        
-    def configure(self):
-        for param_name in self.param_map:
-            param = self.param_map[param_name]
-            param.backend = self.backend
-            param.dtype = self.ftype if param.is_float else self.itype
-            param.device = self.device
-            param.configure()
             
     def get_requiring_grad(self):
-        return [param_name for param_name in self.param_map if self.param_map[param_name].requires_grad]
+        return [param_name for param_name in self._diff_param_names if self[param_name].requires_grad]
 
-    def get_updated(self):
-        return [param_name for param_name in self.param_map if self.param_map[param_name].updated]
-
-    def __repr__(self):
-        s = '\n'.join([f'{param_name}: {self.param_map[param_name]}' for param_name in self.param_map])
-
-        return s
-
-    def validate(self):
-        pass
-    
 def split_param_name(param_name):
-    group, idx, prop = param_name.replace('[', '.').replace(']', '').split('.')
+    group_name, idx, prop = param_name.replace('[', '.').replace(']', '').split('.')
     idx = int(idx)
-    return group, idx, prop
+    return group_name, idx, prop

@@ -1,6 +1,3 @@
-from cgitb import text
-from multiprocessing.sharedctypes import Value
-from torch import TracingState
 from ivt.scene_parser import SceneParser
 from ivt.io import write_exr, write_obj
 from lxml import etree

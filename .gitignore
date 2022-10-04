@@ -133,6 +133,6 @@ dmypy.json
 tmp_output/
 
 # Temp directories in pipelines
-pipelines/cached_scenes
-pipelines/results
-pipelines/target_images
+examples/cached_scenes
+examples/results
+examples/target_images

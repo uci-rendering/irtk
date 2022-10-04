@@ -1,7 +1,6 @@
-from ivt.connector import ConnectorManager
+from .connector import ConnectorManager
 import torch 
 import numpy as np
-from copy import deepcopy
 
 class RenderFunction(torch.autograd.Function):
 
@@ -38,10 +37,13 @@ class Renderer(torch.nn.Module):
         self.dtype = dtype
         self.render_options = None
 
-    def forward(self, scene, params=[], sensor_ids=[0], integrator_id=0):
+    def forward(self, scene, sensor_ids=[0], integrator_id=0):
         assert self.render_options is not None, "Please set render options first."
         if torch.is_tensor(sensor_ids):
             sensor_ids = sensor_ids.flatten().tolist()
+
+        params = [scene[param_name].data for param_name in scene.get_requiring_grad()]
+        
         images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, self.device, self.dtype, *params)
         return images
 
