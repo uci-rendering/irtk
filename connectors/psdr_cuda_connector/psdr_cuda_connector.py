@@ -262,7 +262,6 @@ class PSDRCudaConnector(Connector):
             del image, image_grad
             enoki.cuda_malloc_trim()
 
-        param_grads = [torch.nan_to_num(enoki.gradient(enoki_param).torch().cuda()) for enoki_param in enoki_params]
         for i in range(len(param_names)):
             param_grads[i] = param_grads[i].reshape(scene[param_names[i]].data.shape)
         
