@@ -23,8 +23,9 @@ class Parameter(ABC):
         return self._requires_grad
 
     @requires_grad.setter
+    @abstractmethod
     def requires_grad(self, requires_grad):
-        self._requires_grad = requires_grad
+        pass
 
     def requires_grad_(self, requires_grad=True):
         self.requires_grad = requires_grad
@@ -54,6 +55,11 @@ class NaiveParameter(Parameter):
     @property
     def raw_data(self):
         return [self._raw_data]
+
+    @Parameter.requires_grad.setter
+    def requires_grad(self, requires_grad):
+        self._requires_grad = requires_grad
+        self._raw_data.requires_grad = requires_grad
 
 class FixedRangeTexture(Parameter):
     def __init__(self, t_res, v_min=0.0, v_max=1.0, dtype=torch.float32, device='cuda'):
