@@ -155,8 +155,6 @@ class PSDRCudaConnector(Connector):
                             enoki_param = Vector3fD(convert_color(param.data))
                             enoki_emitter.radiance.data = enoki_param
                             
-                param.updated = False
-
             return objects
 
         # Create scene objects if there is no cache

@@ -6,7 +6,6 @@ class Parameter(ABC):
         self._dtype = dtype
         self._device = device
         self._requires_grad = False
-        self.updated = False
 
     @property
     @abstractmethod
@@ -53,7 +52,6 @@ class NaiveParameter(Parameter):
 
     def set(self, raw_data):
         self._raw_data = self.to_tensor(raw_data)
-        self.updated = True
         self.requires_grad = self._raw_data.requires_grad
 
     @property
