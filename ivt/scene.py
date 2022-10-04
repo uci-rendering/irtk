@@ -14,6 +14,7 @@ class Scene:
         self.bsdfs = []
         self.emitters = []
 
+        self._alias = {}
         self._diff_param_names = [] # names of all differentiable parameters
 
         self.cached = {} # Cached scenes
@@ -21,10 +22,21 @@ class Scene:
         self.device = device
         self.ftype = ftype
         self.itype = itype
+
+    def add_alias(self, param_name, alias):
+        self._alias[alias] = param_name
     
     def __getitem__(self, param_name):
+        if param_name in self._alias:
+            param_name = self._alias[param_name]
         group, idx, prop = split_param_name(param_name)
         return getattr(self, group)[idx][prop]
+
+    def __setitem__(self, param_name, param):
+        if param_name in self._alias:
+            param_name = self._alias[param_name]
+        group, idx, prop = split_param_name(param_name)
+        getattr(self, group)[idx][prop] = param
 
     def __make_param(self, param_data, dtype):
         if issubclass(type(param_data), Parameter):
