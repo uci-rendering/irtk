@@ -15,6 +15,11 @@ class Parameter(ABC):
         pass
     
     @property
+    @abstractmethod
+    def raw_data(self):
+        pass
+    
+    @property
     def requires_grad(self):
         return self._requires_grad
 
@@ -46,6 +51,25 @@ class NaiveParameter(Parameter):
     @property
     def data(self):
         return self._raw_data
+
+    @property
+    def raw_data(self):
+        return [self._raw_data]
+
+class FixedRangeTexture(Parameter):
+    def __init__(self, t_res, v_min=0.0, v_max=1.0, dtype=torch.float32, device='cuda'):
+        super().__init__(dtype, device)
+        self._raw_data = torch.zeros(t_res, dtype=dtype, device=device)
+        self._v_min = v_min
+        self._v_span = v_max - v_min
+
+    @property
+    def data(self):
+        return torch.sigmoid(self._raw_data) * self._v_span + self._v_min
+
+    @property
+    def raw_data(self):
+        return [self._raw_data]
     
     @Parameter.requires_grad.setter
     def requires_grad(self, requires_grad):
