@@ -238,7 +238,6 @@ class ConvexHullTextureOpt(Model):
 
     def zero_grad(self):
         self.optimizer.zero_grad()
-        self.__eval()
 
     def set_data(self):
         w = torch.softmax(self.weight_map, dim=2)
