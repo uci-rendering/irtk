@@ -54,7 +54,7 @@ class MitsubaParser(SceneParser):
                     up=list_to_csl(sensor['up'].data),
                 )
 
-            etree.SubElement(sensor_n, 'float', name='fov', value=str(sensor['fov'].item()))
+            etree.SubElement(sensor_n, 'float', name='fov', value=str(sensor['fov'].data.item()))
 
             if i == 0:
                 sampler_n = etree.SubElement(sensor_n, 'sampler', type='independent')
