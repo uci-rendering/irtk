@@ -88,7 +88,7 @@ def to_numpy(data):
     if torch.is_tensor(data):
         return data.detach().cpu().numpy()
     else:
-        return data
+        return np.array(data)
 
 def read_png(png_path, is_srgb=True):
     image = iio.imread(png_path, extension='.png')
