@@ -1,3 +1,6 @@
+# This file contains scene related configurations.
+# Don't use it with opt.py!
+
 import configs.common.simple_microfacet
 import gin.torch.external_configurables
 

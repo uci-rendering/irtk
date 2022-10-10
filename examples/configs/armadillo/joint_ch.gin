@@ -1,3 +1,6 @@
+# Optimize the shape and the microfacet BRDF simultaneously.
+# The material optimization utilizes a custom model.
+
 import ivt.model
 import custom_models
 import gin.torch.external_configurables

@@ -1,3 +1,5 @@
+# Optimize the microfacet BRDF with a custom model.
+
 import custom_models
 import gin.torch.external_configurables
 

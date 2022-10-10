@@ -1,3 +1,5 @@
+# Optimize the shape and the microfacet BRDF simultaneously.
+
 import ivt.model
 
 include 'configs/armadillo/scene.gin'

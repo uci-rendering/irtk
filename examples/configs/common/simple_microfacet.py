@@ -6,8 +6,8 @@ from pathlib import Path
 
 import gin
 
-@gin.configurable('simple_microfacet')
-def make_scene(
+@gin.configurable
+def simple_microfacet(
     mesh_path,
     diffuse,
     specular,
@@ -20,6 +20,10 @@ def make_scene(
     fov=45,
     target=(0, 0, 0),
     up=(0, 1, 0)):
+    """
+    Create a simple scene consisting of an object, which has a microfacet BRDF, and 
+    some sensors sampled on the surface a sphere.
+    """
 
     scene = Scene(device=device, ftype=ftype, itype=itype)
 

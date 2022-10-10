@@ -1,3 +1,5 @@
+# Optimize the diffuse component of the microfacet BRDF.
+
 import ivt.model
 import gin.torch.external_configurables
 

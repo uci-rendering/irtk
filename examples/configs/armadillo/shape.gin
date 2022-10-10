@@ -1,3 +1,5 @@
+# Optimize the shape.
+
 import ivt.model
 
 include 'configs/armadillo/scene.gin'

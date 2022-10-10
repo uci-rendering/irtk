@@ -1,3 +1,6 @@
+# This file contains rendering related configurations.
+# Don't use it with opt.py!
+
 import ivt.renderer
 
 connector_name = 'psdr_cuda'
