@@ -42,18 +42,12 @@ First, go the `examples` directory:
 ```
 cd examples
 ```
-Create a scene with a armadillo and cache it. This cached scene will be used to render the target images and initialize the optimization.
+Choose a config file from the `configs` directory. Take `configs/armadillo/joint_ch.gin` as an example: it contains configurations of a joint optimization problem, which aims to reconstruct the shape and material of an armadillo simultaneously. Use the follow line to perform the optimization:
 ```
-python scenes/armadillo.py
+python opt.py configs/armadillo/joint_ch.gin
 ```
-Pick a config file from the `configs` directory, such as `armadillo_joint_ch.json`. It contains settings of a particular inverse rendering problem. Render the target images for this config file:
+If this is the first time you run this scene, you **will** run into error because there are no target images. Add a `--render_target` or `-r` flag will render the target images (if the scene is synthetic) before doing the optimization.
 ```
-python render_target.py configs/[config_file]
-```
-Finally, run the optimization:
-```
-python opt.py configs/[config_file]
+python opt.py -r configs/armadillo/joint_ch.gin
 ```
 Some inverse rendering problems might share the same set of target images, so you might not need to rerender the target images when switching tasks. Check the config file for details.
-
-
