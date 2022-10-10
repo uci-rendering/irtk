@@ -3,6 +3,9 @@ from largesteps.geometry import compute_matrix
 from largesteps.optimize import AdamUniform
 from largesteps.parameterize import from_differential, to_differential
 
+import gin 
+
+@gin.configurable
 class LargeStepsOptimizer(torch.optim.Optimizer):
     def __init__(self, V, F, lr=0.1, betas=(0.9, 0.999), lmbda=20):
         self.V = V

@@ -13,6 +13,7 @@ dependencies:
   - stevedore
   - lxml
   - matplotlib
+  - gin
   - pip:
     - cholespy
     - largesteps

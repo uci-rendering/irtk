@@ -6,11 +6,13 @@ from .io import *
 from .parameter import *
 from .optimizers import LargeStepsOptimizer
 
+import gin 
+
 class Model(ABC):
-    def __init__(self, scene, dtype=torch.float32, device='cuda'):
+    def __init__(self, scene):
         self.scene = scene
-        self._dtype = dtype
-        self._device = device
+        self._ftype = scene.ftype
+        self._device = scene.device
 
     @abstractmethod
     def zero_grad(self):
@@ -33,8 +35,8 @@ class Model(ABC):
         pass
 
     @property
-    def dtype(self):
-        return self._dtype
+    def ftype(self):
+        return self._ftype
 
     @property
     def device(self):
@@ -43,11 +45,13 @@ class Model(ABC):
     def get_regularization(self):
         return 0
 
+@gin.configurable
 class MultiOpt(Model):
-    def __init__(self, scene, models):
+
+    def __init__(self, scene, model_classes):
         super().__init__(scene)
 
-        self._models = models
+        self._models = [model_class(scene) for model_class in model_classes]
 
     def zero_grad(self):
         for model in self._models:
@@ -77,28 +81,11 @@ class MultiOpt(Model):
             reg += model.get_regularization()
         return reg
 
-class ModelFactory:
-
-    @staticmethod
-    def from_config(scene, config):
-        name = config['model_name']
-        args = config['args']
-        model_class = getattr(sys.modules[__name__], name)
-        model = model_class(scene, **args)
-        return model 
-
-    @staticmethod
-    def from_configs(scene, configs):
-        models = []
-        for config in configs:
-            models.append(ModelFactory.from_config(scene, config))
-        model = MultiOpt(scene, models)
-        return model
-
+@gin.configurable
 class LargeStepsShapeOpt(Model):
 
-    def __init__(self, scene, mesh_id, init_mesh_path='', result_name='', optimizer_kwargs={}, dtype=torch.float32, device='cuda'):
-        super().__init__(scene, dtype, device)
+    def __init__(self, scene, mesh_id, optimizer_kwargs={}, init_mesh_path='', result_name=''):
+        super().__init__(scene)
 
         mesh = self.scene.meshes[mesh_id]
         self._v = mesh['vertex_positions']
@@ -146,26 +133,20 @@ class LargeStepsShapeOpt(Model):
         results = self.get_results()
         write_obj(result_path / f'{self._result_name}.obj', results['v'], results['f'], results['tc'], results['ftc'])
 
+@gin.configurable
 class VanillaTextureOpt(Model):
 
-    def __init__(self, scene, t_param_name, result_name='', t_kwargs={}, optimizer_kwargs={}, dtype=torch.float32, device='cuda'):
-        super().__init__(scene, dtype, device)
-
-        if 't_res' not in t_kwargs:
-            t_kwargs['t_res'] = self.scene[t_param_name].data.shape
-        if 'v_min' not in t_kwargs:
-            t_kwargs['v_min'] = 0
-        if 'v_max' not in t_kwargs:
-            t_kwargs['v_max'] = 1
+    def __init__(self, scene, t_param_name, t_res, optimizer_class, result_name='', v_min=0, v_max=1):
+        super().__init__(scene)
 
         self._t = self.scene[t_param_name]
-        self._raw_t = torch.zeros(t_kwargs['t_res'], dtype=self.dtype, device=self.device, requires_grad=True)
-        self._v_min = t_kwargs['v_min']
-        self._v_span = t_kwargs['v_max'] - t_kwargs['v_min']
+        self._raw_t = torch.zeros(t_res, dtype=self.ftype, device=self.device, requires_grad=True)
+        self._v_min = v_min
+        self._v_span = v_max - v_min
 
         self._result_name = result_name if result_name else t_param_name
 
-        self.optimizer = torch.optim.Adam([self._raw_t], **optimizer_kwargs)
+        self.optimizer = optimizer_class([self._raw_t])
 
     def zero_grad(self):
         self.optimizer.zero_grad()
@@ -188,85 +169,3 @@ class VanillaTextureOpt(Model):
 
         results = self.get_results()
         write_exr(result_path / f'{self._result_name}.exr', results['t'])
-
-class ConvexHullTextureOpt(Model):
-
-    def __init__(self, scene, bsdf_id, N=50, t_size=512, t_kwargs={}, optimizer_kwargs={}, dtype=torch.float32, device='cuda'):
-        super().__init__(scene, dtype, device)
-
-        bsdf = self.scene.bsdfs[bsdf_id]
-        self._bsdf_type = bsdf['type']
-
-        if self._bsdf_type == 'microfacet':
-            self._d = bsdf['diffuse_reflectance']
-            self._s = bsdf['specular_reflectance']
-            self._r = bsdf['roughness']
-            self._t_kwargs = {
-                "d": {
-                    "name": f"{bsdf['id']}.diffuse_reflectance",
-                    "v_min": 0.0,
-                    "v_max": 1.0,
-                },
-                "s": {
-                    "name": f"{bsdf['id']}.specular_reflectance",
-                    "v_min": 0.0,
-                    "v_max": 1.0,
-                },
-                "r": {
-                    "name": f"{bsdf['id']}.roughness",
-                    "v_min": 0.0,
-                    "v_max": 1.0,
-                }
-            }
-
-            for c in t_kwargs:
-                for k in t_kwargs[c]:
-                    self._t_kwargs[c][k] = t_kwargs[c][k]
-
-            for c in self._t_kwargs:
-                self._t_kwargs[c]['v_span'] = self._t_kwargs[c]['v_max'] - self._t_kwargs[c]['v_min']
-
-            self.weight_map = torch.normal(0, 1e-4, (t_size, t_size, N), dtype=self.dtype, device=self.device)
-            self.weight_map.requires_grad = True
-
-            self.brdf_points = torch.rand((N, 7), dtype=self.dtype, device=self.device) * 2 - 1
-            self.brdf_points.requires_grad = True
-        else:
-            assert False
-
-        self.optimizer = torch.optim.Adam([self.weight_map, self.brdf_points], **optimizer_kwargs)
-
-    def zero_grad(self):
-        self.optimizer.zero_grad()
-
-    def set_data(self):
-        w = torch.softmax(self.weight_map, dim=2)
-        b = torch.sigmoid(self.brdf_points)
-        t = torch.matmul(w, b)
-
-        if self._bsdf_type == 'microfacet':
-            self._d.set(t[:, :, 0:3] * self._t_kwargs['d']['v_span'] + self._t_kwargs['d']['v_min'])
-            self._s.set(t[:, :, 3:6] * self._t_kwargs['s']['v_span'] + self._t_kwargs['s']['v_min'])
-            self._r.set(t[:, :, 6:7] * self._t_kwargs['r']['v_span'] + self._t_kwargs['r']['v_min'])
-
-    def step(self):
-        self.optimizer.step()
-
-    def get_results(self):
-        if self._bsdf_type == 'microfacet':
-            results = {
-                'd': self._d.data.detach(),
-                's': self._s.data.detach(),
-                'r': self._r.data.detach(),
-            }
-        return results
-
-    def write_results(self, result_path):
-        result_path = Path(result_path)
-        result_path.mkdir(parents=True, exist_ok=True)
-
-        results = self.get_results()
-        if self._bsdf_type == 'microfacet':
-            write_exr(result_path / f"{self._t_kwargs['d']['name']}.exr", results['d'])
-            write_exr(result_path / f"{self._t_kwargs['s']['name']}.exr", results['s'])
-            write_exr(result_path / f"{self._t_kwargs['r']['name']}.exr", results['r'])
