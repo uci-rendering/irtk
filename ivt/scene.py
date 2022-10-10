@@ -159,6 +159,9 @@ class Scene:
     def get_requiring_grad(self):
         return [param_name for param_name in self._diff_param_names if self[param_name].requires_grad]
 
+    def clear_cache(self):
+        self.cached = {}
+
 def split_param_name(param_name):
     group_name, idx, prop = param_name.replace('[', '.').replace(']', '').split('.')
     idx = int(idx)

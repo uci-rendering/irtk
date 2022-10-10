@@ -1,0 +1,50 @@
+# Optimize the microfacet BRDF.
+
+import ivt.model
+
+include 'configs/armadillo/scene.gin'
+include 'configs/common/rendering_config.gin'
+
+optimize.batch_size = 1
+optimize.checkpoint_iter = 50
+optimize.film_res = (512, 512)
+optimize.num_epochs = 5
+optimize.result_path = 'results/armadillo/microfacet'
+
+optimize.model_class = @MultiOpt
+
+MultiOpt.model_classes = [
+    @diffuse/VanillaTextureOpt,
+    @specular/VanillaTextureOpt,
+    @roughness/VanillaTextureOpt
+]
+
+diffuse/VanillaTextureOpt.t_param_name = 'bsdfs[0].diffuse_reflectance'
+diffuse/VanillaTextureOpt.t_res = (512, 512, 3)
+diffuse/VanillaTextureOpt.optimizer_class = @diffuse/Adam
+diffuse/Adam.lr = 5e-2
+diffuse/VanillaTextureOpt.result_name = 'diffuse'
+
+specular/VanillaTextureOpt.t_param_name = 'bsdfs[0].specular_reflectance'
+specular/VanillaTextureOpt.t_res = (512, 512, 3)
+specular/VanillaTextureOpt.v_max = 0.08
+specular/VanillaTextureOpt.optimizer_class = @specular/Adam
+specular/Adam.lr = 5e-2
+specular/VanillaTextureOpt.result_name = 'specular'
+
+roughness/VanillaTextureOpt.t_param_name = 'bsdfs[0].roughness'
+roughness/VanillaTextureOpt.t_res = (512, 512, 1)
+roughness/VanillaTextureOpt.v_min = 0.1
+roughness/VanillaTextureOpt.optimizer_class = @roughness/Adam
+roughness/Adam.lr = 5e-2
+roughness/VanillaTextureOpt.result_name = 'roughness'
+
+# Override rendering_config.gin
+connector_name = 'psdr_jit'
+opt/Renderer.render_options = {
+    "spp": 64,
+    "sppe": 0,
+    "sppse": 0,
+    "npass": 1,
+    "log_level": 0
+}

@@ -1,0 +1,49 @@
+# Optimize the shape and the microfacet BRDF simultaneously.
+
+import ivt.model
+
+include 'configs/armadillo/scene.gin'
+include 'configs/common/rendering_config.gin'
+
+optimize.batch_size = 1
+optimize.checkpoint_iter = 50
+optimize.film_res = (512, 512)
+optimize.num_epochs = 5
+optimize.result_path = 'results/armadillo/joint'
+
+optimize.model_class = @MultiOpt
+
+MultiOpt.model_classes = [
+    @LargeStepsShapeOpt,
+    @diffuse/VanillaTextureOpt,
+    @specular/VanillaTextureOpt,
+    @roughness/VanillaTextureOpt
+]
+
+LargeStepsShapeOpt.mesh_id = 0
+LargeStepsShapeOpt.optimizer_kwargs = {
+    'lr': 5e-3,
+    'lmbda': 100
+}
+LargeStepsShapeOpt.init_mesh_path = 'data/meshes/armadillo_smooth.obj'
+LargeStepsShapeOpt.result_name = 'mesh'
+
+diffuse/VanillaTextureOpt.t_param_name = 'bsdfs[0].diffuse_reflectance'
+diffuse/VanillaTextureOpt.t_res = (512, 512, 3)
+diffuse/VanillaTextureOpt.optimizer_class = @diffuse/Adam
+diffuse/Adam.lr = 5e-2
+diffuse/VanillaTextureOpt.result_name = 'diffuse'
+
+specular/VanillaTextureOpt.t_param_name = 'bsdfs[0].specular_reflectance'
+specular/VanillaTextureOpt.t_res = (512, 512, 3)
+specular/VanillaTextureOpt.v_max = 0.08
+specular/VanillaTextureOpt.optimizer_class = @specular/Adam
+specular/Adam.lr = 5e-2
+specular/VanillaTextureOpt.result_name = 'specular'
+
+roughness/VanillaTextureOpt.t_param_name = 'bsdfs[0].roughness'
+roughness/VanillaTextureOpt.t_res = (512, 512, 1)
+roughness/VanillaTextureOpt.v_min = 0.1
+roughness/VanillaTextureOpt.optimizer_class = @roughness/Adam
+roughness/Adam.lr = 5e-2
+roughness/VanillaTextureOpt.result_name = 'roughness'

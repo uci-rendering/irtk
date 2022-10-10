@@ -2,6 +2,8 @@ from .connector import ConnectorManager
 import torch 
 import numpy as np
 
+import gin
+
 class RenderFunction(torch.autograd.Function):
 
     @staticmethod
@@ -27,15 +29,14 @@ class RenderFunction(torch.autograd.Function):
         param_grads = ctx.connector.renderD(image_grads, ctx.scene, ctx.render_options, ctx.sensor_ids, ctx.integrator_id)
         return tuple([None] * 7 + param_grads)
 
+@gin.configurable
 class Renderer(torch.nn.Module):
 
-    def __init__(self, connector_name, device, dtype):
+    def __init__(self, connector_name, render_options=None):
         super().__init__()
         cm = ConnectorManager()
         self.connector = cm.get_connector(connector_name)
-        self.device = device
-        self.dtype = dtype
-        self.render_options = None
+        self.render_options = render_options
 
     def forward(self, scene, sensor_ids=[0], integrator_id=0):
         assert self.render_options is not None, "Please set render options first."
@@ -44,7 +45,7 @@ class Renderer(torch.nn.Module):
 
         params = [scene[param_name].data for param_name in scene.get_requiring_grad()]
         
-        images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, self.device, self.dtype, *params)
+        images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, scene.device, scene.ftype, *params)
         return images
 
     def set_render_options(self, render_options):

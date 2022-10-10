@@ -1,0 +1,24 @@
+# Optimize the shape.
+
+import ivt.model
+
+include 'configs/armadillo/scene.gin'
+include 'configs/common/rendering_config.gin'
+
+optimize.batch_size = 1
+optimize.checkpoint_iter = 50
+optimize.film_res = (512, 512)
+optimize.num_epochs = 5
+optimize.result_path = 'results/armadillo/shape'
+
+optimize.model_class = @LargeStepsShapeOpt
+LargeStepsShapeOpt.mesh_id = 0
+LargeStepsShapeOpt.optimizer_kwargs = {
+    'lr': 5e-3,
+    'lmbda': 100
+}
+LargeStepsShapeOpt.init_mesh_path = 'data/meshes/armadillo_smooth.obj'
+LargeStepsShapeOpt.result_name = 'mesh'
+
+
+
