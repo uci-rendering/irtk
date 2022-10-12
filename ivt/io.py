@@ -1,4 +1,5 @@
 import os
+from struct import unpack, unpack_from
 
 from skimage.transform import resize
 import igl
@@ -181,3 +182,24 @@ def read_volume(path):
             'data': data
         }
 
+
+def read_volume2(path):
+    # https://johanneskopf.de/publications/solid/textures/file_format.txt
+    with FileStream(path) as s:
+        buf = s.read(4096)
+        header, version, tex_name, wrap, vol_size, nchannels, bytes_per_channel = unpack_from('4si256s?iii', buf)
+        tex_name = tex_name[:tex_name.find(b'\0')]
+        assert header == b'VOLU'
+        res = np.array([vol_size, vol_size, vol_size])
+        data = s.read(np.prod(res) * nchannels)
+        data = np.frombuffer(data, dtype=np.uint8) / 255.0
+        return {
+            'header': header,
+            'version': version,
+            'data_type': 2,
+            'res': res,
+            'nchannel': nchannels,
+            'min': np.array([-1., -1., -1.]),
+            'max': np.array([1., 1., 1.]),
+            'data': data
+        }
