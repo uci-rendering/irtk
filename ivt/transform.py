@@ -22,7 +22,7 @@ def lookat(origin, target, up):
 
 def translate(t_vec):
     if not torch.is_tensor(t_vec):
-        t_vec = torch.tensor(t_vec, dtype=torch.float, device='cuda')
+        t_vec = torch.tensor(t_vec, dtype=torch.float)
     device = t_vec.device
     dtype = t_vec.dtype 
 
@@ -33,7 +33,7 @@ def translate(t_vec):
 
 def rotate(axis, angle, use_degree=True):
     if not torch.is_tensor(axis):
-        axis = torch.tensor(axis, dtype=torch.float, device='cuda')
+        axis = torch.tensor(axis, dtype=torch.float)
     device = axis.device
     dtype = axis.dtype 
 
@@ -65,7 +65,7 @@ def rotate(axis, angle, use_degree=True):
 
 def scale(size):
     if not torch.is_tensor(size):
-        size = torch.tensor(size, dtype=torch.float, device='cuda')
+        size = torch.tensor(size, dtype=torch.float)
     device = size.device
     dtype = size.dtype 
 
