@@ -10,6 +10,7 @@ from skimage.transform import resize
 import xatlas
 import pymeshfix
 from gpytoolbox import remesh_botsch
+from pathlib import Path
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
@@ -90,6 +91,45 @@ def to_numpy(data):
     else:
         return np.array(data)
 
+def read_image(image_path, is_srgb=None):
+    image_path = Path(image_path)
+    image = iio.imread(image_path)
+    if image.dtype == np.uint8 or image.dtype == np.int16:
+        image = image.astype("float32") / 255.0
+    elif image.dtype == np.uint16 or image.dtype == np.int32:
+        image = image.astype("float32") / 65535.0
+
+    if is_srgb is None:
+        if image_path.suffix == '.exr':
+            is_srgb = False
+        else:
+            is_srgb = True
+
+    if is_srgb:
+        image = to_linear(image)
+
+    return image
+
+def write_image(image_path, image, is_srgb=None):
+    image_path = Path(image_path)
+    image = to_numpy(image)
+
+    if is_srgb is None:
+        if image_path.suffix == '.exr':
+            is_srgb = False
+        else:
+            is_srgb = True
+
+    if is_srgb:
+        image = to_srgb(image)
+
+    if image_path.suffix == '.exr':
+        image = image.astype(np.float32)
+    else:
+        image = (image * 255).astype(np.uint8)
+
+    iio.imwrite(image_path, image)
+    
 def read_png(png_path, is_srgb=True):
     image = iio.imread(png_path, extension='.png')
     if image.dtype == np.uint8 or image.dtype == np.int16:
