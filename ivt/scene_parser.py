@@ -4,7 +4,7 @@ import stevedore.extension
 class SceneParser(ABC):
     
     @abstractmethod
-    def read(self, scene_path):
+    def read(self, scene_path, scene):
         pass
     
     @abstractmethod
