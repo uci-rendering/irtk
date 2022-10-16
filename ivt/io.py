@@ -25,8 +25,8 @@ def write_obj(obj_path, v, f, tc=None, ftc=None):
     def f2s(f):
         return [str(e) for e in f]
 
-    v = to_numpy(v).astype(float)
-    f = to_numpy(f).astype(int) + 1
+    v = np.atleast_2d(to_numpy(v).astype(float))
+    f = np.atleast_2d(to_numpy(f).astype(int) + 1)
 
     if tc is None and ftc is None:
         for v_ in v:
