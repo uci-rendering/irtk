@@ -1,7 +1,7 @@
 import torch
 
 def l1_loss(target_image, rendered_image):
-    return (target_image - rendered_image).abs().mean()
+    return (target_image - rendered_image).abs().mean() # NOTE
 
 def mesh_laplacian_smoothing(verts, faces):
     # compute L once per mesh subdiv.

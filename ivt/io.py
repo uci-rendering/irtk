@@ -1,6 +1,7 @@
 import os
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+from struct import unpack, unpack_from
 
+from skimage.transform import resize
 import igl
 import imageio.v3 as iio
 import imageio
@@ -14,10 +15,14 @@ from pathlib import Path
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
-    
+
     v, tc, n, f, ftc, fn = igl.read_obj(obj_path)
-    
+    if f.ndim == 1:
+        f = np.expand_dims(f, axis=0)
+    if f.shape[1] == 4:
+        f = np.concatenate([f[:, :3], f[:, (0, 2, 3)]], axis=0)
     return v, tc, n, f, ftc, fn
+
 
 def write_obj(obj_path, v, f, tc=None, ftc=None):
     obj_file = open(obj_path, 'w')
@@ -44,7 +49,8 @@ def write_obj(obj_path, v, f, tc=None, ftc=None):
             for tc_ in tc:
                 obj_file.write(f"vt {' '.join(f2s(tc_))}\n")
             for f_, ftc_ in zip(f, ftc):
-                obj_file.write(f"f {f_[0]}/{ftc_[0]} {f_[1]}/{ftc_[1]} {f_[2]}/{ftc_[2]}\n")
+                obj_file.write(
+                    f"f {f_[0]}/{ftc_[0]} {f_[1]}/{ftc_[1]} {f_[2]}/{ftc_[2]}\n")
         else:
             for v_ in v:
                 obj_file.write(f"v {' '.join(f2s(v_))}\n")
@@ -71,6 +77,7 @@ def linear_to_srgb(l):
     s[m] = l[m] * 12.92
     s[~m] = 1.055*(l[~m]**(1.0/2.4))-0.055
     return s
+
 
 def srgb_to_linear(s):
     l = np.zeros_like(s)
@@ -156,11 +163,22 @@ def write_png(png_path, image):
         image = np.repeat(image, 3, axis=2)
     iio.imwrite(png_path, image, extension='.png')
 
+from PIL import Image as im
+def write_jpg(jpg_path, image):
+    image = to_srgb(to_numpy(image))
+    image = (image * 255).astype(np.uint8)
+    if image.shape[2] == 1:
+        image = np.repeat(image, 3, axis=2)
+    rgb_im = im.fromarray(image).convert('RGB')
+    rgb_im.save(jpg_path, format='JPEG', quality=95)
+
+
 def read_exr(exr_path):
     image = iio.imread(exr_path, extension='.exr')
     if len(image.shape) == 2:
         image = np.expand_dims(image, axis=2)
     return image
+
 
 def write_exr(exr_path, image):
     image = to_numpy(image).astype(np.float32)
@@ -174,3 +192,66 @@ def write_exr(exr_path, image):
 
 def resize_image(image, height, width):
     return resize(image, (height, width))
+
+class FileStream:
+    def __init__(self, path):
+        self.path = path
+        self.file = open(path, 'rb')
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.file.close()
+
+    def read(self, count: int, dtype=np.byte):
+        data = self.file.read(count * np.dtype(dtype).itemsize)
+        return np.frombuffer(data, dtype=dtype)
+
+
+def read_volume(path):
+    with FileStream(path) as s:
+        header = s.read(3, dtype=np.byte)
+        assert header.tobytes() == b'VOL'
+        version = s.read(1, dtype=np.uint8)[0]
+        assert version == 3
+        data_type = s.read(1, dtype=np.int32)[0]
+        assert data_type == 1
+        res = s.read(3, dtype=np.int32)
+        nchannel = s.read(1, dtype=np.int32)[0]
+        bbox_min = s.read(3, dtype=np.float32)
+        bbox_max = s.read(3, dtype=np.float32)
+        assert np.all(bbox_max > bbox_min)
+        data = s.read(np.prod(res) * nchannel, dtype=np.float32)
+        return {
+            'header': header,
+            'version': version,
+            'data_type': data_type,
+            'res': res,
+            'nchannel': nchannel,
+            'min': bbox_min,
+            'max': bbox_max,
+            'data': data
+        }
+
+
+def read_volume2(path):
+    # https://johanneskopf.de/publications/solid/textures/file_format.txt
+    with FileStream(path) as s:
+        buf = s.read(4096)
+        header, version, tex_name, wrap, vol_size, nchannels, bytes_per_channel = unpack_from('4si256s?iii', buf)
+        tex_name = tex_name[:tex_name.find(b'\0')]
+        assert header == b'VOLU'
+        res = np.array([vol_size, vol_size, vol_size])
+        data = s.read(np.prod(res) * nchannels)
+        data = np.frombuffer(data, dtype=np.uint8) / 255.0
+        return {
+            'header': header,
+            'version': version,
+            'data_type': 2,
+            'res': res,
+            'nchannel': nchannels,
+            'min': np.array([-1., -1., -1.]),
+            'max': np.array([1., 1., 1.]),
+            'data': data
+        }
