@@ -94,6 +94,7 @@ def to_numpy(data):
 def read_image(image_path, is_srgb=None):
     image_path = Path(image_path)
     image = iio.imread(image_path)
+    image = np.atleast_3d(image)
     if image.dtype == np.uint8 or image.dtype == np.int16:
         image = image.astype("float32") / 255.0
     elif image.dtype == np.uint16 or image.dtype == np.int32:
@@ -113,6 +114,9 @@ def read_image(image_path, is_srgb=None):
 def write_image(image_path, image, is_srgb=None):
     image_path = Path(image_path)
     image = to_numpy(image)
+    image = np.atleast_3d(image)
+    if image.shape[2] == 1:
+        image = np.repeat(image, 3, axis=2)
 
     if is_srgb is None:
         if image_path.suffix == '.exr':
