@@ -14,6 +14,8 @@ def str_to_tensor(s):
 
 class MitsubaParser(SceneParser):
 
+    scene_parser_name = 'mitsuba'
+
     def read(self, scene_path, scene):
         scene_path = Path(scene_path)
         with open(scene_path, 'r') as f:

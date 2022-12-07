@@ -10,7 +10,6 @@ dependencies:
   - pytorch=1.11.0
   - igl
   - imageio
-  - stevedore
   - lxml
   - matplotlib
   - gin

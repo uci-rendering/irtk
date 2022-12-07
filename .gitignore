@@ -136,3 +136,6 @@ tmp_output/
 examples/cached_scenes
 examples/results
 examples/target_images
+
+# VSCode
+.vscode

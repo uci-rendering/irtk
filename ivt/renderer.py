@@ -1,4 +1,4 @@
-from .connector import ConnectorManager
+from .connector import get_connector
 import torch 
 import numpy as np
 
@@ -34,8 +34,7 @@ class Renderer(torch.nn.Module):
 
     def __init__(self, connector_name, render_options=None):
         super().__init__()
-        cm = ConnectorManager()
-        self.connector = cm.get_connector(connector_name)
+        self.connector = get_connector(connector_name)
         self.render_options = render_options
 
     def forward(self, scene, sensor_ids=[0], integrator_id=0):
