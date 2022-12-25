@@ -101,7 +101,7 @@ def read_image(image_path, is_srgb=None):
         image = image.astype("float32") / 65535.0
 
     if is_srgb is None:
-        if image_path.suffix == '.exr':
+        if image_path.suffix in ['.exr', '.hdr', '.rgbe']:
             is_srgb = False
         else:
             is_srgb = True
@@ -119,7 +119,7 @@ def write_image(image_path, image, is_srgb=None):
         image = np.repeat(image, 3, axis=2)
 
     if is_srgb is None:
-        if image_path.suffix == '.exr':
+        if image_path.suffix in ['.exr', '.hdr', '.rgbe']:
             is_srgb = False
         else:
             is_srgb = True
