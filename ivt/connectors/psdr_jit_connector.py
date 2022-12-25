@@ -73,6 +73,8 @@ class PSDRJITConnector(Connector):
                 objects['integrators'].append(psdr_jit.FieldExtractionIntegrator(integrator_config['params']['name']))
             elif integrator_config['type'] == 'path':
                 objects['integrators'].append(psdr_jit.PathTracer(integrator_config['params']['max_depth']))
+                if 'hide_envmap' in integrator_config['params']:
+                    objects['integrators'][it].hide_emitters = integrator_config['params']['hide_envmap']
             else:
                 raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
         
