@@ -69,7 +69,7 @@ class Scene:
         integrator = {
             'id': id,
             'type': integrator_type,
-            'props': integrator_params
+            'params': integrator_params
         }
         # integrator = integrator_type
         self.integrators.append(integrator)
