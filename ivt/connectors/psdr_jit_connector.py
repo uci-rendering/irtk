@@ -1,6 +1,5 @@
-from multiprocessing.sharedctypes import Value
 from ivt.connector import Connector
-from ivt.scene_parser import SceneParserManager
+from ivt.scene_parser import get_scene_parser
 from ivt.scene import split_param_name
 from ivt.transform import lookat
 from ivt.io import write_exr
@@ -19,6 +18,9 @@ import os
 import time
 
 class PSDRJITConnector(Connector):
+
+    connector_name = 'psdr_jit'
+
     backend = 'torch'
     device = 'cuda'
     ftype = torch.float32
@@ -31,8 +33,7 @@ class PSDRJITConnector(Connector):
         # Create a temporary scene directory with all the data
         tmp_path = Path("__psdr_jit_tmp__")
         tmp_scene_path = tmp_path / 'scene.xml'
-        spm = SceneParserManager()
-        sp = spm.get_scene_parser('mitsuba')
+        sp = get_scene_parser('mitsuba')
         sp.write(tmp_scene_path, scene)
         
         # Load the scene 
@@ -72,6 +73,8 @@ class PSDRJITConnector(Connector):
                 objects['integrators'].append(psdr_jit.FieldExtractionIntegrator(integrator_config['params']['name']))
             elif integrator_config['type'] == 'path':
                 objects['integrators'].append(psdr_jit.PathTracer(integrator_config['params']['max_depth']))
+                if 'hide_envmap' in integrator_config['params']:
+                    objects['integrators'][it].hide_emitters = integrator_config['params']['hide_envmap']
             else:
                 raise ValueError(f"integrator type [{integrator_config['type']}] is not supported.")
         
@@ -178,7 +181,7 @@ class PSDRJITConnector(Connector):
         # print(f"Time for [renderC.get_objects]: {t1 - t0}")
         objects['scene'].opts.spp = render_options['spp_c'] if 'spp_c' in render_options else render_options['spp']
         # t2 = time.time()
-        objects['scene'].configure2(sensor_ids)
+        objects['scene'].configure(sensor_ids)
         # print(f"Time for [renderC.configure2]: {t2 - t1}")
         # objects['scene'].configure()
         h, w, c = objects['film']['shape']
@@ -264,7 +267,7 @@ class PSDRJITConnector(Connector):
                         drjit_params.append(drjit_param)
         # t2 = time.time()
         # print(f"Time for [renderD.enable_grad]: {t2 - t1}")
-        objects['scene'].configure2(sensor_ids)
+        objects['scene'].configure(sensor_ids)
         # t3 = time.time()
         # print(f"Time for [renderD.configure2]: {t3 - t2}")
         param_grads = [torch.zeros_like(drjit_param.torch().cuda()) for drjit_param in drjit_params]

@@ -1,4 +1,3 @@
-from multiprocessing.sharedctypes import Value
 from ivt.connector import Connector
 import psdr_cpu
 import numpy as np
@@ -6,6 +5,9 @@ import torch
 import os
 
 class PSDREnzymeConnector(Connector):
+    
+    connector_name = 'psdr_enzyme'
+
     backend = 'numpy'
     device = 'cpu'
     ftype = np.float64

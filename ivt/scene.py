@@ -1,7 +1,7 @@
 import torch
 from .parameter import Parameter, NaiveParameter
 from .io import read_obj
-from .scene_parser import SceneParserManager
+from .scene_parser import get_scene_parser
 
 class Scene:
     def __init__(self, device='cuda', ftype=torch.float32, itype=torch.long):
@@ -25,8 +25,7 @@ class Scene:
         self.itype = itype
 
     def add_from_scene_file(self, scene_path, scene_parser_name='mitsuba'):
-        sm = SceneParserManager()
-        scene_parser = sm.get_scene_parser(scene_parser_name)
+        scene_parser = get_scene_parser(scene_parser_name)
         return scene_parser.read(scene_path, self)
 
     def add_alias(self, param_name, alias):

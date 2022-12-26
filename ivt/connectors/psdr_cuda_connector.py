@@ -1,6 +1,5 @@
-from multiprocessing.sharedctypes import Value
 from ivt.connector import Connector
-from ivt.scene_parser import SceneParserManager
+from ivt.scene_parser import get_scene_parser
 from ivt.scene import split_param_name
 from ivt.transform import lookat
 
@@ -16,6 +15,9 @@ from shutil import rmtree
 import os
 
 class PSDRCudaConnector(Connector):
+
+    connector_name = 'psdr_cuda'
+
     def __init__(self):
         super().__init__()
 
@@ -23,8 +25,7 @@ class PSDRCudaConnector(Connector):
         # Create a temporary scene directory with all the data
         tmp_path = Path("__psdr_cuda_tmp__")
         tmp_scene_path = tmp_path / 'scene.xml'
-        spm = SceneParserManager()
-        sp = spm.get_scene_parser('mitsuba')
+        sp = get_scene_parser('mitsuba')
         sp.write(tmp_scene_path, scene)
         
         # Load the scene 

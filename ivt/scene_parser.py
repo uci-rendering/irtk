@@ -1,7 +1,20 @@
 from abc import ABC, abstractmethod
-import stevedore.extension
+
+_scene_parser_table = {}
+
+def register_scene_parser(cls):
+    _scene_parser_table[cls.scene_parser_name] = cls
 
 class SceneParser(ABC):
+    def __init_subclass__(cls, **kwargs):
+          # always make it colaborative:
+          super().__init_subclass__(**kwargs)
+          register_scene_parser(cls)
+
+    @property
+    @abstractmethod
+    def scene_parser_name(self):
+        pass
     
     @abstractmethod
     def read(self, scene_path, scene):
@@ -11,22 +24,11 @@ class SceneParser(ABC):
     def write(self, scene_path, scene):
         pass
 
-class SceneParserManager:
+def is_scene_parser_available(scene_parser_name):
+    return scene_parser_name in _scene_parser_table
 
-    def __init__(self, quiet=True):
+def get_scene_parser_list():
+    return list(_scene_parser_table.keys())
 
-        def on_load_failure_callback(manager, entrypoint, exception):
-            print(f'Failed to load {entrypoint}: {exception}')
-
-        self.em = stevedore.extension.ExtensionManager('ivt_parsers',
-            on_load_failure_callback=None if quiet else on_load_failure_callback
-        )
-
-    def is_available(self, scene_parser_name):
-        return scene_parser_name in self.em
-
-    def get_availability_list(self):
-        return [ext.name for ext in self.em]
-
-    def get_scene_parser(self, scene_parser_name):
-        return self.em[scene_parser_name].plugin()
+def get_scene_parser(scene_parser_name):
+    return _scene_parser_table[scene_parser_name]()

@@ -1,7 +1,20 @@
 from abc import ABC, abstractmethod
-import stevedore.extension
+
+_connector_table = {}
+
+def register_connector(cls):
+    _connector_table[cls.connector_name] = cls
 
 class Connector(ABC):
+    def __init_subclass__(cls, **kwargs):
+          # always make it colaborative:
+          super().__init_subclass__(**kwargs)
+          register_connector(cls)
+
+    @property
+    @abstractmethod
+    def connector_name(self):
+        pass
     
     @abstractmethod
     def renderC(self, scene, render_options, sensor_ids=[0]):
@@ -11,22 +24,11 @@ class Connector(ABC):
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0]):
         pass
 
-class ConnectorManager:
+def is_connector_available(connector_name):
+    return connector_name in _connector_table
 
-    def __init__(self, quiet=True):
+def get_connector_list():
+    return list(_connector_table.keys())
 
-        def on_load_failure_callback(manager, entrypoint, exception):
-            print(f'Failed to load {entrypoint}: {exception}')
-
-        self.em = stevedore.extension.ExtensionManager('ivt_connectors',
-            on_load_failure_callback=None if quiet else on_load_failure_callback
-        )
-
-    def is_available(self, connector_name):
-        return connector_name in self.em
-
-    def get_availability_list(self):
-        return [ext.name for ext in self.em]
-
-    def get_connector(self, connector_name):
-        return self.em[connector_name].plugin()
+def get_connector(connector_name):
+    return _connector_table[connector_name]()

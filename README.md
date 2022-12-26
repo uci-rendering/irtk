@@ -31,8 +31,6 @@ If you want to modify the code but don't want to repeatedly install them, add `-
 Notice that you can't use wildcards directly in Powershell. You can do the following instead
 ```
 pip install . 
-pip install (get-item .\connectors\*)
-pip install (get-item .\scene_parsers\*)
 ```
 
 ## Run examples
