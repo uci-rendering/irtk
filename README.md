@@ -23,15 +23,8 @@ If CMake fails to find the correct one during configuration, try adding `-DPytho
 At the root directory of the cloned repo, run 
 ```
 pip install . 
-pip install connectors/*
-pip install scene_parsers/*
 ```
 If you want to modify the code but don't want to repeatedly install them, add `-e` after `install` (highly recommended if you are going to change the code), such as `pip install -e .`.
-
-Notice that you can't use wildcards directly in Powershell. You can do the following instead
-```
-pip install . 
-```
 
 ## Run examples
 There are some inverse rendering examples in the `examples` directory. Follow the instructions below to run them.
