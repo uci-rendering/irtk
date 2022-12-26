@@ -26,9 +26,7 @@ class RenderFunction(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_out):
         image_grads = [image_grad for image_grad in grad_out]
-        options = ctx.scene.bck_options if ctx.scene.bck_options else ctx.render_options
-        options['seed'] = ctx.render_options['seed']
-        param_grads = ctx.connector.renderD(image_grads, ctx.scene, options, ctx.sensor_ids, ctx.integrator_id)
+        param_grads = ctx.connector.renderD(image_grads, ctx.scene, ctx.render_options, ctx.sensor_ids, ctx.integrator_id)
         return tuple([None] * 7 + param_grads)
 
 @gin.configurable
@@ -49,5 +47,5 @@ class Renderer(torch.nn.Module):
         images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, scene.device, scene.ftype, *params)
         return images
 
-    def set_render_options(self, render_options, bck_options=None):
+    def set_render_options(self, render_options):
         self.render_options = render_options
