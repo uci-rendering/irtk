@@ -12,6 +12,8 @@ class Scene:
         self.meshes = []
         self.bsdfs = []
         self.emitters = []
+        self.phases= []
+        self.mediums = []
 
         self._alias = {}
         self._diff_param_names = [] # names of all differentiable parameters
@@ -67,8 +69,9 @@ class Scene:
         integrator = {
             'id': id,
             'type': integrator_type,
-            'params': integrator_params
+            'props': integrator_params
         }
+        # integrator = integrator_type
         self.integrators.append(integrator)
 
     def add_hdr_film(self, resolution, rfilter='tent', crop=(0, 0, 1, 1)):
@@ -96,7 +99,7 @@ class Scene:
 
         self.sensors.append(sensor)
 
-    def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, uv_positions=[], uv_indices=[], to_world=torch.eye(4), use_face_normal=False):
+    def add_mesh(self, vertex_positions, vertex_indices, bsdf_id, med_int_id = None, med_ext_id = None, uv_positions=[], uv_indices=[], to_world=torch.eye(4), use_face_normal=False):
         id = self.__make_id('meshes')
         mesh = {
             'id': id,
@@ -108,12 +111,17 @@ class Scene:
             'bsdf_id': bsdf_id,
             'use_face_normal': use_face_normal
         }
+        if med_int_id is not None:
+            mesh.update({'med_int_id' : med_int_id})
+        if med_ext_id is not None:
+            mesh.update({'med_ext_id' : med_ext_id})
+
         self.__mark_diff(id, ['vertex_positions', 'to_world'])
         self.meshes.append(mesh)
 
-    def add_obj(self, obj_path, bsdf_id, to_world=torch.eye(4), use_face_normal=False):
+    def add_obj(self, obj_path, bsdf_id, med_int_id = None, med_ext_id = None, to_world=torch.eye(4), use_face_normal=False):
         v, tc, _, f, ftc, _ = read_obj(obj_path)
-        self.add_mesh(v, f, bsdf_id, tc, ftc, to_world, use_face_normal)
+        self.add_mesh(v, f, bsdf_id, med_int_id, med_ext_id, tc, ftc, to_world, use_face_normal)
 
     def add_diffuse_bsdf(self, reflectance, to_world=torch.eye(3)):
         id = self.__make_id('bsdfs')
@@ -149,6 +157,68 @@ class Scene:
         }
         self.__mark_diff(id, ['radiance'])
         self.emitters.append(emitter)
+    
+    def add_isotropic_phase(self):
+        i = len(self.phases)
+        id = f'phases[{i}]'
+        phase = {
+            'id': id,
+            'type': 'isotropic'
+        }
+        self.phases.append(phase)
+        return i
+    
+    def add_volume(self, id, volume, name):
+        assert name in ['sigmaT', 'albedo']
+        if type(volume) == dict:
+            ret =  {
+                'type': 'gridvolume',
+                'data': self.add_fparam(id + '.' + name, volume['data']),
+                'res': volume['res'],
+                'nchannel': volume['nchannel'],
+                'min': volume['min'],
+                'max': volume['max']
+            }
+            if 'to_world' in volume:
+                ret.update({'to_world': self.add_fparam(
+                    id + '.to_world', volume['to_world'])})
+            return ret
+        elif type(volume) == list:
+            return {
+                'type': 'constvolume',
+                'data': self.add_fparam(id + '.' + name, np.array(volume)),
+            }                   
+        elif type(volume) == float:
+            return {
+                'type': 'constvolume',
+                'data': self.add_fparam(id + '.' + name, np.array([volume]*3)),
+            }
+        else:
+            raise ValueError('Unknown volume type')
+    
+    def add_homogeneous_medium(self, sigmaT, albedo, phase_id=None):
+        id = f'mediums[{len(self.mediums)}]'
+        medium = {
+            'id': id,
+            'type': 'homogeneous',
+            'sigmaT': self.add_fparam(id + '.sigmaT', sigmaT),
+            # 'albedo': self.add_fparam(id + '.albedo', albedo),
+            'albedo': self.add_volume(id, albedo, 'albedo'),
+            'phase_id': phase_id if phase_id is not None else self.add_isotropic_phase()
+        }
+        self.mediums.append(medium)
+    
+    def add_heterogeneous_medium(self, sigmaT, albedo, scale= 1., phase_id=None):
+        id = f'mediums[{len(self.mediums)}]'
+        medium = {
+            'id': id,
+            'type': 'heterogeneous',
+            'sigmaT': self.add_volume(id, sigmaT, 'sigmaT'),
+            'albedo': self.add_volume(id, albedo, 'albedo'),
+            'scale': self.add_fparam(id + '.scale', scale),
+            'phase_id': phase_id if phase_id is not None else self.add_isotropic_phase()
+        }
+        self.mediums.append(medium)
 
     def add_env_light(self, env_map, to_world=torch.eye(4)):
         id = self.__make_id('emitters')
@@ -166,7 +236,7 @@ class Scene:
 
     def clear_cache(self):
         self.cached = {}
-
+    
 def split_param_name(param_name):
     group_name, idx, prop = param_name.replace('[', '.').replace(']', '').split('.')
     idx = int(idx)
