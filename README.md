@@ -23,7 +23,10 @@ At the root directory of the cloned repo, run
 ```
 pip install . 
 ```
-If you want to modify the code but don't want to repeatedly install them, add `-e` after `install` (highly recommended if you are going to change the code), such as `pip install -e .`.
+If you want to modify the code but don't want to repeatedly install them, add `-e` after `install` (highly recommended if you are going to change the code),
+```
+pip install -e .
+```
 
 ## Run examples
 There are some inverse rendering examples in the `examples` directory. Follow the instructions below to run them.
