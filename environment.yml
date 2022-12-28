@@ -12,7 +12,7 @@ dependencies:
   - imageio
   - lxml
   - matplotlib
-  - gin
+  - gin-config
   - pip:
     - cholespy
     - largesteps
