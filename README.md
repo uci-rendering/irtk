@@ -15,8 +15,7 @@ conda env update --name ivt --file environment.yml
 Add a `--prune` at the end if you want to remove extra packages not listed in `environment.yml`.
 
 ## Install the backends
-For now, only `psdr-enzyme` is supported. A note for compiling `psdr-enzyme`:
-Since we are using a virtual environment `ivt`, which has its own Python, you need to compile `psdr-enzyme` with the correct Python version.
+Since we are using a virtual environment `ivt`, which has its own Python, you need to compile `psdr` with the correct Python version.
 If CMake fails to find the correct one during configuration, try adding `-DPython_EXECUTABLE=$(which python)` (assuming `ivt` environment is activated and `python` is referring to the Anaconda one) when running CMake.
 
 ## Install the ivt packages
@@ -24,7 +23,10 @@ At the root directory of the cloned repo, run
 ```
 pip install . 
 ```
-If you want to modify the code but don't want to repeatedly install them, add `-e` after `install` (highly recommended if you are going to change the code), such as `pip install -e .`.
+If you want to modify the code but don't want to repeatedly install them, add `-e` after `install` (highly recommended if you are going to change the code),
+```
+pip install -e .
+```
 
 ## Run examples
 There are some inverse rendering examples in the `examples` directory. Follow the instructions below to run them.
