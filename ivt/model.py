@@ -43,7 +43,7 @@ class Model(ABC):
         return self._device
 
     def get_regularization(self):
-        return 0
+        return torch.tensor(0.0, device=self._device, dtype=self._ftype)
 
 @gin.configurable
 class MultiOpt(Model):
