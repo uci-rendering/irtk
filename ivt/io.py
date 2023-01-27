@@ -87,10 +87,24 @@ def srgb_to_linear(s):
     return l
 
 def to_srgb(image):
-    return np.clip(linear_to_srgb(to_numpy(image)), 0, 1)
+    image = to_numpy(image)
+    if image.shape[2] == 4:
+        image_alpha = image[:, :, 3:4]
+        image = linear_to_srgb(image[:, :, 0:3])
+        image = np.concatenate([image, image_alpha], axis=2)
+    else:
+        image = linear_to_srgb(image)
+    return np.clip(image, 0, 1)
 
 def to_linear(image):
-    return srgb_to_linear(to_numpy(image))
+    image = to_numpy(image)
+    if image.shape[2] == 4:
+        image_alpha = image[:, :, 3:4]
+        image = srgb_to_linear(image[:, :, 0:3])
+        image = np.concatenate([image, image_alpha], axis=2)
+    else:
+        image = srgb_to_linear(image)
+    return image
 
 def to_numpy(data):
     if torch.is_tensor(data):
