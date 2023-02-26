@@ -17,6 +17,10 @@ class Parameter(ABC):
     def raw_data(self):
         pass
 
+    @abstractmethod
+    def reset(self):
+        pass
+
     @property
     def dtype(self):
         return self._dtype
@@ -57,6 +61,10 @@ class NaiveParameter(Parameter):
     @property
     def data(self):
         return self._raw_data
+    
+    def reset(self):
+        self.requires_grad = False
+        self._raw_data = self._raw_data.detach().clone()
 
     @property
     def raw_data(self):
@@ -65,7 +73,7 @@ class NaiveParameter(Parameter):
     @Parameter.requires_grad.setter
     def requires_grad(self, requires_grad):
         self._requires_grad = requires_grad
-        if requires_grad and not self._raw_data.requires_grad:
+        if self._raw_data.is_leaf:
             self._raw_data.requires_grad = requires_grad
 
 class FixedRangeTexture(Parameter):

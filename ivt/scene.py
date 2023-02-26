@@ -233,6 +233,10 @@ class Scene:
             
     def get_requiring_grad(self):
         return [param_name for param_name in self._diff_param_names if self[param_name].requires_grad]
+    
+    def clear_requiring_grad(self):
+        for param_name in self.get_requiring_grad():
+            self[param_name].reset()
 
     def clear_cache(self):
         self.cached = {}
