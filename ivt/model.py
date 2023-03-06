@@ -4,7 +4,6 @@ from pathlib import Path
 import sys
 from .io import *
 from .parameter import *
-from .loss import mesh_laplacian_smoothing
 from .optimizers import LargeStepsOptimizer
 
 import gin 
@@ -85,7 +84,7 @@ class MultiOpt(Model):
 @gin.configurable
 class LargeStepsShapeOpt(Model):
 
-    def __init__(self, scene, mesh_id, optimizer_kwargs={}, init_mesh_path='', result_name='', w_smooth=0.0):
+    def __init__(self, scene, mesh_id, optimizer_kwargs={}, init_mesh_path='', result_name='', v_mask=None):
         super().__init__(scene)
 
         mesh = self.scene.meshes[mesh_id]
@@ -93,7 +92,6 @@ class LargeStepsShapeOpt(Model):
         self._f = mesh['vertex_indices']
         self._tc = mesh['uv_positions']
         self._ftc = mesh['uv_indices']
-        self._w_smooth = w_smooth
 
         assert isinstance(self._v, NaiveParameter), f'Vertex of mesh[{mesh_id}] must be an instance of NaiveParameter!'
 
@@ -108,6 +106,8 @@ class LargeStepsShapeOpt(Model):
 
         self._v.requires_grad = True
 
+        self._v_mask = v_mask
+
         self.optimizer = LargeStepsOptimizer(self._v.data, self._f.data, **optimizer_kwargs)
 
     def zero_grad(self):
@@ -117,10 +117,10 @@ class LargeStepsShapeOpt(Model):
         return
         
     def step(self):
-        self.optimizer.step()
+        if self._v_mask is not None:
+            self._v.data.grad[~self._v_mask] = 0
 
-    def get_regularization(self):
-        return self._w_smooth * mesh_laplacian_smoothing(self._v.data, self._f.data)
+        self.optimizer.step()
 
     def get_results(self):
         results = {
