@@ -48,6 +48,6 @@ def mesh_laplacian_smoothing(verts, faces):
 
 def total_variation_loss(texture, texture_mask):
     m = (texture_mask[:-1, :-1] & texture_mask[1:, :-1] & texture_mask[:-1, 1:])
-    loss = (texture[:-1, :-1] - texture[1:, :-1])[m].pow(2).mean() +\
-           (texture[:-1, :-1] - texture[:-1, 1:])[m].pow(2).mean()
+    loss = (texture[:-1, :-1] - texture[1:, :-1])[m].abs().mean() +\
+           (texture[:-1, :-1] - texture[:-1, 1:])[m].abs().mean()
     return loss
