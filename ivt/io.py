@@ -1,6 +1,3 @@
-import os
-from struct import unpack, unpack_from
-
 from skimage.transform import resize
 import igl
 import imageio.v3 as iio
@@ -12,6 +9,31 @@ import xatlas
 import pymeshfix
 from gpytoolbox import remesh_botsch
 from pathlib import Path
+import trimesh
+
+def read_mesh(mesh_path):
+    mesh = trimesh.load(mesh_path, maintain_order=True)
+    v = mesh.vertices
+    f = mesh.faces
+    if mesh.visual.kind == 'texture':
+        uv = mesh.visual.uv
+    else:
+        uv = np.ones((v.shape[0], 2)) * 0.5
+
+    return v, f, uv
+
+def write_mesh(mesh_path, v, f, uv=None):
+    v = to_numpy(v).astype(float)
+    f = to_numpy(f).astype(int)
+
+    if uv is None:
+        visual = None
+    else:
+        uv = to_numpy(uv).astype(float)
+        visual = trimesh.visual.texture.TextureVisuals(uv=uv)
+    
+    mesh = trimesh.Trimesh(v, f, visual=visual)
+    mesh.export(mesh_path)
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
@@ -112,10 +134,13 @@ def to_numpy(data):
     else:
         return np.array(data)
 
-def read_image(image_path, is_srgb=None):
+def read_image(image_path, is_srgb=None, remove_alpha=True):
     image_path = Path(image_path)
     image = iio.imread(image_path)
     image = np.atleast_3d(image)
+    if remove_alpha and image.shape[2] == 4:
+        image = image[:, :, 0:3]
+
     if image.dtype == np.uint8 or image.dtype == np.int16:
         image = image.astype("float32") / 255.0
     elif image.dtype == np.uint16 or image.dtype == np.int32:
