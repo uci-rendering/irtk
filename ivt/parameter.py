@@ -1,97 +1,75 @@
 import torch
-from abc import ABC, abstractmethod
+from collections import OrderedDict
+from .config import *
 
-class Parameter(ABC):
-    def __init__(self, dtype, device):
-        self._dtype = dtype
-        self._device = device
-        self._requires_grad = False
+class ParamGroup:
 
-    @property
-    @abstractmethod
-    def data(self):
-        pass
+    def __init__(self):
+        self.params = OrderedDict()
+
+        self.ftype = ftype
+        self.itype = itype
+        self.device = device
+
+    def __getitem__(self, param_name):
+        return self.params[param_name]['value']
     
-    @property
-    @abstractmethod
-    def raw_data(self):
-        pass
+    def __setitem__(self, param_name, param_value):
+        if self.params[param_name]['is_tensor'] and not torch.is_tensor(param_value):
+            dtype = self[param_name].dtype
+            requires_grad = self[param_name].requires_grad
+            param_value = self.to_tensor(param_value, dtype).requires_grad_(requires_grad)
+        self.params[param_name]['value'] = param_value
+        self.mark_updated(param_name)
 
-    @abstractmethod
-    def reset(self):
-        pass
+    def add_param(self, name, value, is_tensor=False, is_diff=False, help_msg=""):
+        self.params[name] = {
+            'value': value,
+            'is_tensor': is_tensor,
+            'is_diff': is_diff,
+            'help_msg': help_msg,
+            'updated': False
+        }
 
-    @property
-    def dtype(self):
-        return self._dtype
-
-    @property
-    def device(self):
-        return self._device
-    
-    @property
-    def requires_grad(self):
-        return self._requires_grad
-
-    @requires_grad.setter
-    @abstractmethod
-    def requires_grad(self, requires_grad):
-        pass
-
-    def requires_grad_(self, requires_grad=True):
-        self.requires_grad = requires_grad
-        return self
-
-    def to_tensor(self, array):
+    def to_tensor(self, array, dtype):
         if torch.is_tensor(array):
-            array = array.to(self.dtype).to(self.device)
+            array = array.to(dtype).to(self.device)
         else:
-            array = torch.tensor(array, dtype=self.dtype, device=self.device)
+            array = torch.tensor(array, dtype=dtype, device=self.device)
         return array
-
-class NaiveParameter(Parameter):
-    def __init__(self, raw_data, dtype, device):
-        super().__init__(dtype, device)
-        self.set(raw_data)
-
-    def set(self, raw_data):
-        self._raw_data = self.to_tensor(raw_data)
-        self.requires_grad = self._raw_data.requires_grad
-
-    @property
-    def data(self):
-        return self._raw_data
     
-    def reset(self):
-        self.requires_grad = False
-        self._raw_data = self._raw_data.detach().clone()
+    def to_ftensor(self, array):
+        return self.to_tensor(array, self.ftype)
 
-    @property
-    def raw_data(self):
-        return [self._raw_data]
+    def to_itensor(self, array):
+        return self.to_tensor(array, self.itype)
 
-    @Parameter.requires_grad.setter
-    def requires_grad(self, requires_grad):
-        self._requires_grad = requires_grad
-        if self._raw_data.is_leaf:
-            self._raw_data.requires_grad = requires_grad
-
-class FixedRangeTexture(Parameter):
-    def __init__(self, t_res, v_min=0.0, v_max=1.0, dtype=torch.float32, device='cuda'):
-        super().__init__(dtype, device)
-        self._raw_data = torch.zeros(t_res, dtype=dtype, device=device)
-        self._v_min = v_min
-        self._v_span = v_max - v_min
-
-    @property
-    def data(self):
-        return torch.sigmoid(self._raw_data) * self._v_span + self._v_min
-
-    @property
-    def raw_data(self):
-        return [self._raw_data]
+    def get_requiring_grad(self):
+        return [name for name in self.params if self.params[name]['is_diff'] and self[name].requires_grad]
     
-    @Parameter.requires_grad.setter
-    def requires_grad(self, requires_grad):
-        self._requires_grad = requires_grad
-        self._raw_data.requires_grad = requires_grad
+    def get_updated(self):
+        return [name for name in self.params if self.params[name]['updated']]
+    
+    def mark_updated(self, param_name):
+        self.params[param_name]['updated'] = True
+    
+    def __str__(self):
+        lines = []
+
+        lines.append('----')
+
+        for name in self.params:
+            lines.append(f"{name}:")
+            lines.append(f"\tdescription: {self.params[name]['help_msg']}")
+
+            is_diff = self.params[name]['is_diff']
+            lines.append(f"\tis differentiable: {is_diff}")
+            if is_diff:
+                lines.append(f"\trequires grad: {self[name].requires_grad}")
+
+            lines.append(f"\tvalue: \t{self[name]}")
+
+        lines.append('----')
+
+        return '\n'.join(lines)
+
