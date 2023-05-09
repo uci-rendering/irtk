@@ -1,18 +1,23 @@
 import torch 
+import torch.nn.functional as F
+from .config import ftype, device
 
-def normalize(vector):
-    return vector / torch.norm(vector)
+def to_ftensor(data):
+    if torch.is_tensor(data):
+        return data.to(ftype).to(device)
+    else:
+        return torch.tensor(data, dtype=ftype, device=device)
 
 def lookat(origin, target, up):
-    device = origin.device
-    dtype = origin.dtype 
+    origin = to_ftensor(origin)
+    target = to_ftensor(target)
+    up = to_ftensor(up)
 
-    origin = origin
-    dir = normalize(target - origin)
-    left = normalize(torch.cross(up, dir))
-    new_up = normalize(torch.cross(dir, left))
+    dir = F.normalize(target - origin, dim=0)
+    left = F.normalize(torch.cross(up, dir), dim=0)
+    new_up = F.normalize(torch.cross(dir, left), dim=0)
 
-    to_world = torch.eye(4).to(device).to(dtype)
+    to_world = to_ftensor(torch.eye(4))
     to_world[:3, 0] = left
     to_world[:3, 1] = new_up
     to_world[:3, 2] = dir
@@ -20,34 +25,39 @@ def lookat(origin, target, up):
 
     return to_world
 
-def translate(t_vec):
-    if not torch.is_tensor(t_vec):
-        t_vec = torch.tensor(t_vec, dtype=torch.float)
-    device = t_vec.device
-    dtype = t_vec.dtype 
+def perspective(fov, near=1e-6, far=1e7):
+    recip = 1 / (far - near)
+    tan = torch.tan(torch.deg2rad(to_ftensor(fov * 0.5)))
+    cot = 1 / tan
 
-    to_world = torch.eye(4).to(device).to(dtype)
+    mat = torch.diag(to_ftensor([cot, cot, far * recip, 0]))
+    mat[2, 3] = -near * far * recip
+    mat[3, 2] = 1
+
+    return mat
+
+def translate(t_vec):
+    t_vec = to_ftensor(t_vec)
+
+    to_world = to_ftensor(torch.eye(4))
     to_world[:3, 3] = t_vec
 
     return to_world
 
 def rotate(axis, angle, use_degree=True):
-    if not torch.is_tensor(axis):
-        axis = torch.tensor(axis, dtype=torch.float)
-    device = axis.device
-    dtype = axis.dtype 
+    axis = to_ftensor(axis)
+    angle = to_ftensor(angle)
 
-    to_world = torch.eye(4).to(device).to(dtype)
-    axis = normalize(axis).reshape(3, 1)
-    if not torch.is_tensor(angle):
-        angle = torch.tensor(angle).to(device).to(dtype)
+    to_world = to_ftensor(torch.eye(4))
+    axis = F.normalize(axis, dim=0).reshape(3, 1)
+
     if use_degree:
         angle = torch.deg2rad(angle)
 
     sin_theta = torch.sin(angle)
     cos_theta = torch.cos(angle)
 
-    cpm = torch.zeros((3, 3)).to(device).to(dtype)
+    cpm = to_ftensor(torch.zeros((3, 3)))
     cpm[0, 1] = -axis[2]
     cpm[0, 2] =  axis[1]
     cpm[1, 0] =  axis[2]
@@ -55,7 +65,7 @@ def rotate(axis, angle, use_degree=True):
     cpm[2, 0] = -axis[1]
     cpm[2, 1] =  axis[0]
 
-    R = cos_theta * torch.eye(3).to(device).to(dtype)
+    R = cos_theta * to_ftensor(torch.eye(3))
     R += sin_theta * cpm
     R += (1 - cos_theta) * (axis @ axis.T)
 
@@ -64,47 +74,41 @@ def rotate(axis, angle, use_degree=True):
     return to_world
 
 def scale(size):
-    if not torch.is_tensor(size):
-        size = torch.tensor(size, dtype=torch.float)
-    device = size.device
-    dtype = size.dtype 
+    size = to_ftensor(size)
 
-    to_world = torch.eye(4).to(device).to(dtype)
+    to_world = to_ftensor(torch.eye(4))
 
     if size.size() == () or size.size(dim=0) == 1:
-        to_world[:3, :3] = torch.eye(3).to(device).to(dtype) * size
+        to_world[:3, :3] = to_ftensor(torch.eye(3)) * size
     elif size.size(dim=0) == 3:
-        to_world[:3, :3] = torch.diag(size).to(device).to(dtype)
+        to_world[:3, :3] = torch.diag(size)
     else:
-        print("error transform.py for scale")
+        print(f"unrecognized shape for size: {size.shape}")
         exit()
 
     return to_world
 
 # texture map transform (2d)
 def translate2D(t_vec):
-    device = t_vec.device
-    dtype = t_vec.dtype 
+    t_vec = to_ftensor(t_vec)
 
-    to_world = torch.eye(3).to(device).to(dtype)
+    to_world = to_ftensor(torch.eye(3))
     to_world[:2, 2] = t_vec
 
     return to_world
 
 def rotate2D(angle, use_degree=True):
-    device = angle.device
-    dtype = angle.dtype 
+    angle = to_ftensor(angle)
 
-    to_world = torch.eye(3).to(device).to(dtype)
-    if not torch.is_tensor(angle):
-        angle = torch.tensor(angle).to(device).to(dtype)
+    to_world = to_ftensor(torch.eye(3))
+
     if use_degree:
         angle = torch.deg2rad(angle)
 
     sin_theta = torch.sin(angle)
     cos_theta = torch.cos(angle)
 
-    R = cos_theta * torch.eye(2).to(device).to(dtype)
+    R = cos_theta * to_ftensor(torch.eye(2))
 
     R[0 ,1] = -sin_theta
     R[1 ,0] = sin_theta
@@ -114,17 +118,15 @@ def rotate2D(angle, use_degree=True):
     return to_world
 
 def scale2D(size):
-    device = size.device
-    dtype = size.dtype 
-
-    to_world = torch.eye(3).to(device).to(dtype)
+    size = to_ftensor(size)
+    to_world = to_ftensor(torch.eye(3))
 
     if size.size(dim=0) == 1:
-        to_world[:2, :2] = torch.diag(size).to(device).to(dtype) * torch.eye(2).to(device).to(dtype)
+        to_world[:2, :2] = torch.diag(size) * to_ftensor(torch.eye(2))
     elif size.size(dim=0) == 2:
-        to_world[:2, :2] = torch.diag(size).to(device).to(dtype)
+        to_world[:2, :2] = torch.diag(size)
     else:
-        print("error transform.py for scale")
+        print(f"unrecognized shape for size: {size.shape}")
         exit()
 
     return to_world
