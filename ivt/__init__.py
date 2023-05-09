@@ -1,8 +1,8 @@
 from .connector import *
-try:
-    from .connectors.psdr_cuda_connector import PSDRCudaConnector
-except:
-    pass
+# try:
+#     from .connectors.psdr_cuda_connector import PSDRCudaConnector
+# except:
+#     pass
 
 try:
     from .connectors.psdr_enzyme_connector import PSDREnzymeConnector
@@ -14,5 +14,5 @@ try:
 except:
     pass
 
-from .scene_parser import *
-from .scene_parsers.mitsuba_parser import MitsubaParser
+# from .scene_parser import *
+# from .scene_parsers.mitsuba_parser import MitsubaParser
