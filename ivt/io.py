@@ -33,7 +33,7 @@ def write_mesh(mesh_path, v, f, uv=None):
         visual = trimesh.visual.texture.TextureVisuals(uv=uv)
     
     mesh = trimesh.Trimesh(v, f, visual=visual)
-    mesh.export(mesh_path)
+    mesh.export(mesh_path, write_texture=False)
 
 def read_obj(obj_path):
     obj_path = str(obj_path)
