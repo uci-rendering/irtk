@@ -15,9 +15,12 @@ class RenderFunction(torch.autograd.Function):
         ctx.connector = connector
         ctx.scene = scene
         ctx.render_options = render_options
-        ctx.params = params
         ctx.sensor_ids = sensor_ids
         ctx.integrator_id = integrator_id
+        ctx.num_no_grads = 5 # number of inputs that don't require grad
+
+        ctx.params = params
+       
         assert(images.sum().isfinite())
         return images
 
@@ -25,7 +28,7 @@ class RenderFunction(torch.autograd.Function):
     def backward(ctx, grad_out):
         image_grads = [image_grad for image_grad in grad_out]
         param_grads = ctx.connector.renderD(image_grads, ctx.scene, ctx.render_options, ctx.sensor_ids, ctx.integrator_id)
-        return tuple([None] * 5 + param_grads)
+        return tuple([None] * ctx.num_no_grads + param_grads)
 
 @gin.configurable
 class Renderer(torch.nn.Module):
