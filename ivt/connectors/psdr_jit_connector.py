@@ -1,7 +1,7 @@
-from ivt.connector import Connector
-from ivt.scene import *
-from ivt.config import *
-from ivt.io import write_mesh
+from ..connector import Connector
+from ..scene import *
+from ..config import *
+from ..io import write_mesh
 from collections import OrderedDict
 
 import drjit
@@ -11,7 +11,6 @@ from drjit.cuda import Array3f as Vector3fC, Array3i as Vector3iC
 from drjit.cuda.ad import Array3f as Vector3fD, Float32 as FloatD, Matrix4f as Matrix4fD, Matrix3f as Matrix3fD
 from drjit.cuda.ad import Float32 as FloatD
 import torch
-from pathlib import Path
 
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
