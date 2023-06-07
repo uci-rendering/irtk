@@ -1,23 +1,17 @@
+from .io import to_torch_f
 import torch 
 import torch.nn.functional as F
-from .config import ftype, device
-
-def to_ftensor(data):
-    if torch.is_tensor(data):
-        return data.to(ftype).to(device)
-    else:
-        return torch.tensor(data, dtype=ftype, device=device)
 
 def lookat(origin, target, up):
-    origin = to_ftensor(origin)
-    target = to_ftensor(target)
-    up = to_ftensor(up)
+    origin = to_torch_f(origin)
+    target = to_torch_f(target)
+    up = to_torch_f(up)
 
     dir = F.normalize(target - origin, dim=0)
     left = F.normalize(torch.cross(up, dir), dim=0)
     new_up = F.normalize(torch.cross(dir, left), dim=0)
 
-    to_world = to_ftensor(torch.eye(4))
+    to_world = to_torch_f(torch.eye(4))
     to_world[:3, 0] = left
     to_world[:3, 1] = new_up
     to_world[:3, 2] = dir
@@ -27,28 +21,28 @@ def lookat(origin, target, up):
 
 def perspective(fov, near=1e-6, far=1e7):
     recip = 1 / (far - near)
-    tan = torch.tan(torch.deg2rad(to_ftensor(fov * 0.5)))
+    tan = torch.tan(torch.deg2rad(to_torch_f(fov * 0.5)))
     cot = 1 / tan
 
-    mat = torch.diag(to_ftensor([cot, cot, far * recip, 0]))
+    mat = torch.diag(to_torch_f([cot, cot, far * recip, 0]))
     mat[2, 3] = -near * far * recip
     mat[3, 2] = 1
 
     return mat
 
 def translate(t_vec):
-    t_vec = to_ftensor(t_vec)
+    t_vec = to_torch_f(t_vec)
 
-    to_world = to_ftensor(torch.eye(4))
+    to_world = to_torch_f(torch.eye(4))
     to_world[:3, 3] = t_vec
 
     return to_world
 
 def rotate(axis, angle, use_degree=True):
-    axis = to_ftensor(axis)
-    angle = to_ftensor(angle)
+    axis = to_torch_f(axis)
+    angle = to_torch_f(angle)
 
-    to_world = to_ftensor(torch.eye(4))
+    to_world = to_torch_f(torch.eye(4))
     axis = F.normalize(axis, dim=0).reshape(3, 1)
 
     if use_degree:
@@ -57,7 +51,7 @@ def rotate(axis, angle, use_degree=True):
     sin_theta = torch.sin(angle)
     cos_theta = torch.cos(angle)
 
-    cpm = to_ftensor(torch.zeros((3, 3)))
+    cpm = to_torch_f(torch.zeros((3, 3)))
     cpm[0, 1] = -axis[2]
     cpm[0, 2] =  axis[1]
     cpm[1, 0] =  axis[2]
@@ -65,7 +59,7 @@ def rotate(axis, angle, use_degree=True):
     cpm[2, 0] = -axis[1]
     cpm[2, 1] =  axis[0]
 
-    R = cos_theta * to_ftensor(torch.eye(3))
+    R = cos_theta * to_torch_f(torch.eye(3))
     R += sin_theta * cpm
     R += (1 - cos_theta) * (axis @ axis.T)
 
@@ -74,12 +68,12 @@ def rotate(axis, angle, use_degree=True):
     return to_world
 
 def scale(size):
-    size = to_ftensor(size)
+    size = to_torch_f(size)
 
-    to_world = to_ftensor(torch.eye(4))
+    to_world = to_torch_f(torch.eye(4))
 
     if size.size() == () or size.size(dim=0) == 1:
-        to_world[:3, :3] = to_ftensor(torch.eye(3)) * size
+        to_world[:3, :3] = to_torch_f(torch.eye(3)) * size
     elif size.size(dim=0) == 3:
         to_world[:3, :3] = torch.diag(size)
     else:
@@ -90,17 +84,17 @@ def scale(size):
 
 # texture map transform (2d)
 def translate2D(t_vec):
-    t_vec = to_ftensor(t_vec)
+    t_vec = to_torch_f(t_vec)
 
-    to_world = to_ftensor(torch.eye(3))
+    to_world = to_torch_f(torch.eye(3))
     to_world[:2, 2] = t_vec
 
     return to_world
 
 def rotate2D(angle, use_degree=True):
-    angle = to_ftensor(angle)
+    angle = to_torch_f(angle)
 
-    to_world = to_ftensor(torch.eye(3))
+    to_world = to_torch_f(torch.eye(3))
 
     if use_degree:
         angle = torch.deg2rad(angle)
@@ -108,7 +102,7 @@ def rotate2D(angle, use_degree=True):
     sin_theta = torch.sin(angle)
     cos_theta = torch.cos(angle)
 
-    R = cos_theta * to_ftensor(torch.eye(2))
+    R = cos_theta * to_torch_f(torch.eye(2))
 
     R[0 ,1] = -sin_theta
     R[1 ,0] = sin_theta
@@ -118,11 +112,11 @@ def rotate2D(angle, use_degree=True):
     return to_world
 
 def scale2D(size):
-    size = to_ftensor(size)
-    to_world = to_ftensor(torch.eye(3))
+    size = to_torch_f(size)
+    to_world = to_torch_f(torch.eye(3))
 
     if size.size(dim=0) == 1:
-        to_world[:2, :2] = torch.diag(size) * to_ftensor(torch.eye(2))
+        to_world[:2, :2] = torch.diag(size) * to_torch_f(torch.eye(2))
     elif size.size(dim=0) == 2:
         to_world[:2, :2] = torch.diag(size)
     else:

@@ -1,6 +1,6 @@
 from .parameter import ParamGroup
 from .transform import lookat
-from .io import read_image, read_mesh
+from .io import read_image, read_mesh, to_torch_f, to_torch_i
 
 from collections import OrderedDict
 
@@ -76,14 +76,14 @@ class PerspectiveCamera(ParamGroup):
         self.add_param('fov', fov, help_msg='sensor fov')
         self.add_param('near', near, help_msg='sensor near clip')
         self.add_param('far', far, help_msg='sensor far clip')
-        self.add_param('to_world', self.to_ftensor(to_world), is_tensor=True, is_diff=True, help_msg='sensor to_world matrix')
+        self.add_param('to_world', to_torch_f(to_world), is_tensor=True, is_diff=True, help_msg='sensor to_world matrix')
 
     @classmethod
     def from_lookat(cls, fov, origin, target, up, near=1e-6, far=1e7):
         sensor = cls(fov, torch.eye(4), near, far)
-        origin = sensor.to_ftensor(origin)
-        target = sensor.to_ftensor(target)
-        up = sensor.to_ftensor(up)
+        origin = to_torch_f(origin)
+        target = to_torch_f(target)
+        up = to_torch_f(up)
         sensor['to_world'] = lookat(origin, target, up)
         return sensor
         
@@ -92,14 +92,14 @@ class Mesh(ParamGroup):
     def __init__(self, v, f, uv, mat_id, to_world=torch.eye(4), use_face_normal=True, radiance=torch.zeros(3)):
         super().__init__()
         
-        self.add_param('v', self.to_ftensor(v), is_tensor=True, is_diff=True, help_msg='mesh vertex positions')
-        self.add_param('f', self.to_itensor(f), is_tensor=True, help_msg='mesh face indices')
-        self.add_param('uv', self.to_ftensor(uv), is_tensor=True, help_msg='mesh uv coordinates')
+        self.add_param('v', to_torch_f(v), is_tensor=True, is_diff=True, help_msg='mesh vertex positions')
+        self.add_param('f', to_torch_i(f), is_tensor=True, help_msg='mesh face indices')
+        self.add_param('uv', to_torch_f(uv), is_tensor=True, help_msg='mesh uv coordinates')
         self.add_param('mat_id', mat_id, help_msg='name of the material of the mesh')
-        self.add_param('to_world', self.to_ftensor(to_world), is_tensor=True, help_msg='mesh to world matrix')
+        self.add_param('to_world', to_torch_f(to_world), is_tensor=True, help_msg='mesh to world matrix')
         self.add_param('use_face_normal', use_face_normal, help_msg='whether to use face normal')
 
-        radiance = self.to_itensor(radiance)
+        radiance = to_torch_f(radiance)
         is_emitter = radiance.sum() > 0
         self.add_param('is_emitter', is_emitter, help_msg='whether it is used as an emitter')
         self.add_param('radiance', radiance, is_tensor=True, is_diff=True, help_msg='radiance if it is used as an emitter')
@@ -114,7 +114,7 @@ class DiffuseBRDF(ParamGroup):
     def __init__(self, d):
         super().__init__()
         
-        self.add_param('d', self.to_ftensor(d), is_tensor=True, is_diff=True, help_msg='diffuse reflectance')
+        self.add_param('d', to_torch_f(d), is_tensor=True, is_diff=True, help_msg='diffuse reflectance')
 
     @classmethod
     def from_file(cls, filename, is_srgb=None):
@@ -126,9 +126,9 @@ class MicrofacetBRDF(ParamGroup):
     def __init__(self, d, s, r):
         super().__init__()
         
-        self.add_param('d', self.to_ftensor(d), is_tensor=True, is_diff=True, help_msg='diffuse reflectance')
-        self.add_param('s', self.to_ftensor(s), is_tensor=True, is_diff=True, help_msg='specular reflectance')
-        self.add_param('r', self.to_ftensor(r), is_tensor=True, is_diff=True, help_msg='roughness')
+        self.add_param('d', to_torch_f(d), is_tensor=True, is_diff=True, help_msg='diffuse reflectance')
+        self.add_param('s', to_torch_f(s), is_tensor=True, is_diff=True, help_msg='specular reflectance')
+        self.add_param('r', to_torch_f(r), is_tensor=True, is_diff=True, help_msg='roughness')
 
     @classmethod
     def from_file(cls, d_filename, s_filename, r_filename, d_is_srgb=None, s_is_srgb=None, r_is_srgb=None):
@@ -143,7 +143,7 @@ class EnvironmentLight(ParamGroup):
     def __init__(self, radiance):
         super().__init__()
         
-        self.add_param('radiance', self.to_ftensor(radiance), is_tensor=True, is_diff=True, help_msg='environment light radiance')
+        self.add_param('radiance', to_torch_f(radiance), is_tensor=True, is_diff=True, help_msg='environment light radiance')
 
     @classmethod
     def from_file(cls, radiance_filename, radiance_is_srgb=None):

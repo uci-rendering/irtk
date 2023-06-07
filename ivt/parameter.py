@@ -1,15 +1,11 @@
+from .io import to_torch
 import torch
 from collections import OrderedDict
-from .config import *
 
 class ParamGroup:
 
     def __init__(self):
         self.params = OrderedDict()
-
-        self.ftype = ftype
-        self.itype = itype
-        self.device = device
 
     def __getitem__(self, param_name):
         return self.params[param_name]['value']
@@ -18,7 +14,7 @@ class ParamGroup:
         if self.params[param_name]['is_tensor'] and not torch.is_tensor(param_value):
             dtype = self[param_name].dtype
             requires_grad = self[param_name].requires_grad
-            param_value = self.to_tensor(param_value, dtype).requires_grad_(requires_grad)
+            param_value = to_torch(param_value, dtype).requires_grad_(requires_grad)
         self.params[param_name]['value'] = param_value
         self.mark_updated(param_name)
 
@@ -30,19 +26,6 @@ class ParamGroup:
             'help_msg': help_msg,
             'updated': False
         }
-
-    def to_tensor(self, array, dtype):
-        if torch.is_tensor(array):
-            array = array.to(dtype).to(self.device)
-        else:
-            array = torch.tensor(array, dtype=dtype, device=self.device)
-        return array
-    
-    def to_ftensor(self, array):
-        return self.to_tensor(array, self.ftype)
-
-    def to_itensor(self, array):
-        return self.to_tensor(array, self.itype)
 
     def get_requiring_grad(self):
         return [name for name in self.params if self.params[name]['is_diff'] and self[name].requires_grad]
