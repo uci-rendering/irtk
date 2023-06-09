@@ -37,7 +37,7 @@ class Scene:
         requiring_grad = []
         for cname in self.components:
             requiring_grad += [f'{cname}.{pname}' for pname in self.components[cname].get_requiring_grad()]
-        self.requiring_grad = set(requiring_grad)
+        self.requiring_grad = tuple(requiring_grad)
 
     def __str__(self):
         lines = []
