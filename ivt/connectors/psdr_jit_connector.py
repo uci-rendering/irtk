@@ -1,7 +1,7 @@
 from ..connector import Connector
 from ..scene import *
 from ..config import *
-from ..io import write_mesh
+from ..io import write_obj
 from collections import OrderedDict
 
 import drjit
@@ -11,6 +11,19 @@ from drjit.cuda import Array3f as Vector3fC, Array3i as Vector3iC
 from drjit.cuda.ad import Array3f as Vector3fD, Float32 as FloatD, Matrix4f as Matrix4fD, Matrix3f as Matrix3fD
 from drjit.cuda.ad import Float32 as FloatD
 import torch
+
+import time
+
+class Timer:
+    def __init__(self, label):
+        self.label = label
+
+    def __enter__(self):
+        self.start_time = time.time()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        elapsed_time = time.time() - self.start_time
+        print(f"[{self.label}] Elapsed time: {elapsed_time} seconds")
 
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
@@ -37,13 +50,16 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
             cache['name_map'] = {}
             cache['integrators'] = OrderedDict()
+            cache['configured'] = False
 
         drjit_params = []
         for name in scene.components:
             component = scene[name]
             drjit_params += self.extensions[type(component)](name, scene)
 
-        cache['scene'].configure()    
+        if not cache['configured']:
+            cache['scene'].configure() 
+            cache['configured'] = True
         
         return scene.cached['psdr_jit'], drjit_params
 
@@ -145,8 +161,7 @@ def process_perspective_camera(name, scene):
     # Create the object if it has not been created
     if name not in cache['name_map']:
         psdr_sensor = psdr_jit.PerspectiveCamera(sensor['fov'], sensor['near'], sensor['far'])
-        # psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
-        psdr_sensor.to_world = Matrix4fD(sensor['to_world'].cpu().numpy())
+        psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
         psdr_scene.add_Sensor(psdr_sensor)
         cache['name_map'][name] = f"Sensor[{psdr_scene.num_sensors - 1}]"
 
@@ -157,8 +172,7 @@ def process_perspective_camera(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == "to_world":
-                # psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
-                psdr_sensor.to_world = Matrix4fD(sensor['to_world'].cpu().numpy())
+                psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
             sensor.params[param_name]['updated'] = False
 
     # Enable grad for parameters requiring grad
@@ -189,9 +203,9 @@ def process_mesh(name, scene):
         PSDRJITConnector.extensions[type(brdf)](mat_id, scene)
 
         # TODO: Fix this workaround when psdr-jit updates psdr_mesh.load_raw()
-        write_mesh('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'])
-        psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].cpu().numpy()) if mesh['is_emitter'] else None
-        psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', mesh['to_world'].cpu().numpy(), mat_id, psdr_emitter)
+        write_obj('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
+        psdr_emitter = psdr_jit.AreaLight(mesh['radiance']) if mesh['is_emitter'] else None
+        psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', mesh['to_world'].reshape(1, 4, 4), mat_id, psdr_emitter)
 
         # psdr_mesh = psdr_jit.Mesh()
         # psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']))
@@ -232,7 +246,6 @@ def convert_color(color, c, bitmap=True):
         color = color.tile(c)
     if color.shape == (c,):
         color = color.reshape(1, 1, c)
-    color = color.cpu().numpy()
     h, w, _ = color.shape
     if c == 3:
         color = Vector3fD(color.reshape(-1, c))

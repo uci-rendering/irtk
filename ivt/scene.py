@@ -1,6 +1,6 @@
 from .parameter import ParamGroup
 from .transform import lookat
-from .io import read_image, read_mesh, to_torch_f, to_torch_i
+from .io import read_image, read_obj, to_torch_f, to_torch_i
 
 from collections import OrderedDict
 
@@ -89,12 +89,13 @@ class PerspectiveCamera(ParamGroup):
         
 class Mesh(ParamGroup):
 
-    def __init__(self, v, f, uv, mat_id, to_world=torch.eye(4), use_face_normal=True, radiance=torch.zeros(3)):
+    def __init__(self, v, f, uv, fuv, mat_id, to_world=torch.eye(4), use_face_normal=True, radiance=torch.zeros(3)):
         super().__init__()
         
         self.add_param('v', to_torch_f(v), is_tensor=True, is_diff=True, help_msg='mesh vertex positions')
         self.add_param('f', to_torch_i(f), is_tensor=True, help_msg='mesh face indices')
         self.add_param('uv', to_torch_f(uv), is_tensor=True, help_msg='mesh uv coordinates')
+        self.add_param('fuv', to_torch_i(fuv), is_tensor=True, help_msg='mesh uv face indices')
         self.add_param('mat_id', mat_id, help_msg='name of the material of the mesh')
         self.add_param('to_world', to_torch_f(to_world), is_tensor=True, help_msg='mesh to world matrix')
         self.add_param('use_face_normal', use_face_normal, help_msg='whether to use face normal')
@@ -106,8 +107,8 @@ class Mesh(ParamGroup):
 
     @classmethod
     def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, radiance=torch.zeros(3)):
-        v, f, uv = read_mesh(filename)
-        return cls(v, f, uv, mat_id, to_world, use_face_normal, radiance)
+        v, tc, n, f, ftc, fn = read_obj(filename)
+        return cls(v, f, tc, ftc, mat_id, to_world, use_face_normal, radiance)
     
 class DiffuseBRDF(ParamGroup):
 

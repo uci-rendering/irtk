@@ -12,7 +12,8 @@ dependencies = [
     'imageio >= 2.27.0',
     'numpy',
     'gin-config',
-    'trimesh'
+    'trimesh',
+    'libigl'
 ]
 
 [project.urls]

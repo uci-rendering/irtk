@@ -4,6 +4,53 @@ import numpy as np
 import torch
 from pathlib import Path
 import trimesh
+import igl
+
+def read_obj(obj_path):
+    obj_path = str(obj_path)
+
+    v, tc, n, f, ftc, fn = igl.read_obj(obj_path)
+    if f.ndim == 1:
+        f = np.expand_dims(f, axis=0)
+    if f.shape[1] == 4:
+        f = np.concatenate([f[:, :3], f[:, (0, 2, 3)]], axis=0)
+    return v, tc, n, f, ftc, fn
+
+
+def write_obj(obj_path, v, f, tc=None, ftc=None):
+    obj_file = open(obj_path, 'w')
+
+    def f2s(f):
+        return [str(e) for e in f]
+
+    v = np.atleast_2d(to_numpy(v).astype(float))
+    f = np.atleast_2d(to_numpy(f).astype(int) + 1)
+
+    if tc is None and ftc is None:
+        for v_ in v:
+            obj_file.write(f"v {' '.join(f2s(v_))}\n")
+        for f_ in f:
+            obj_file.write(f"f {' '.join(f2s(f_))}\n")
+    else:
+        tc = to_numpy(tc).astype(float)
+        ftc = to_numpy(ftc).astype(int)
+
+        if tc.size > 0 and ftc.size == f.size:
+            ftc += 1
+            for v_ in v:
+                obj_file.write(f"v {' '.join(f2s(v_))}\n")
+            for tc_ in tc:
+                obj_file.write(f"vt {' '.join(f2s(tc_))}\n")
+            for f_, ftc_ in zip(f, ftc):
+                obj_file.write(
+                    f"f {f_[0]}/{ftc_[0]} {f_[1]}/{ftc_[1]} {f_[2]}/{ftc_[2]}\n")
+        else:
+            for v_ in v:
+                obj_file.write(f"v {' '.join(f2s(v_))}\n")
+            for f_ in f:
+                obj_file.write(f"f {' '.join(f2s(f_))}\n")
+
+    obj_file.close()
 
 def read_mesh(mesh_path):
     mesh = trimesh.load(mesh_path, maintain_order=True)
