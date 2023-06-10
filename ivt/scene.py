@@ -51,6 +51,9 @@ class Scene:
     
     def clear_cache(self):
         self.cached = {}
+        # Detach the tensors requiring grad
+        for param_name in self.requiring_grad:
+            self[param_name] = self[param_name].detach()
 
 class Integrator(ParamGroup):
 
