@@ -55,6 +55,9 @@ class Scene:
         for param_name in self.requiring_grad:
             self[param_name] = self[param_name].detach()
 
+    def filter(self, component_type):
+        return [cname for cname in self.components if component_type == type(self.components[cname])]
+
 class Integrator(ParamGroup):
 
     def __init__(self, type, config):
