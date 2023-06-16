@@ -355,6 +355,7 @@ def process_environment_light(name, scene):
 
         psdr_emitter = psdr_jit.EnvironmentMap()
         psdr_emitter.radiance = radiance
+        psdr_emitter.set_transform(Matrix4fD(emitter['to_world'].reshape(1, 4, 4)))
         psdr_scene.add_EnvironmentMap(psdr_emitter)
         cache['name_map'][name] = f"Emitter[{psdr_scene.get_num_emitters() - 1}]"
 
@@ -366,6 +367,9 @@ def process_environment_light(name, scene):
         for param_name in updated:
             if param_name == 'radiance':
                 psdr_emitter.radiance = convert_color(emitter['radiance'], 3)
+            elif param_name == 'to_world':
+                psdr_emitter.set_transform(Matrix4fD(emitter['to_world'].reshape(1, 4, 4)))
+            emitter.params[param_name]['updated'] = False
 
     # Enable grad for parameters requiring grad
     drjit_params = []

@@ -144,13 +144,14 @@ class MicrofacetBRDF(ParamGroup):
     
 class EnvironmentLight(ParamGroup):
 
-    def __init__(self, radiance):
+    def __init__(self, radiance, to_world=torch.eye(4)):
         super().__init__()
         
         self.add_param('radiance', to_torch_f(radiance), is_tensor=True, is_diff=True, help_msg='environment light radiance')
+        self.add_param('to_world', to_torch_f(to_world), is_tensor=True, is_diff=False, help_msg='environment to_world matrix')
 
     @classmethod
-    def from_file(cls, radiance_filename, radiance_is_srgb=None):
+    def from_file(cls, radiance_filename, radiance_is_srgb=None, to_world=torch.eye(4)):
         radiance_texture = read_image(radiance_filename, radiance_is_srgb)
 
-        return cls(radiance_texture)
+        return cls(radiance_texture, to_world)
