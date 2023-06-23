@@ -19,7 +19,7 @@ def lookat(origin, target, up):
 
     return to_world
 
-def perspective(fov, near=1e-6, far=1e7):
+def perspective(fov, aspect_ratio, near=1e-6, far=1e7):
     recip = 1 / (far - near)
     tan = torch.tan(torch.deg2rad(to_torch_f(fov * 0.5)))
     cot = 1 / tan
@@ -28,7 +28,21 @@ def perspective(fov, near=1e-6, far=1e7):
     mat[2, 3] = -near * far * recip
     mat[3, 2] = 1
 
+    mat = scale([-0.5, -0.5 * aspect_ratio, 1]) @ translate([-1, -1 / aspect_ratio, 0]) @ mat
+
     return mat
+
+def batched_transform_pos(mat, vec):
+    mat = mat.view(1, 4, 4)
+    vec = vec.view(-1, 3, 1)
+    tmp = (mat @ torch.cat([vec, torch.ones_like(vec)[:, 0:1]], dim=1)).reshape(-1, 4)
+    return tmp[:, 0:3] / tmp[:, 3:]
+
+def batched_transform_dir(mat, vec):
+    mat = mat.view(1, 4, 4)
+    vec = vec.view(-1, 3, 1)
+    tmp = (mat @ torch.cat([vec, torch.zeros_like(vec)[:, 0:1]], dim=1)).reshape(-1, 4)
+    return tmp[:, 0:3]
 
 def translate(t_vec):
     t_vec = to_torch_f(t_vec)
