@@ -104,7 +104,7 @@ class PerspectiveCamera(ParamGroup):
         
 class Mesh(ParamGroup):
 
-    def __init__(self, v, f, uv, fuv, mat_id, to_world=torch.eye(4), use_face_normal=True, radiance=torch.zeros(3)):
+    def __init__(self, v, f, uv, fuv, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
         super().__init__()
         
         self.add_param('v', to_torch_f(v), is_tensor=True, is_diff=True, help_msg='mesh vertex positions')
@@ -114,6 +114,7 @@ class Mesh(ParamGroup):
         self.add_param('mat_id', mat_id, help_msg='name of the material of the mesh')
         self.add_param('to_world', to_torch_f(to_world), is_tensor=True, help_msg='mesh to world matrix')
         self.add_param('use_face_normal', use_face_normal, help_msg='whether to use face normal')
+        self.add_param('can_change_topology', can_change_topology, help_msg='whether to the topology can be chagned')
 
         radiance = to_torch_f(radiance)
         is_emitter = radiance.sum() > 0
@@ -121,9 +122,9 @@ class Mesh(ParamGroup):
         self.add_param('radiance', radiance, is_tensor=True, is_diff=True, help_msg='radiance if it is used as an emitter')
 
     @classmethod
-    def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, radiance=torch.zeros(3)):
+    def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
         v, tc, n, f, ftc, fn = read_obj(filename)
-        return cls(v, f, tc, ftc, mat_id, to_world, use_face_normal, radiance)
+        return cls(v, f, tc, ftc, mat_id, to_world, use_face_normal, can_change_topology, radiance)
     
 class DiffuseBRDF(ParamGroup):
 

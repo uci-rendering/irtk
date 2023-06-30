@@ -203,16 +203,17 @@ def process_mesh(name, scene):
         PSDRJITConnector.extensions[type(brdf)](mat_id, scene)
 
         # TODO: Fix this workaround when psdr-jit updates psdr_mesh.load_raw()
-        write_obj('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
-        psdr_emitter = psdr_jit.AreaLight(mesh['radiance']) if mesh['is_emitter'] else None
-        psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', mesh['to_world'].reshape(1, 4, 4), mat_id, psdr_emitter)
+        if mesh['can_change_topology']:
+            psdr_mesh = psdr_jit.Mesh()
+            psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']))
+            psdr_mesh.use_face_normal = mesh['use_face_normal']
 
-        # psdr_mesh = psdr_jit.Mesh()
-        # psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']))
-        # psdr_mesh.use_face_normal = mesh['use_face_normal']
-
-        # psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
-        # psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
+            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
+            psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
+        else:
+            write_obj('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
+            psdr_emitter = psdr_jit.AreaLight(mesh['radiance']) if mesh['is_emitter'] else None
+            psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', mesh['to_world'].reshape(1, 4, 4), mat_id, psdr_emitter)
         
         cache['name_map'][name] = f"Mesh[{psdr_scene.num_meshes - 1}]"
 
@@ -222,10 +223,12 @@ def process_mesh(name, scene):
     updated = mesh.get_updated()
     if len(updated) > 0:
         for param_name in updated:
-            if param_name == 'v' or param_name == 'f':
-                psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']))
-                # psdr_mesh.vertex_positions = Vector3fC(mesh['v'])
-                # psdr_mesh.face_indices = Vector3iC(mesh['f'])
+            if param_name == 'v':
+                if mesh['can_change_topology']:
+                    psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']))
+                else:
+                    psdr_mesh.vertex_positions = Vector3fC(mesh['v'])
+                    psdr_mesh.face_indices = Vector3iC(mesh['f'])
 
             mesh.params[param_name]['updated'] = False
 
