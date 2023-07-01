@@ -20,4 +20,7 @@ dependencies = [
 Home = "https://github.com/uci-rendering/inv-render-toolkit"
 
 [tool.flit.sdist]
-exclude = ["examples/"]
+exclude = [
+    "examples/",
+    "project_template/"
+]
