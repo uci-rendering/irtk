@@ -1,3 +1,7 @@
+# For project_template
+project_template/data
+project_template/results
+
 # Temp output in examples
 examples/**/*.png
 examples/**/*.exr
