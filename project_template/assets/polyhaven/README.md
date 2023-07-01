@@ -1,0 +1,1 @@
+The data in this directory are from [Poly Haven](https://polyhaven.com/) and are all licensed as CC0 ([https://polyhaven.com/license](https://polyhaven.com/license))

@@ -1,10 +1,11 @@
 from .parameter import ParamGroup
-from .transform import lookat
+from .transform import lookat, perspective, batched_transform_pos, batched_transform_dir
 from .io import read_image, read_obj, to_torch_f, to_torch_i
 
 from collections import OrderedDict
 
 import torch
+import torch.nn.functional as F
 
 class Scene:
 
@@ -55,6 +56,9 @@ class Scene:
         for param_name in self.requiring_grad:
             self[param_name] = self[param_name].detach()
 
+    def filter(self, component_type):
+        return [cname for cname in self.components if component_type == type(self.components[cname])]
+
 class Integrator(ParamGroup):
 
     def __init__(self, type, config):
@@ -81,6 +85,14 @@ class PerspectiveCamera(ParamGroup):
         self.add_param('far', far, help_msg='sensor far clip')
         self.add_param('to_world', to_torch_f(to_world), is_tensor=True, is_diff=True, help_msg='sensor to_world matrix')
 
+    def get_rays(self, samples, aspect_ratio):
+        samples = torch.cat([samples, torch.zeros_like(samples)[:, 0:1]], dim=1)
+        sample_to_camera = torch.inverse(perspective(self['fov'], aspect_ratio, self['near'], self['far']))
+        rays_o = batched_transform_pos(self['to_world'], to_torch_f([[0, 0, 0]]))
+        rays_d = F.normalize(batched_transform_pos(sample_to_camera, samples), dim=1)
+        rays_d = batched_transform_dir(self['to_world'], rays_d)
+        return rays_o.repeat(samples.shape[0], 1), rays_d
+
     @classmethod
     def from_lookat(cls, fov, origin, target, up, near=1e-6, far=1e7):
         sensor = cls(fov, torch.eye(4), near, far)
@@ -92,7 +104,7 @@ class PerspectiveCamera(ParamGroup):
         
 class Mesh(ParamGroup):
 
-    def __init__(self, v, f, uv, fuv, mat_id, to_world=torch.eye(4), use_face_normal=True, radiance=torch.zeros(3)):
+    def __init__(self, v, f, uv, fuv, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
         super().__init__()
         
         self.add_param('v', to_torch_f(v), is_tensor=True, is_diff=True, help_msg='mesh vertex positions')
@@ -102,6 +114,7 @@ class Mesh(ParamGroup):
         self.add_param('mat_id', mat_id, help_msg='name of the material of the mesh')
         self.add_param('to_world', to_torch_f(to_world), is_tensor=True, help_msg='mesh to world matrix')
         self.add_param('use_face_normal', use_face_normal, help_msg='whether to use face normal')
+        self.add_param('can_change_topology', can_change_topology, help_msg='whether to the topology can be chagned')
 
         radiance = to_torch_f(radiance)
         is_emitter = radiance.sum() > 0
@@ -109,9 +122,9 @@ class Mesh(ParamGroup):
         self.add_param('radiance', radiance, is_tensor=True, is_diff=True, help_msg='radiance if it is used as an emitter')
 
     @classmethod
-    def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, radiance=torch.zeros(3)):
+    def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
         v, tc, n, f, ftc, fn = read_obj(filename)
-        return cls(v, f, tc, ftc, mat_id, to_world, use_face_normal, radiance)
+        return cls(v, f, tc, ftc, mat_id, to_world, use_face_normal, can_change_topology, radiance)
     
 class DiffuseBRDF(ParamGroup):
 

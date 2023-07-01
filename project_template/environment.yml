@@ -1,0 +1,12 @@
+name: ivt
+channels:
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.8
+  - pytorch=1.13
+  - pytorch-cuda=11.7
+  - pip
+  - pip:
+    - ivt==0.1.3
+    - psdr-jit==0.1.1

@@ -1,3 +1,15 @@
+# For project_template
+project_template/data
+project_template/results
+
+# Temp output in examples
+examples/**/*.png
+examples/**/*.exr
+examples/**/*.obj
+
+# Don't ignore files in examples/data
+!examples/data
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -128,14 +140,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-# Temporary directories
-tmp_output/
-
-# Temp directories in pipelines
-examples/cached_scenes
-examples/results
-examples/target_images
 
 # VSCode
 .vscode
