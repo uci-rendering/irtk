@@ -1,0 +1,34 @@
+import datasets
+import ivt.renderer
+
+largestep_c_to_f.dataset = @SyntheticDataset()
+largestep_c_to_f.result_path = 'results/synthetic/bunny'
+largestep_c_to_f.stage_config = 'configs/synthetic/bunny/shape_ls.gin'
+largestep_c_to_f.num_remesh = 5
+largestep_c_to_f.remesh_scale = 0.8
+
+SyntheticDataset.scene = @simple_microfacet()
+SyntheticDataset.target_path = 'data/synthetic/bunny'
+SyntheticDataset.render_tar = @tar/Renderer()
+
+simple_microfacet.film_res_w = 512
+simple_microfacet.film_res_h = 512
+simple_microfacet.mesh_path = 'assets/meshes/bunny.obj'
+simple_microfacet.envmap_path = 'assets/polyhaven/envmaps/brown_photostudio_02_2k.exr'
+simple_microfacet.diffuse = (0.5, 0.6, 0.9)
+simple_microfacet.specular = (0.04, 0.04, 0.04)
+simple_microfacet.roughness = 0.5
+simple_microfacet.num_sensors = 100
+simple_microfacet.radius = 3
+simple_microfacet.fov = 45
+simple_microfacet.target = (0, 0, 0)
+simple_microfacet.up = (0, 1, 0)
+
+tar/Renderer.connector_name = 'psdr_jit'
+tar/Renderer.render_options = {
+    "spp": 128,
+    "sppe": 0,
+    "sppse": 0,
+    "npass": 10,
+    "log_level": 0
+}
