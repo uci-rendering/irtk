@@ -4,7 +4,7 @@ import models
 import gin.torch.external_configurables
 
 optimize.num_epochs = 5
-optimize.max_iter = 1
+optimize.max_iter = 1000
 optimize.batch_size = 1
 optimize.checkpoint_iter = 10
 optimize.model_class = @MultiOpt
@@ -12,18 +12,15 @@ optimize.render_opt = @opt/Renderer()
 optimize.render_vis = @vis/Renderer()
 
 MultiOpt.model_classes = [
-    @MicrofacetBasis,
+    @EnvmapLS,
 ]
 
-MicrofacetBasis.mat_id = 'mat'
-MicrofacetBasis.N = 50
-MicrofacetBasis.s_max = 0.04
-MicrofacetBasis.s_min = 0.04
-MicrofacetBasis.r_min = 0.1
-MicrofacetBasis.d_lr = 5e-2
-MicrofacetBasis.r_lr = 1e-2
-MicrofacetBasis.weight_map_lr = 5e-2
-MicrofacetBasis.t_res = 1024
+EnvmapLS.emitter_id = 'envmap'
+EnvmapLS.t_res_h = 256
+EnvmapLS.optimizer_kwargs = {
+    'lr': 1e-2,
+    'lmbda': 10
+}
 
 connector_name = 'psdr_jit'
 opt/Renderer.connector_name = %connector_name

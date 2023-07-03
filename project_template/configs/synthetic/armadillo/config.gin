@@ -4,6 +4,9 @@ import ivt.renderer
 single_stage.dataset = @SyntheticDataset()
 single_stage.result_path = 'results/synthetic/armadillo'
 single_stage.stage_config = 'configs/synthetic/armadillo/microfacet_basis.gin'
+# single_stage.stage_config = 'configs/synthetic/armadillo/microfacet_naive.gin'
+# single_stage.stage_config = 'configs/synthetic/armadillo/envmap_sg.gin'
+# single_stage.stage_config = 'configs/synthetic/armadillo/envmap_ls.gin'
 
 SyntheticDataset.scene = @simple_microfacet()
 SyntheticDataset.target_path = 'data/synthetic/aramdillo'
