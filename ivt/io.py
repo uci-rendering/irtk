@@ -3,78 +3,29 @@ import imageio.v3 as iio
 import numpy as np
 import torch
 from pathlib import Path
-import trimesh
-import igl
-
-def read_obj(obj_path):
-    obj_path = str(obj_path)
-
-    v, tc, n, f, ftc, fn = igl.read_obj(obj_path)
-    if f.ndim == 1:
-        f = np.expand_dims(f, axis=0)
-    if f.shape[1] == 4:
-        f = np.concatenate([f[:, :3], f[:, (0, 2, 3)]], axis=0)
-    return v, tc, n, f, ftc, fn
-
-
-def write_obj(obj_path, v, f, tc=None, ftc=None):
-    obj_file = open(obj_path, 'w')
-
-    def f2s(f):
-        return [str(e) for e in f]
-
-    v = np.atleast_2d(to_numpy(v).astype(float))
-    f = np.atleast_2d(to_numpy(f).astype(int) + 1)
-
-    if tc is None and ftc is None:
-        for v_ in v:
-            obj_file.write(f"v {' '.join(f2s(v_))}\n")
-        for f_ in f:
-            obj_file.write(f"f {' '.join(f2s(f_))}\n")
-    else:
-        tc = to_numpy(tc).astype(float)
-        ftc = to_numpy(ftc).astype(int)
-
-        if tc.size > 0 and ftc.size == f.size:
-            ftc += 1
-            for v_ in v:
-                obj_file.write(f"v {' '.join(f2s(v_))}\n")
-            for tc_ in tc:
-                obj_file.write(f"vt {' '.join(f2s(tc_))}\n")
-            for f_, ftc_ in zip(f, ftc):
-                obj_file.write(
-                    f"f {f_[0]}/{ftc_[0]} {f_[1]}/{ftc_[1]} {f_[2]}/{ftc_[2]}\n")
-        else:
-            for v_ in v:
-                obj_file.write(f"v {' '.join(f2s(v_))}\n")
-            for f_ in f:
-                obj_file.write(f"f {' '.join(f2s(f_))}\n")
-
-    obj_file.close()
+import gpytoolbox
 
 def read_mesh(mesh_path):
-    mesh = trimesh.load(mesh_path, maintain_order=True)
-    v = mesh.vertices
-    f = mesh.faces
-    if mesh.visual.kind == 'texture':
-        uv = mesh.visual.uv
-    else:
-        uv = np.ones((v.shape[0], 2)) * 0.5
+    v, f, uv, fuv = gpytoolbox.read_mesh(mesh_path, return_UV=True)
+    if uv.size == 0:
+        uv = np.zeros((0, 2))
+        fuv = np.zeros((0, 3))
+    return v, f, uv, fuv
 
-    return v, f, uv
-
-def write_mesh(mesh_path, v, f, uv=None):
-    v = to_numpy(v).astype(float)
-    f = to_numpy(f).astype(int)
-
-    if uv is None:
-        visual = None
-    else:
-        uv = to_numpy(uv).astype(float)
-        visual = trimesh.visual.texture.TextureVisuals(uv=uv)
-    
-    mesh = trimesh.Trimesh(v, f, visual=visual)
-    mesh.export(mesh_path, write_texture=False)
+def write_mesh(mesh_path, v, f, uv=None, fuv=None):
+    v = to_numpy(v)
+    f = to_numpy(f)
+    if uv is not None: 
+        if uv.size == 0:
+            uv = None
+        else:
+            uv = to_numpy(uv)
+    if fuv is not None: 
+        if fuv.size == 0:
+            fuv = None
+        else:
+            fuv = to_numpy(fuv)
+    gpytoolbox.write_mesh(str(mesh_path), v, f, uv, fuv)
 
 def linear_to_srgb(l):
     s = np.zeros_like(l)
@@ -82,7 +33,6 @@ def linear_to_srgb(l):
     s[m] = l[m] * 12.92
     s[~m] = 1.055*(l[~m]**(1.0/2.4))-0.055
     return s
-
 
 def srgb_to_linear(s):
     l = np.zeros_like(s)
@@ -119,11 +69,11 @@ def to_numpy(data):
     
 def to_torch(data, dtype):
     if torch.is_tensor(data):
-        return data.to(dtype).to(device)
+        return data.to(dtype).to(device).contiguous()
     elif isinstance(data, np.ndarray):
-        return torch.from_numpy(data).to(dtype).to(device)
+        return torch.from_numpy(data).to(dtype).to(device).contiguous()
     else:
-        return torch.tensor(data, dtype=dtype, device=device)
+        return torch.tensor(data, dtype=dtype, device=device).contiguous()
 
 def to_torch_f(data):
     return to_torch(data, ftype)

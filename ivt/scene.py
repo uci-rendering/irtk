@@ -1,6 +1,6 @@
 from .parameter import ParamGroup
 from .transform import lookat, perspective, batched_transform_pos, batched_transform_dir
-from .io import read_image, read_obj, to_torch_f, to_torch_i
+from .io import read_image, read_mesh, to_torch_f, to_torch_i
 
 from collections import OrderedDict
 
@@ -123,8 +123,8 @@ class Mesh(ParamGroup):
 
     @classmethod
     def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
-        v, tc, n, f, ftc, fn = read_obj(filename)
-        return cls(v, f, tc, ftc, mat_id, to_world, use_face_normal, can_change_topology, radiance)
+        v, f, uv, fuv = read_mesh(filename)
+        return cls(v, f, uv, fuv, mat_id, to_world, use_face_normal, can_change_topology, radiance)
     
 class DiffuseBRDF(ParamGroup):
 
