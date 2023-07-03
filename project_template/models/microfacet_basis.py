@@ -26,8 +26,8 @@ class MicrofacetBasis(Model):
         d_lr=1e-1,
         s_lr=1e-1,
         r_lr=1e-2,
-        optimizer_kwargs={},
         t_res=None,
+        optimizer_kwargs={},
     ):
 
         super().__init__(scene)

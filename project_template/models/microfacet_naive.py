@@ -24,8 +24,8 @@ class MicrofacetNaive(Model):
         d_lr=1e-2,
         s_lr=1e-2,
         r_lr=1e-2,
+        t_res=None,
         optimizer_kwargs={},
-        t_res=None
     ):
 
         super().__init__(scene)
