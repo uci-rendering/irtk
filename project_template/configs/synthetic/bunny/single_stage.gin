@@ -1,11 +1,9 @@
 import datasets
 import ivt.renderer
 
-largestep_c_to_f.dataset = @SyntheticDataset()
-largestep_c_to_f.result_path = 'results/synthetic/bunny'
-largestep_c_to_f.stage_config = 'configs/synthetic/bunny/shape_ls.gin'
-largestep_c_to_f.num_remesh = 5
-largestep_c_to_f.remesh_scale = 0.8
+single_stage.dataset = @SyntheticDataset()
+single_stage.result_path = 'results/synthetic/bunny'
+single_stage.stage_config = 'configs/synthetic/bunny/shape_ls.gin'
 
 SyntheticDataset.scene = @simple_microfacet()
 SyntheticDataset.target_path = 'data/synthetic/bunny'
