@@ -4,7 +4,7 @@ import models
 import gin.torch.external_configurables
 
 optimize.num_epochs = 5
-optimize.max_iter = 1
+optimize.max_iter = 1000
 optimize.batch_size = 1
 optimize.checkpoint_iter = 10
 optimize.model_class = @MultiOpt
