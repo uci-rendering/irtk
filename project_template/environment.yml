@@ -10,3 +10,4 @@ dependencies:
   - pip:
     - ivt==0.1.3
     - psdr-jit==0.1.1
+    - largesteps==0.2.1
