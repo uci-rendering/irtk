@@ -121,7 +121,7 @@ def optimize(
                 f = scene['mesh.f']
                 uv = scene['mesh.uv']
                 fuv = scene['mesh.fuv']
-                write_obj(final_path / 'mesh.obj', v, f, uv, fuv)
+                write_mesh(final_path / 'mesh.obj', v, f, uv, fuv)
 
                 scene.clear_cache()
 
