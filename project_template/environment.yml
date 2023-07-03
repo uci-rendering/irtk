@@ -8,6 +8,6 @@ dependencies:
   - pytorch-cuda=11.7
   - pip
   - pip:
-    - ivt==0.1.3
+    - ivt==0.1.4
     - psdr-jit==0.1.1
     - largesteps==0.2.1
