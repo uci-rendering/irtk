@@ -69,7 +69,14 @@ MicrofacetBasis.t_res = 1024
 
 
 ### models
-You can define your own models to design novel inverse rendering algorithm. See the ones in the `models` directory for inspiration. 
+You can define your own models to design novel inverse rendering algorithm. See the ones in the `models` module for inspiration.
+
+Currently available models are:
+* `MicrofacetNaive`: Optimize a spatially varying microfacet BRDF naively, that is, optimize the texels directly.
+* `MicrofacetBasis`: Optimize a microfacet BRDF using a set of BRDF basis.
+* `EnvmapSG`: Optimize an environment map represented using a set of spherical Gaussian lobes.
+* `EnvmapLS`: Optimize an environment map using the [largestep](https://github.com/rgl-epfl/large-steps-pytorch) optimizer.
+* `ShapeLS`: Optimize an mesh using the [largestep](https://github.com/rgl-epfl/large-steps-pytorch) optimizer.
 
 ### datasets
 You can define your own dataset formats in the `datasets` directory. 
