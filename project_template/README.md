@@ -17,19 +17,25 @@ conda env update --name ivt --file environment.yml
 ## Quick Start
 Run 
 ```bash
-python run.py single_stage configs/synthetic/armadillo/config.gin
+python run.py configs/synthetic/armadillo/single_stage.gin
 ```
-This should render the target images of a synthetic scene consisting of an armadillo, as specified in `configs/synthetic/armadillo/config.gin`. Then, an inverse rendering experiment will start, which try to reconstruct the material of the armadillo. Results can be found in `results/synthetic/armadillo`.
+This should render the target images of a synthetic scene consisting of an armadillo, as specified in `configs/synthetic/armadillo/single_stage.gin`. Then, an inverse rendering experiment will start, which try to reconstruct the material of the armadillo. Results can be found in `results/synthetic/armadillo`.
 
 ## Walk Through
 This project uses [`gin-config`](https://github.com/google/gin-config) for configuration. It's important to familiarize it.
 ### `run.py`
+In `run.py`, one can specify pipelines that satisfy their need. The example above uses the most basic pipeline and it runs a single stage optimization. Advanced pipelines might consist of several stages, for example, we can create a coarse-to-fine pipeline for optimizing meshes, which is made up of several stages and each stage ends with remeshing. 
+To see what pipelines are available, run
 ```
-python run.py [pipeline] [pipeline_config]
+python run.py -h
 ```
-will run "pipeline" defined in `run.py` with the configuration specified in "pipeline-config". 
+`run.py` uses the config filename to figure out the pipeline to run. 
+```
+python run.py /your/path/[pipeline].gin
+```
+In the armadillo example, since the filename ends with `single_stage.gin`, the pipeline used is `single_stage`. 
 
-In the above example, the `single_stage` pipeline takes `dataset`, `stage_config`, and `result_path` as input. `dataset` provides target images and a `ivt.Scene`. `stage_config` is a path to the optimization configuration for `opt.py`. The `result_path` is the path to the optimization results. You can see how they are set in `configs/synthetic/armadillo/config.gin`:
+In the armadillo example, the `single_stage` pipeline takes `dataset`, `stage_config`, and `result_path` as input. `dataset` provides target images and a `ivt.Scene`. `stage_config` is a path to the optimization configuration for `opt.py`. The `result_path` is the path to the optimization results. You can see how they are set in `configs/synthetic/armadillo/single_stage.gin`:
 ```
 ...
 single_stage.dataset = @SyntheticDataset()
