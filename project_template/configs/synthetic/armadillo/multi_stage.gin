@@ -1,0 +1,35 @@
+import datasets
+import ivt.renderer
+
+multi_stage.dataset = @SyntheticDataset()
+multi_stage.result_path = 'results/synthetic/armadillo'
+multi_stage.stage_configs = [
+    'configs/synthetic/armadillo/microfacet_naive-envmap_sg.gin',
+    'configs/synthetic/armadillo/microfacet_basis-envmap_ls.gin',
+]
+
+SyntheticDataset.scene = @simple_microfacet()
+SyntheticDataset.target_path = 'data/synthetic/aramdillo'
+SyntheticDataset.render_tar = @tar/Renderer()
+
+simple_microfacet.film_res_w = 512
+simple_microfacet.film_res_h = 512
+simple_microfacet.mesh_path = 'assets/meshes/armadillo.obj'
+simple_microfacet.envmap_path = 'assets/polyhaven/envmaps/rural_asphalt_road_2k.exr'
+simple_microfacet.diffuse = 'assets/polyhaven/textures/raw_plank_wall_diff_1k.exr'
+simple_microfacet.specular = (0.04, 0.04, 0.04)
+simple_microfacet.roughness = 'assets/polyhaven/textures/raw_plank_wall_rough_1k.exr'
+simple_microfacet.num_sensors = 100
+simple_microfacet.radius = 2
+simple_microfacet.fov = 45
+simple_microfacet.target = (0, 0, 0)
+simple_microfacet.up = (0, 1, 0)
+
+tar/Renderer.connector_name = 'psdr_jit'
+tar/Renderer.render_options = {
+    "spp": 128,
+    "sppe": 0,
+    "sppse": 0,
+    "npass": 10,
+    "log_level": 0
+}

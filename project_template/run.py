@@ -27,6 +27,24 @@ def single_stage(
              dataset=dataset,
              result_path=result_path)
     
+@add_pipeline
+@gin.configurable
+def multi_stage(
+        dataset, 
+        stage_configs, 
+        result_path):
+    
+    time_str = get_time_str()
+
+    scene = dataset.get_scene()
+    
+    for stage_config in stage_configs:
+        gin.parse_config_file(stage_config)
+        sub_result_path = Path(result_path, time_str, Path(stage_config).stem)
+        scene = optimize(scene=scene, 
+                dataset=dataset,
+                result_path=sub_result_path)
+    
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument('pipeline_config', type=str, 
