@@ -4,8 +4,8 @@ channels:
   - nvidia
 dependencies:
   - python=3.8
-  - pytorch=1.13
-  - pytorch-cuda=11.7
+  - pytorch=1.11.0
+  - cudatoolkit=11.3
   - pip
   - pip:
     - ivt==0.1.4
