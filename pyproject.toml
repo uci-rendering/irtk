@@ -10,6 +10,7 @@ dynamic = ["version", "description"]
 requires-python = ">=3.8"
 dependencies = [
     'imageio >= 2.27.0',
+    'imageio-freeimage',
     'numpy',
     'gin-config',
     'gpytoolbox'
