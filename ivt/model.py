@@ -63,7 +63,7 @@ class MultiOpt(Model):
             model.write_results(result_path)
 
     def get_regularization(self):
-        reg = 0
+        reg = torch.tensor(0.0, device=device, dtype=ftype)
         for model in self._models:
             reg += model.get_regularization()
         return reg
