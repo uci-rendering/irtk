@@ -9,4 +9,9 @@ try:
 except:
     pass
 
+try:
+    from .connectors.pytorch3d_connector import PyTorch3DConnector
+except:
+    pass
+
 from ivt.renderer import Renderer
