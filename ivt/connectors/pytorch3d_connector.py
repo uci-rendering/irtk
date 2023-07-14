@@ -4,7 +4,7 @@ from ..config import *
 from ..io import write_mesh
 from collections import OrderedDict
 
-from pytorch3d.structures import Meshes, join_meshes_as_batch
+from pytorch3d.structures import Meshes, join_meshes_as_scene
 import pytorch3d.renderer as pr
 import torch
 
@@ -55,6 +55,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             faces=[mesh['faces'] for mesh in cache['meshes']],
             textures=cache['texture'],
         )
+        cache['mesh'] = join_meshes_as_scene(cache['mesh'])
         cache['camera'] = pr.FoVPerspectiveCameras(
             znear=[cam['znear'] for cam in cache['cameras']], 
             zfar=[cam['zfar'] for cam in cache['cameras']], 
