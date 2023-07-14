@@ -32,10 +32,8 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             cache['textures'] = dict()
             cache['cameras'] = []
             cache['raster_settings'] = None
-            cache['lights'] = None
 
             cache['name_map'] = {}
-            cache['integrators'] = OrderedDict()
 
         drjit_params = []
         for name in scene.components:
@@ -45,43 +43,93 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             else:
                 raise RuntimeError(f'Unsupported component for PyTorch3D: {component}')
         
+        # construct some scene components
+        cache['texture'] = pr.TexturesUV(
+            [cache['textures'][mesh['mat_id']] for mesh in cache['meshes']],
+            [mesh['fuv'] for mesh in cache['meshes']],
+            [mesh['uv'] for mesh in cache['meshes']]
+        )
+        # construct mesh here in case the textures have changed
+        cache['mesh'] = Meshes(
+            verts=[mesh['verts'] for mesh in cache['meshes']],
+            faces=[mesh['faces'] for mesh in cache['meshes']],
+            textures=cache['texture'],
+        )
+        cache['camera'] = pr.FoVPerspectiveCameras(
+            znear=[cam['znear'] for cam in cache['cameras']], 
+            zfar=[cam['zfar'] for cam in cache['cameras']], 
+            fov=[cam['fov'] for cam in cache['cameras']], 
+            R=torch.stack([cam['R'] for cam in cache['cameras']]), 
+            T=torch.stack([cam['T'] for cam in cache['cameras']]), 
+            device=device
+        )
         # change light here
         # lights = pr.AmbientLights(ambient_color=((0.5, 0.5, 0.5), ), device=device)
-        lights = pr.PointLights(location=cache['cameras'][0].get_camera_center(), device=device)
-        cache['lights'] = lights
-        cache['mesh'] = join_meshes_as_batch(cache['meshes'])
+        lights = pr.PointLights(location=cache['camera'][0].get_camera_center(), device=device)
+        cache['light'] = lights
+        # cache['mesh'] = join_meshes_as_batch(cache['meshes'])
         return scene.cached['pytorch3d'], drjit_params
 
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         cache, _ = self.update_scene_objects(scene, render_options)
 
         npass = render_options['npass']
-        images = []
-        for sensor_id in sensor_ids:
-            renderer = pr.MeshRenderer(
-                rasterizer=pr.MeshRasterizer(
-                    cameras=cache['cameras'][sensor_id], 
-                    raster_settings=cache['raster_settings']
-                ),
-                shader=pr.SoftPhongShader(
-                    device=device, 
-                    cameras=cache['cameras'][sensor_id],
-                    lights=cache['lights']
-                )
+        renderer = pr.MeshRenderer(
+            rasterizer=pr.MeshRasterizer(
+                cameras=cache['camera'][sensor_ids], 
+                raster_settings=cache['raster_settings']
+            ),
+            shader=pr.SoftPhongShader(
+                device=device, 
+                cameras=cache['camera'][sensor_ids],
+                lights=cache['light']
             )
-            image = None
-            for i in range(npass):
-                image_pass = renderer(cache['mesh'])[..., :3]
-                if image:
-                    image += image_pass / npass
-                else:
-                    image = image_pass / npass
-            images.append(image)
+        )
+        images = None
+        for i in range(npass):
+            image_pass = renderer(cache['mesh'])[..., :3]
+            if images:
+                images += image_pass / npass
+            else:
+                images = image_pass / npass
 
-        return images
+        return list(images)
         
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
-        pass
+        
+        cache, pytorch3d_params = self.update_scene_objects(scene, render_options)
+
+        npass = render_options['npass']
+        
+        param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
+
+        renderer = pr.MeshRenderer(
+            rasterizer=pr.MeshRasterizer(
+                cameras=cache['camera'][sensor_ids], 
+                raster_settings=cache['raster_settings']
+            ),
+            shader=pr.SoftPhongShader(
+                device=device, 
+                cameras=cache['camera'][sensor_ids],
+                lights=cache['light']
+            )
+        )
+        num_grads = len(image_grads)
+        # image_grad = image_grads[i].reshape(-1, 3) / npass
+        image_grad = torch.stack(image_grads).reshape(num_grads, -1, 3) / npass
+        
+        for j in range(npass):
+            image = renderer(cache['mesh'])[..., :3]
+            tmp = torch.matmul(image_grad, image)
+            tmp.backward()
+
+            for param_grad, pytorch3d_param in zip(param_grads, pytorch3d_params):
+                grad = pytorch3d_param.grad
+                pytorch3d_param.grad = None
+                grad = torch.nan_to_num(grad).reshape(param_grad.shape)
+                param_grad += grad
+
+        return param_grads
 
 """
 @PSDRJITConnector.register(Integrator)
@@ -127,44 +175,45 @@ def process_perspective_camera(name, scene):
 
     # Create the object if it has not been created
     if name not in cache['name_map']:
-        R = sensor['to_world'][:3, :3][None]
-        T = -torch.mm(sensor['to_world'][:3, 3][None], R[0, ...])
+        R = sensor['to_world'][:3, :3]
+        T = -torch.mm(sensor['to_world'][:3, 3][None], R).squeeze()
         
-        pytorch_sensor = pr.FoVPerspectiveCameras(
-            znear=sensor['near'], 
-            zfar=sensor['far'], 
-            fov=sensor['fov'], 
-            R=R, 
-            T=T, 
-            device=device
-        )
+        pytorch_sensor = {
+            'znear': sensor['near'],
+            'zfar': sensor['far'],
+            'fov': sensor['fov'],
+            'R': R,
+            'T': T
+        }
         
-        cache['cameras'] += pytorch_sensor
+        cache['cameras'].append(pytorch_sensor)
         cache['name_map'][name] = pytorch_sensor
 
     pytorch_sensor = cache['name_map'][name]
     
-    return []
-    
-    # # Update parameters
-    # updated = sensor.get_updated()
-    # if len(updated) > 0:
-    #     for param_name in updated:
-    #         if param_name == "to_world":
-    #             psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
-    #         sensor.params[param_name]['updated'] = False
+    # Update parameters
+    updated = sensor.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == "to_world":
+                R = sensor['to_world'][:3, :3]
+                T = -torch.mm(sensor['to_world'][:3, 3][None], R).squeeze()
+                pytorch_sensor['R'] = R
+                pytorch_sensor['T'] = T
+            sensor.params[param_name]['updated'] = False
 
-    # # Enable grad for parameters requiring grad
-    # drjit_params = []
-    # requiring_grad = sensor.get_requiring_grad()
-    # if len(requiring_grad) > 0:
-    #     for param_name in requiring_grad:
-    #         if param_name == "to_world":
-    #             drjit_param = psdr_sensor.to_world
-    #             drjit.enable_grad(drjit_param)
-    #             drjit_params.append(drjit_param)
+    # Enable grad for parameters requiring grad
+    torch_params = []
+    requiring_grad = sensor.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            if param_name == "to_world":
+                pytorch_sensor['R'].requires_grad = True
+                pytorch_sensor['T'].requires_grad = True
+                torch_params.append(pytorch_sensor['R'])
+                torch_params.append(pytorch_sensor['T'])
 
-    # return drjit_params
+    return torch_params
 
 @PyTorch3DConnector.register(Mesh)
 def process_mesh(name, scene):
@@ -177,48 +226,49 @@ def process_mesh(name, scene):
         mat_id = mesh['mat_id']
         if mat_id not in scene:
             raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
-        PyTorch3DConnector.extensions[type(scene[mat_id])](mat_id, scene)
-        brdf = cache['textures'][mat_id]
         
-        verts = mesh['v'].to(device)
-        faces = mesh['f'].to(device)
-        textures = pr.TexturesUV(brdf[None], mesh['fuv'][None].long(), mesh['uv'][None])
-        pytorch3d_mesh = Meshes(
-            verts=[verts],
-            faces=[faces],
-            textures=textures
-        )
-        cache['meshes'] += pytorch3d_mesh
+        pytorch3d_mesh = {
+            'verts': mesh['v'].to(device),
+            'faces': mesh['f'].to(device),
+            'uv': mesh['uv'].to(device),
+            'fuv': mesh['fuv'].long().to(device),
+            'mat_id': mesh['mat_id']
+        }
+        
+        cache['meshes'].append(pytorch3d_mesh)
         cache['name_map'][name] = pytorch3d_mesh
 
     pytorch3d_mesh = cache['name_map'][name]
     
-    return []
+    # Update parameters
+    updated = mesh.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == 'v':
+                if mesh['can_change_topology']:
+                    pytorch3d_mesh = {
+                        'verts': mesh['v'].to(device),
+                        'faces': mesh['f'].to(device),
+                        'uv': mesh['uv'].to(device),
+                        'fuv': mesh['fuv'].long().to(device),
+                        'mat_id': mesh['mat_id']
+                    }
+                else:
+                    pytorch3d_mesh['v'] = mesh['v'].to(device)
+                    pytorch3d_mesh['f'] = mesh['f'].to(device)
 
-    # # Update parameters
-    # updated = mesh.get_updated()
-    # if len(updated) > 0:
-    #     for param_name in updated:
-    #         if param_name == 'v':
-    #             if mesh['can_change_topology']:
-    #                 psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']))
-    #             else:
-    #                 psdr_mesh.vertex_positions = Vector3fC(mesh['v'])
-    #                 psdr_mesh.face_indices = Vector3iC(mesh['f'])
+            mesh.params[param_name]['updated'] = False
 
-    #         mesh.params[param_name]['updated'] = False
+    # Enable grad for parameters requiring grad
+    pytorch3d_params = []
+    requiring_grad = mesh.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            if param_name == 'v':
+                pytorch3d_mesh['v'].enable_grad = True
+                pytorch3d_params.append(pytorch3d_mesh['v'])
 
-    # # Enable grad for parameters requiring grad
-    # drjit_params = []
-    # requiring_grad = mesh.get_requiring_grad()
-    # if len(requiring_grad) > 0:
-    #     for param_name in requiring_grad:
-    #         if param_name == 'v':
-    #             drjit_param = psdr_mesh.vertex_positions
-    #             drjit.enable_grad(drjit_param)
-    #             drjit_params.append(drjit_param)
-
-    # return drjit_params
+    return pytorch3d_params
 
 def convert_color(color, c, bitmap=True):
     if color.shape == ():
@@ -246,40 +296,36 @@ def process_diffuse_brdf(name, scene):
     # Create the object if it has not been created
     if name not in cache['name_map']:
         if brdf['d'].dim() == 1:
-            pytorch3d_brdf = brdf['d'].unsqueeze(0).unsqueeze(0)
-        elif brdf['d'].dim() == 2:
-            pytorch3d_brdf = brdf['d'].unsqueeze(0)
-        elif brdf['d'].dim() == 3:
+            pytorch3d_brdf = brdf['d'].reshape(1, 1, 3)
+        else: 
             pytorch3d_brdf = brdf['d']
-        else:
-            raise RuntimeError(f"Unsupported diffuse brdf: {name}.")
         
         cache['textures'][name] = pytorch3d_brdf
         cache['name_map'][name] = pytorch3d_brdf
 
     pytorch3d_brdf = cache['name_map'][name]
 
-    return []
+    # Update parameters
+    updated = brdf.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == 'd':
+                if brdf['d'].dim() == 1:
+                    pytorch3d_brdf = brdf['d'].reshape(1, 1, 3)
+                else: 
+                    pytorch3d_brdf = brdf['d']
+            brdf.params[param_name]['updated'] = False
 
-    # # Update parameters
-    # updated = brdf.get_updated()
-    # if len(updated) > 0:
-    #     for param_name in updated:
-    #         if param_name == 'd':
-    #             psdr_brdf.reflectance = convert_color(brdf['d'], 3)
-    #         brdf.params[param_name]['updated'] = False
+    # Enable grad for parameters requiring grad
+    pytorch3d_params = []
+    requiring_grad = brdf.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            if param_name == 'd':
+                pytorch3d_brdf.requires_grad = True
+                pytorch3d_params.append(pytorch3d_brdf)
 
-    # # Enable grad for parameters requiring grad
-    # drjit_params = []
-    # requiring_grad = brdf.get_requiring_grad()
-    # if len(requiring_grad) > 0:
-    #     for param_name in requiring_grad:
-    #         if param_name == 'd':
-    #             drjit_param = psdr_brdf.reflectance.data
-    #             drjit.enable_grad(drjit_param)
-    #             drjit_params.append(drjit_param)
-
-    # return drjit_params
+    return pytorch3d_params
 
 """
 @PSDRJITConnector.register(MicrofacetBRDF)
