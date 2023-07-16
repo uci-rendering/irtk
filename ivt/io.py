@@ -1,4 +1,5 @@
 from .config import *
+import imageio
 import imageio.v3 as iio
 import numpy as np
 import torch
@@ -122,7 +123,7 @@ def write_image(image_path, image, is_srgb=None):
 
     if image_path.suffix == '.exr':
         image = image.astype(np.float32)
+        iio.imwrite(image_path, image, flags=imageio.plugins.freeimage.IO_FLAGS.EXR_NONE)
     else:
         image = (image * 255).astype(np.uint8)
-
-    iio.imwrite(image_path, image)
+        iio.imwrite(image_path, image)
