@@ -131,6 +131,59 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 param_grad += grad
 
         return param_grads
+    
+    def renderGrad(self, scene, render_options, sensor_ids=[0], integrator_id=0):
+        def render(x):
+            cache, _ = self.update_scene_objects(scene, render_options)
+            # change mesh position offset
+            offset = torch.zeros(3)
+            offset[0] = x[0]
+            offset = offset.to(device)
+            cache['mesh'].offset_verts_(offset)
+
+            npass = render_options['npass']
+            renderer = pr.MeshRenderer(
+                rasterizer=pr.MeshRasterizer(
+                    cameras=cache['camera'][sensor_ids], 
+                    raster_settings=cache['raster_settings']
+                ),
+                shader=pr.SoftPhongShader(
+                    device=device, 
+                    cameras=cache['camera'][sensor_ids],
+                    lights=cache['light']
+                )
+            )
+            images = None
+            for i in range(npass):
+                image_pass = renderer(cache['mesh'])[..., :3]
+                if images:
+                    images += image_pass / npass
+                else:
+                    images = image_pass / npass
+                
+            return images
+        
+        # mesh position.x offset
+        x = torch.tensor([0.0], requires_grad=True)
+
+        images = render(x)
+        grads = torch.zeros_like(images).reshape(images.shape[0], -1)
+        for i, image in enumerate(list(images)):
+            for j in range(image.nelement()):
+                grad = torch.autograd.grad(image.reshape(-1)[j], x, retain_graph=True)
+                grads[i, j] = grad[0]
+                
+                if j % 1000 == 0 or i == image.nelement() - 1:
+                    print(f'\rImage {i}: {j}/{image.nelement()}', end='')
+
+        grads = grads.reshape(images.shape)
+        # grads = torch.autograd.functional.jacobian(render, x, vectorize=True)
+        # grads.squeeze_(4)
+        
+        # x = torch.tensor([0.005], requires_grad=True)
+        # images = render(x)
+        return list(grads)
+
 
 """
 @PSDRJITConnector.register(Integrator)
@@ -228,11 +281,13 @@ def process_mesh(name, scene):
         if mat_id not in scene:
             raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
         
+        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+        verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
         pytorch3d_mesh = {
-            'verts': mesh['v'].to(device),
-            'faces': mesh['f'].to(device),
-            'uv': mesh['uv'].to(device),
-            'fuv': mesh['fuv'].long().to(device),
+            'verts': verts,
+            'faces': mesh['f'],
+            'uv': mesh['uv'],
+            'fuv': mesh['fuv'].long(),
             'mat_id': mesh['mat_id']
         }
         
@@ -248,15 +303,15 @@ def process_mesh(name, scene):
             if param_name == 'v':
                 if mesh['can_change_topology']:
                     pytorch3d_mesh = {
-                        'verts': mesh['v'].to(device),
-                        'faces': mesh['f'].to(device),
-                        'uv': mesh['uv'].to(device),
-                        'fuv': mesh['fuv'].long().to(device),
+                        'verts': mesh['v'],
+                        'faces': mesh['f'],
+                        'uv': mesh['uv'],
+                        'fuv': mesh['fuv'].long(),
                         'mat_id': mesh['mat_id']
                     }
                 else:
-                    pytorch3d_mesh['v'] = mesh['v'].to(device)
-                    pytorch3d_mesh['f'] = mesh['f'].to(device)
+                    pytorch3d_mesh['v'] = mesh['v']
+                    pytorch3d_mesh['f'] = mesh['f']
 
             mesh.params[param_name]['updated'] = False
 

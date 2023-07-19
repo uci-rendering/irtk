@@ -23,3 +23,8 @@ render = Renderer('pytorch3d', render_options={
 
 image = render(scene)[0]
 write_image('output/armadillo_pytorch3d.png', image)
+
+scene.set('film', HDRFilm(width=64, height=64))
+grad_image = render.connector.renderGrad(scene, render.render_options)[0]
+write_image('output/armadillo_pytorch3d_grad.png', grad_image)
+# write_image('output/armadillo_pytorch3d_diff.png', grad_image - image)
