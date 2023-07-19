@@ -1,4 +1,0 @@
-Installing the system
-=========================
-
-TBD.
