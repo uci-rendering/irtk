@@ -12,19 +12,7 @@ from drjit.cuda.ad import Array3f as Vector3fD, Float32 as FloatD, Matrix4f as M
 from drjit.cuda.ad import Float32 as FloatD
 import torch
 
-import time
 import os
-
-class Timer:
-    def __init__(self, label):
-        self.label = label
-
-    def __enter__(self):
-        self.start_time = time.time()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        elapsed_time = time.time() - self.start_time
-        print(f"[{self.label}] Elapsed time: {elapsed_time} seconds")
 
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
