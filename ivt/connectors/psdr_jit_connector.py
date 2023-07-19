@@ -201,7 +201,7 @@ def process_mesh(name, scene):
             psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
         else:
             write_mesh('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
-            psdr_emitter = psdr_jit.AreaLight(mesh['radiance']) if mesh['is_emitter'] else None
+            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
             psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', mesh['to_world'].reshape(1, 4, 4), mat_id, psdr_emitter)
             os.remove('__psdr_jit_tmp__.obj')
         
