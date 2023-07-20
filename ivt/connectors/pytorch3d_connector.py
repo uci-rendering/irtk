@@ -7,6 +7,7 @@ from collections import OrderedDict
 from pytorch3d.structures import Meshes, join_meshes_as_scene
 import pytorch3d.renderer as pr
 import torch
+import numpy as np
 
 import time
 import os
@@ -31,15 +32,15 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             cache['meshes'] = []
             cache['textures'] = dict()
             cache['cameras'] = []
-            cache['raster_settings'] = None
+            cache['film'] = None
 
             cache['name_map'] = {}
 
-        drjit_params = []
+        pytorch3d_params = []
         for name in scene.components:
             component = scene[name]
             if type(component) in self.extensions:
-                drjit_params += self.extensions[type(component)](name, scene)
+                pytorch3d_params += self.extensions[type(component)](name, scene)
             else:
                 raise RuntimeError(f'Unsupported component for PyTorch3D: {component}')
         
@@ -69,16 +70,21 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         lights = pr.PointLights(location=cache['camera'][0].get_camera_center(), device=device)
         cache['light'] = lights
         # cache['mesh'] = join_meshes_as_batch(cache['meshes'])
-        return scene.cached['pytorch3d'], drjit_params
+        return scene.cached['pytorch3d'], pytorch3d_params
 
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         cache, _ = self.update_scene_objects(scene, render_options)
 
         npass = render_options['npass']
-        renderer = pr.MeshRenderer(
+        raster_settings = pr.RasterizationSettings(
+            image_size=cache['film'], 
+            blur_radius=0.0, 
+            faces_per_pixel=1, 
+        )
+        phong_renderer = pr.MeshRenderer(
             rasterizer=pr.MeshRasterizer(
                 cameras=cache['camera'][sensor_ids], 
-                raster_settings=cache['raster_settings']
+                raster_settings=raster_settings
             ),
             shader=pr.SoftPhongShader(
                 device=device, 
@@ -86,9 +92,22 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 lights=cache['light']
             )
         )
+        blend_params = pr.BlendParams(sigma=1e-4, gamma=1e-4)
+        raster_settings = pr.RasterizationSettings(
+            image_size=cache['film'], 
+            blur_radius=np.log(1. / 1e-4 - 1.) * blend_params.sigma, 
+            faces_per_pixel=100, 
+        )
+        silhouette_renderer = pr.MeshRenderer(
+            rasterizer=pr.MeshRasterizer(
+                cameras=cache['camera'][sensor_ids], 
+                raster_settings=raster_settings
+            ),
+            shader=pr.SoftSilhouetteShader(blend_params)
+        )
         images = None
         for i in range(npass):
-            image_pass = renderer(cache['mesh'])[..., :3]
+            image_pass = torch.cat((phong_renderer(cache['mesh'])[..., :3], silhouette_renderer(cache['mesh'])[..., 3:]), -1)
             if images:
                 images += image_pass / npass
             else:
@@ -97,40 +116,35 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         return list(images)
         
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
-        
-        cache, pytorch3d_params = self.update_scene_objects(scene, render_options)
+        with torch.enable_grad():
+            cache, pytorch3d_params = self.update_scene_objects(scene, render_options)
 
-        npass = render_options['npass']
-        
-        param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
-
-        renderer = pr.MeshRenderer(
-            rasterizer=pr.MeshRasterizer(
-                cameras=cache['camera'][sensor_ids], 
-                raster_settings=cache['raster_settings']
-            ),
-            shader=pr.SoftPhongShader(
-                device=device, 
-                cameras=cache['camera'][sensor_ids],
-                lights=cache['light']
+            npass = render_options['npass']
+            
+            param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
+            
+            blend_params = pr.BlendParams(sigma=1e-4, gamma=1e-4)
+            raster_settings = pr.RasterizationSettings(
+                image_size=cache['film'], 
+                blur_radius=np.log(1. / 1e-4 - 1.) * blend_params.sigma, 
+                faces_per_pixel=100, 
             )
-        )
-        num_grads = len(image_grads)
-        # image_grad = image_grads[i].reshape(-1, 3) / npass
-        image_grad = torch.stack(image_grads).reshape(num_grads, -1, 3) / npass
-        
-        for j in range(npass):
-            image = renderer(cache['mesh'])[..., :3]
-            tmp = torch.matmul(image_grad, image)
-            tmp.backward()
+            renderer = pr.MeshRenderer(
+                rasterizer=pr.MeshRasterizer(
+                    cameras=cache['camera'][sensor_ids], 
+                    raster_settings=raster_settings
+                ),
+                shader=pr.SoftSilhouetteShader(blend_params)
+            )
+            image_grad = torch.stack(image_grads) / npass
+            for j in range(npass):
+                image = renderer(cache['mesh'])[..., 3]
+                tmp = (image_grad[..., 3] * image).sum(dim=2)
+                pytorch3d_grads = torch.autograd.grad(tmp, pytorch3d_params, torch.ones_like(tmp), retain_graph=True)
+                for param_grad, pytorch3d_grad in zip(param_grads, pytorch3d_grads):
+                    param_grad += pytorch3d_grad
 
-            for param_grad, pytorch3d_param in zip(param_grads, pytorch3d_params):
-                grad = pytorch3d_param.grad
-                pytorch3d_param.grad = None
-                grad = torch.nan_to_num(grad).reshape(param_grad.shape)
-                param_grad += grad
-
-        return param_grads
+            return param_grads
     
     def renderGrad(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         def render(x):
@@ -142,10 +156,15 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             cache['mesh'].offset_verts_(offset)
 
             npass = render_options['npass']
+            raster_settings = pr.RasterizationSettings(
+                image_size=cache['film'], 
+                blur_radius=0.0, 
+                faces_per_pixel=1, 
+            )
             renderer = pr.MeshRenderer(
                 rasterizer=pr.MeshRasterizer(
                     cameras=cache['camera'][sensor_ids], 
-                    raster_settings=cache['raster_settings']
+                    raster_settings=raster_settings
                 ),
                 shader=pr.SoftPhongShader(
                     device=device, 
@@ -181,7 +200,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         # grads.squeeze_(4)
         
         # x = torch.tensor([0.005], requires_grad=True)
-        # images = render(x)
+        # images = render(x) / x[0]
         return list(grads)
 
 
@@ -213,12 +232,7 @@ def process_hdr_film(name, scene):
     film = scene[name]
     cache = scene.cached['pytorch3d']
 
-    # TODO: check settings when renderD
-    cache['raster_settings'] = pr.RasterizationSettings(
-        image_size=(film['height'], film['width']), 
-        blur_radius=0.0, 
-        faces_per_pixel=1, 
-    )
+    cache['film'] = (film['height'], film['width'])
 
     return []
 
@@ -229,16 +243,17 @@ def process_perspective_camera(name, scene):
 
     # Create the object if it has not been created
     if name not in cache['name_map']:
-        R = sensor['to_world'][:3, :3]
-        T = -torch.mm(sensor['to_world'][:3, 3][None], R).squeeze()
-        
         pytorch_sensor = {
             'znear': sensor['near'],
             'zfar': sensor['far'],
             'fov': sensor['fov'],
-            'R': R,
-            'T': T
+            'to_world': sensor['to_world']
         }
+        R = pytorch_sensor['to_world'][:3, :3]
+        T = -torch.mm(pytorch_sensor['to_world'][:3, 3][None], R).squeeze()
+        
+        pytorch_sensor['R'] = R
+        pytorch_sensor['T'] = T
         
         cache['cameras'].append(pytorch_sensor)
         cache['name_map'][name] = pytorch_sensor
@@ -250,8 +265,9 @@ def process_perspective_camera(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == "to_world":
-                R = sensor['to_world'][:3, :3]
-                T = -torch.mm(sensor['to_world'][:3, 3][None], R).squeeze()
+                pytorch_sensor['to_world'] = sensor['to_world']
+                R = pytorch_sensor['to_world'][:3, :3]
+                T = -torch.mm(pytorch_sensor['to_world'][:3, 3][None], R).squeeze()
                 pytorch_sensor['R'] = R
                 pytorch_sensor['T'] = T
             sensor.params[param_name]['updated'] = False
@@ -262,11 +278,14 @@ def process_perspective_camera(name, scene):
     if len(requiring_grad) > 0:
         for param_name in requiring_grad:
             if param_name == "to_world":
-                pytorch_sensor['R'].requires_grad = True
-                pytorch_sensor['T'].requires_grad = True
-                torch_params.append(pytorch_sensor['R'])
-                torch_params.append(pytorch_sensor['T'])
-
+                pytorch_sensor['to_world'].requires_grad_()
+                # ensure 'to_world' is linked with R,T
+                R = pytorch_sensor['to_world'][:3, :3]
+                T = -torch.mm(pytorch_sensor['to_world'][:3, 3][None], R).squeeze()
+                pytorch_sensor['R'] = R
+                pytorch_sensor['T'] = T
+                torch_params.append(pytorch_sensor['to_world'])
+                
     return torch_params
 
 @PyTorch3DConnector.register(Mesh)
@@ -321,11 +340,12 @@ def process_mesh(name, scene):
     if len(requiring_grad) > 0:
         for param_name in requiring_grad:
             if param_name == 'v':
-                pytorch3d_mesh['v'].enable_grad = True
-                pytorch3d_params.append(pytorch3d_mesh['v'])
+                pytorch3d_mesh['v'].requires_grad = True
+                pytorch3d_params.append(pytorch3d_mesh['verts'])
 
     return pytorch3d_params
 
+"""
 def convert_color(color, c, bitmap=True):
     if color.shape == ():
         color = color.tile(c)
@@ -343,6 +363,7 @@ def convert_color(color, c, bitmap=True):
     else:
         raise RuntimeError("Not support bitmap channel number: {c}")
     return color
+"""
 
 @PyTorch3DConnector.register(DiffuseBRDF)
 def process_diffuse_brdf(name, scene):
