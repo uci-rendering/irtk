@@ -56,7 +56,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             faces=[mesh['faces'] for mesh in cache['meshes']],
             textures=cache['texture'],
         )
-        cache['mesh'] = join_meshes_as_scene(cache['mesh'])
+        cache['mesh'] = join_meshes_as_scene(cache['mesh']).extend(len(cache['cameras']))
         cache['camera'] = pr.FoVPerspectiveCameras(
             znear=[cam['znear'] for cam in cache['cameras']], 
             zfar=[cam['zfar'] for cam in cache['cameras']], 
@@ -75,7 +75,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         cache, _ = self.update_scene_objects(scene, render_options)
 
-        npass = render_options['npass']
+        blend_params = pr.BlendParams(sigma=1e-4, gamma=1e-4, background_color=(0.0, 0.0, 0.0))
         raster_settings = pr.RasterizationSettings(
             image_size=cache['film'], 
             blur_radius=0.0, 
@@ -89,10 +89,11 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             shader=pr.SoftPhongShader(
                 device=device, 
                 cameras=cache['camera'][sensor_ids],
-                lights=cache['light']
+                lights=cache['light'],
+                blend_params=blend_params
             )
         )
-        blend_params = pr.BlendParams(sigma=1e-4, gamma=1e-4)
+        
         raster_settings = pr.RasterizationSettings(
             image_size=cache['film'], 
             blur_radius=np.log(1. / 1e-4 - 1.) * blend_params.sigma, 
@@ -105,7 +106,9 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             ),
             shader=pr.SoftSilhouetteShader(blend_params)
         )
+        
         images = None
+        npass = render_options['npass']
         for i in range(npass):
             image_pass = torch.cat((phong_renderer(cache['mesh'])[..., :3], silhouette_renderer(cache['mesh'])[..., 3:]), -1)
             if images:
@@ -155,7 +158,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             offset = offset.to(device)
             cache['mesh'].offset_verts_(offset)
 
-            npass = render_options['npass']
+            blend_params = pr.BlendParams(sigma=1e-4, gamma=1e-4, background_color=(0.0, 0.0, 0.0))
             raster_settings = pr.RasterizationSettings(
                 image_size=cache['film'], 
                 blur_radius=0.0, 
@@ -169,10 +172,13 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 shader=pr.SoftPhongShader(
                     device=device, 
                     cameras=cache['camera'][sensor_ids],
-                    lights=cache['light']
+                    lights=cache['light'],
+                    blend_params=blend_params
                 )
             )
+            
             images = None
+            npass = render_options['npass']
             for i in range(npass):
                 image_pass = renderer(cache['mesh'])[..., :3]
                 if images:
@@ -192,15 +198,15 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 grad = torch.autograd.grad(image.reshape(-1)[j], x, retain_graph=True)
                 grads[i, j] = grad[0]
                 
-                if j % 1000 == 0 or i == image.nelement() - 1:
-                    print(f'\rImage {i}: {j}/{image.nelement()}', end='')
+                if j % 100 == 0 or j == image.nelement() - 1:
+                    print(f'\rImage {i}: {j}/{image.nelement() - 1}', end='')
 
         grads = grads.reshape(images.shape)
         # grads = torch.autograd.functional.jacobian(render, x, vectorize=True)
         # grads.squeeze_(4)
         
-        # x = torch.tensor([0.005], requires_grad=True)
-        # images = render(x) / x[0]
+        # x = torch.tensor([0.01], requires_grad=True)
+        # images = render(x)
         return list(grads)
 
 
@@ -319,18 +325,20 @@ def process_mesh(name, scene):
     updated = mesh.get_updated()
     if len(updated) > 0:
         for param_name in updated:
-            if param_name == 'v':
+            if param_name == 'v' or param_name == 'to_world':
+                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+                verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
                 if mesh['can_change_topology']:
                     pytorch3d_mesh = {
-                        'verts': mesh['v'],
+                        'verts': verts,
                         'faces': mesh['f'],
                         'uv': mesh['uv'],
                         'fuv': mesh['fuv'].long(),
                         'mat_id': mesh['mat_id']
                     }
                 else:
-                    pytorch3d_mesh['v'] = mesh['v']
-                    pytorch3d_mesh['f'] = mesh['f']
+                    pytorch3d_mesh['verts'] = verts
+                    pytorch3d_mesh['faces'] = mesh['f']
 
             mesh.params[param_name]['updated'] = False
 
@@ -340,7 +348,7 @@ def process_mesh(name, scene):
     if len(requiring_grad) > 0:
         for param_name in requiring_grad:
             if param_name == 'v':
-                pytorch3d_mesh['v'].requires_grad = True
+                pytorch3d_mesh['verts'].requires_grad = True
                 pytorch3d_params.append(pytorch3d_mesh['verts'])
 
     return pytorch3d_params
