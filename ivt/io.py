@@ -1,5 +1,7 @@
 from .config import *
 import imageio
+import imageio_freeimage
+import imageio_ffmpeg
 import imageio.v3 as iio
 import numpy as np
 import torch
@@ -7,7 +9,7 @@ from pathlib import Path
 import gpytoolbox
 
 def read_mesh(mesh_path):
-    v, f, uv, fuv = gpytoolbox.read_mesh(mesh_path, return_UV=True)
+    v, f, uv, fuv = gpytoolbox.read_mesh(str(mesh_path), return_UV=True)
     if uv.size == 0:
         uv = np.zeros((0, 2))
         fuv = np.zeros((0, 3))
@@ -127,3 +129,23 @@ def write_image(image_path, image, is_srgb=None):
     else:
         image = (image * 255).astype(np.uint8)
         iio.imwrite(image_path, image)
+
+def exr2png(image_path, verbose=False):
+    image_path = Path(image_path)
+    if image_path.is_dir():
+        for p in image_path.glob('**/*.exr'):
+            if verbose: print(p)
+            im = read_image(p)
+            write_image(p.with_suffix('.png'), im)
+    elif image_path.suffix == '.exr':
+        if verbose: print(image_path)
+        im = read_image(image_path)
+        write_image(image_path.with_suffix('.png'), im)
+
+def write_video(video_path, frames, fps=20, kwargs={}):
+    video_path = Path(video_path)
+    video_path.parent.mkdir(exist_ok=True, parents=True)
+    writer = imageio.get_writer(video_path, fps=fps, **kwargs)
+    for frame in frames:
+        writer.append_data(frame)
+    writer.close()

@@ -1,1 +1,0 @@
-The data in this directory are from [sharetextures](https://www.sharetextures.com/) and are all licensed as CC0 ([https://www.sharetextures.com/about](https://www.sharetextures.com/about))
