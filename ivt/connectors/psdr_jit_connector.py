@@ -30,16 +30,15 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         else:
             cache = {}
             scene.cached['psdr_jit'] = cache
-
             cache['scene'] = psdr_jit.Scene()
-            cache['scene'].opts.spp = render_options['spp']
-            cache['scene'].opts.sppe = render_options['sppe']
-            cache['scene'].opts.sppse = render_options['sppse']
-            cache['scene'].opts.log_level = render_options['log_level']
-
             cache['name_map'] = {}
             cache['integrators'] = OrderedDict()
             cache['configured'] = False
+
+        cache['scene'].opts.spp = render_options['spp']
+        cache['scene'].opts.sppe = render_options['sppe']
+        cache['scene'].opts.sppse = render_options['sppse']
+        cache['scene'].opts.log_level = render_options['log_level']
 
         drjit_params = []
         for name in scene.components:
