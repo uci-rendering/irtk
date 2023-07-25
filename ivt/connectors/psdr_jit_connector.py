@@ -12,19 +12,7 @@ from drjit.cuda.ad import Array3f as Vector3fD, Float32 as FloatD, Matrix4f as M
 from drjit.cuda.ad import Float32 as FloatD
 import torch
 
-import time
 import os
-
-class Timer:
-    def __init__(self, label):
-        self.label = label
-
-    def __enter__(self):
-        self.start_time = time.time()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        elapsed_time = time.time() - self.start_time
-        print(f"[{self.label}] Elapsed time: {elapsed_time} seconds")
 
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
@@ -42,16 +30,15 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         else:
             cache = {}
             scene.cached['psdr_jit'] = cache
-
             cache['scene'] = psdr_jit.Scene()
-            cache['scene'].opts.spp = render_options['spp']
-            cache['scene'].opts.sppe = render_options['sppe']
-            cache['scene'].opts.sppse = render_options['sppse']
-            cache['scene'].opts.log_level = render_options['log_level']
-
             cache['name_map'] = {}
             cache['integrators'] = OrderedDict()
             cache['configured'] = False
+
+        cache['scene'].opts.spp = render_options['spp']
+        cache['scene'].opts.sppe = render_options['sppe']
+        cache['scene'].opts.sppse = render_options['sppse']
+        cache['scene'].opts.log_level = render_options['log_level']
 
         drjit_params = []
         for name in scene.components:
@@ -213,7 +200,7 @@ def process_mesh(name, scene):
             psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
         else:
             write_mesh('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
-            psdr_emitter = psdr_jit.AreaLight(mesh['radiance']) if mesh['is_emitter'] else None
+            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
             psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', mesh['to_world'].reshape(1, 4, 4), mat_id, psdr_emitter)
             os.remove('__psdr_jit_tmp__.obj')
         
