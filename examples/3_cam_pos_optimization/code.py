@@ -59,7 +59,11 @@ scene.set('sensor', PerspectiveCamera.from_lookat(fov=40, origin=cam_pos, target
 image_init = render(scene)[0]
 write_image(file_prefix + '_init.png', image_init[..., :3])
 
-writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=0.03)
+# for different imageio versions
+if renderer == 'psdr_jit':
+    writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=30, loop=0)
+elif renderer == 'pytorch3d':
+    writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=0.03)
 
 # optimization
 num_iter = 100

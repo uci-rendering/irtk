@@ -8,6 +8,7 @@ from pytorch3d.structures import Meshes, join_meshes_as_scene
 import pytorch3d.renderer as pr
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
 import time
 import os
@@ -31,6 +32,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
 
             cache['meshes'] = []
             cache['textures'] = dict()
+            cache['materials'] = dict()
             cache['cameras'] = []
             cache['film'] = None
 
@@ -50,6 +52,13 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             [mesh['fuv'] for mesh in cache['meshes']],
             [mesh['uv'] for mesh in cache['meshes']]
         )
+        cache['material'] = pr.Materials(
+            [cache['materials'][mesh['mat_id']]['ambient'] for mesh in cache['meshes']],
+            [cache['materials'][mesh['mat_id']]['diffuse'] for mesh in cache['meshes']],
+            [cache['materials'][mesh['mat_id']]['specular'] for mesh in cache['meshes']],
+            [cache['materials'][mesh['mat_id']]['shininess'] for mesh in cache['meshes']],
+            device=device
+        )
         # construct mesh here in case the textures have changed
         cache['mesh'] = Meshes(
             verts=[mesh['verts'] for mesh in cache['meshes']],
@@ -67,7 +76,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         )
         # change light here
         # lights = pr.AmbientLights(ambient_color=((0.5, 0.5, 0.5), ), device=device)
-        lights = pr.PointLights(location=cache['camera'][0].get_camera_center(), device=device)
+        lights = pr.PointLights(location=cache['camera'][0].get_camera_center(), diffuse_color=((1, 1, 1), ), device=device)
         cache['light'] = lights
         # cache['mesh'] = join_meshes_as_batch(cache['meshes'])
         return scene.cached['pytorch3d'], pytorch3d_params
@@ -90,6 +99,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 device=device, 
                 cameras=cache['camera'][sensor_ids],
                 lights=cache['light'],
+                materials=cache['material'],
                 blend_params=blend_params
             )
         )
@@ -204,10 +214,10 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         grads = grads.reshape(images.shape)
         # grads = torch.autograd.functional.jacobian(render, x, vectorize=True)
         # grads.squeeze_(4)
-        
-        # x = torch.tensor([0.01], requires_grad=True)
-        # images = render(x)
-        return list(grads)
+        cm = plt.get_cmap('gist_rainbow')
+        colored_grads = cm(grads.sum(-1).sigmoid().cpu().numpy())
+        print(to_torch_f(colored_grads).shape)
+        return list(colored_grads)
 
 
 """
@@ -386,6 +396,12 @@ def process_diffuse_brdf(name, scene):
             pytorch3d_brdf = brdf['d']
         
         cache['textures'][name] = pytorch3d_brdf
+        cache['materials'][name] = {
+            'ambient': (0, 0, 0),
+            'diffuse': (1, 1, 1),
+            'specular': (0, 0, 0),
+            'shininess': 0
+        }
         cache['name_map'][name] = pytorch3d_brdf
 
     pytorch3d_brdf = cache['name_map'][name]
