@@ -12,15 +12,17 @@ from skimage import img_as_ubyte
 import sys
 import os
 
-if len(sys.argv) < 2:
+if len(sys.argv) >= 2:
+    renderer = sys.argv[1]
+elif len(ivt.get_connector_list()) == 1:
+    renderer = ivt.get_connector_list()[0]
+else:
     print("Please specify backend renderer. Currently available backend(s):")
     print(ivt.get_connector_list())
     exit()
-else:
-    renderer = sys.argv[1]
 
+# define scene
 scene = Scene()
-
 scene.set('armadillo', Mesh.from_file('./examples/data/meshes/armadillo.obj', mat_id='blue'))
 scene.set('blue', DiffuseBRDF((0.2, 0.2, 0.9)))
 scene.set('sensor', PerspectiveCamera.from_lookat(fov=40, origin=(-1.5, 1.5, 1.5), target=(0, 0, 0), up=(0, 1, 0)))
@@ -45,19 +47,19 @@ elif renderer == 'pytorch3d':
     })
 
 if not os.path.exists('output/3_cam_pos_optimization'):
-    os.mkdir('output/3_cam_pos_optimization')
+    os.makedirs('output/3_cam_pos_optimization')
 file_prefix = f'output/3_cam_pos_optimization/armadillo_{renderer}'
 
 # render ref
 image = render(scene)[0]
-write_image(file_prefix + '_ref.png', image[..., :3])
+write_image(file_prefix + '_ref.png', image)
 
 # render init
 cam_pos = torch.Tensor([-1, 1, 0])
 cam_pos.requires_grad_()
 scene.set('sensor', PerspectiveCamera.from_lookat(fov=40, origin=cam_pos, target=(0, 0, 0), up=(0, 1, 0)))
 image_init = render(scene)[0]
-write_image(file_prefix + '_init.png', image_init[..., :3])
+write_image(file_prefix + '_init.png', image_init)
 
 # for different imageio versions
 if renderer == 'psdr_jit':
@@ -75,7 +77,7 @@ for i in range(num_iter):
     scene.configure()
     
     image_opt = render(scene)[0]
-    image_gif = img_as_ubyte(to_srgb(image_opt[..., :3]))
+    image_gif = img_as_ubyte(to_srgb(image_opt))
     writer.append_data(image_gif)
     
     loss = l1_loss(image, image_opt)

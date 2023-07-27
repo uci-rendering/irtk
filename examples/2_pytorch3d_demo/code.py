@@ -4,6 +4,7 @@ import ivt
 from ivt.scene import *
 from ivt.renderer import Renderer
 from ivt.io import write_image, to_torch_f
+from ivt.utils import apply_pmkmp_cm
 
 scene = Scene()
 # scene.set('cow', Mesh.from_file('./examples/data/meshes/cow.obj', mat_id='cow_tex'))
@@ -31,11 +32,13 @@ diff_to_world = torch.eye(4)
 diff_to_world[0, 3] = diff_x_offset
 scene['armadillo']['to_world'] = to_torch_f(diff_to_world)
 diff_image = render(scene)[0]
-write_image('output/armadillo_pytorch3d_diff.png', (diff_image[..., :3] - image[..., :3]) * 100)
+diff_image = (diff_image[..., :3] - image[..., :3]) / diff_x_offset
+diff_image = to_torch_f(apply_pmkmp_cm(diff_image.sum(-1).sigmoid().cpu().numpy()))
+write_image('output/armadillo_pytorch3d_diff.png', diff_image)
 
 # render grad
 print('Rendering grad...')
-# TODO: can't set a component twice if it's cached
+# NOTE: can't set a component twice if it's cached
 scene.set('film', HDRFilm(width=64, height=64))
 grad_image = render.connector.renderGrad(scene, render.render_options)[0]
 write_image('output/armadillo_pytorch3d_grad.png', grad_image)
