@@ -14,8 +14,8 @@ import sys
 import os
 import numpy as np
 
-from pytorch3d.loss import mesh_normal_consistency, mesh_edge_loss, mesh_laplacian_smoothing
-from pytorch3d.structures import Meshes
+# from pytorch3d.loss import mesh_normal_consistency, mesh_edge_loss, mesh_laplacian_smoothing
+# from pytorch3d.structures import Meshes
 
 if len(sys.argv) >= 2:
     renderer = sys.argv[1]
@@ -77,8 +77,12 @@ write_image(file_prefix + '_ref.png', images_ref[0])
 # render init
 print('Rendering init...')
 scene.components.pop('armadillo')
-scene.set('sphere', Mesh.from_file('./examples/data/meshes/sphere.obj', mat_id='blue'))
-scene['sphere']['v'] = scene['sphere']['v'] * 0.6
+scene.set('sphere', Mesh.from_file('./examples/data/meshes/cow.obj', mat_id='blue'))
+# v = scene['sphere']['f'][300].long()
+# offset = torch.zeros_like(scene['sphere']['v'][v])
+# offset[..., 0] = 0.05 *  torch.ones_like(offset[..., 0])
+# scene['sphere']['v'][v] = scene['sphere']['v'][v] + offset
+scene['sphere']['v'] = scene['sphere']['v'] * 0.95
 verts = scene['sphere']['v'].clone()
 verts.requires_grad_()
 scene.clear_cache()
@@ -95,7 +99,7 @@ elif renderer == 'pytorch3d':
 num_epoch = 5
 num_iter = 0
 num_ref_per_iter = 2
-optimizer = torch.optim.Adam([verts], lr=0.005)
+optimizer = torch.optim.Adam([verts], lr=0.0005)
 losses = []
 for i in range(num_epoch):
 
@@ -111,11 +115,11 @@ for i in range(num_epoch):
         writer.append_data(image_gif)
         
         loss = l1_loss(images_ref[sensor_id], images_opt[1])
-        if renderer == 'pytorch3d':
-            mesh = Meshes([verts], [scene['sphere']['f']])
-            loss += 0.01 * mesh_normal_consistency(mesh)
-            loss += mesh_edge_loss(mesh)
-            loss += mesh_laplacian_smoothing(mesh, method="uniform")
+        # if renderer == 'pytorch3d':
+        #     mesh = Meshes([verts], [scene['sphere']['f']])
+        #     loss += 0.01 * mesh_normal_consistency(mesh)
+        #     loss += mesh_edge_loss(mesh)
+        #     loss += mesh_laplacian_smoothing(mesh, method="uniform")
         loss.backward()
         losses.append(loss.detach().cpu().item())
         

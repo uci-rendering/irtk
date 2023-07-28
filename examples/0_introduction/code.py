@@ -26,6 +26,8 @@ render = Renderer('psdr_jit', render_options={
     'log_level': 0,
     'npass': 1
 })
+# image = render(scene)[0]
+scene.set('sphere', Mesh.from_file('./examples/data/meshes/sphere.obj', mat_id='blue'))
 image = render(scene)[0]
 
-write_image('output/armadillo_psdr.png', image)
+write_image('output/0_introduction/armadillo_psdr.png', image)
