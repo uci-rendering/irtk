@@ -329,10 +329,15 @@ def process_mesh(name, scene):
         
         verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
         verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
+        if mesh['uv'] == []:
+            mesh['uv'] = torch.zeros((1, 2))
+        if mesh['fuv'] == []:
+            mesh['fuv'] = torch.zeros_like(mesh['f'])
+            
         pytorch3d_mesh = {
             'verts': verts,
             'faces': mesh['f'],
-            'uv': mesh['uv'],
+            'uv': mesh['uv'][..., :2],
             'fuv': mesh['fuv'].long(),
             'mat_id': mesh['mat_id']
         }
@@ -349,11 +354,16 @@ def process_mesh(name, scene):
             if param_name == 'v' or param_name == 'to_world':
                 verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
                 verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
+                if mesh['uv'] == []:
+                    mesh['uv'] = torch.zeros((1, 2))
+                if mesh['fuv'] == []:
+                    mesh['fuv'] = torch.zeros_like(mesh['f'])
+                    
                 if mesh['can_change_topology']:
                     pytorch3d_mesh = {
                         'verts': verts,
                         'faces': mesh['f'],
-                        'uv': mesh['uv'],
+                        'uv': mesh['uv'][..., :2],
                         'fuv': mesh['fuv'].long(),
                         'mat_id': mesh['mat_id']
                     }

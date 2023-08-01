@@ -1,10 +1,7 @@
 from .config import *
 import imageio
-try:
-    import imageio_freeimage
-    import imageio_ffmpeg
-except:
-    pass
+import imageio_freeimage
+import imageio_ffmpeg
 import imageio.v3 as iio
 import numpy as np
 import torch
@@ -14,10 +11,9 @@ import gpytoolbox
 def read_mesh(mesh_path):
     v, f, uv, fuv = gpytoolbox.read_mesh(str(mesh_path), return_UV=True)
     if uv.size == 0:
-        uv = np.zeros((1, 2))
-    if fuv.size == 0:
-        fuv = np.zeros_like(f)
-    return v, f, uv[..., :2], fuv
+        uv = np.zeros((0, 2))
+        fuv = np.zeros((0, 3))
+    return v, f, uv, fuv
 
 def write_mesh(mesh_path, v, f, uv=None, fuv=None):
     v = to_numpy(v)
