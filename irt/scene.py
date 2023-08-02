@@ -101,6 +101,29 @@ class PerspectiveCamera(ParamGroup):
         up = to_torch_f(up)
         sensor['to_world'] = lookat(origin, target, up)
         return sensor
+
+# To be merged with PerspectiveCamera
+class PerspectiveCameraFull(ParamGroup):
+    
+    def __init__(self, fx, fy, cx, cy, to_world=torch.eye(4), near=1e-6, far=1e7):
+        super().__init__()
+
+        self.add_param('fx', fx, help_msg='sensor focal length in x axis')
+        self.add_param('fy', fy, help_msg='sensor focal length in y axis')
+        self.add_param('cx', cx, help_msg='sensor principal point offset in x axis')
+        self.add_param('cy', cy, help_msg='sensor principal point offset in y axis')
+        self.add_param('near', near, help_msg='sensor near clip')
+        self.add_param('far', far, help_msg='sensor far clip')
+        self.add_param('to_world', to_torch_f(to_world), is_tensor=True, is_diff=True, help_msg='sensor to_world matrix')
+
+    @classmethod
+    def from_lookat(cls, fx, fy, cx, cy, origin, target, up, near=1e-6, far=1e7):
+        sensor = cls(fx, fy, cx, cy)
+        origin = to_torch_f(origin)
+        target = to_torch_f(target)
+        up = to_torch_f(up)
+        sensor['to_world'] = lookat(origin, target, up)
+        return sensor
         
 class Mesh(ParamGroup):
 

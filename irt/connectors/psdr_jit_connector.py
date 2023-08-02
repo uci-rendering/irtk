@@ -175,6 +175,41 @@ def process_perspective_camera(name, scene):
 
     return drjit_params
 
+@PSDRJITConnector.register(PerspectiveCameraFull)
+def process_perspective_camera(name, scene):
+    sensor = scene[name]
+    cache = scene.cached['psdr_jit']
+    psdr_scene = cache['scene']
+
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        psdr_sensor = psdr_jit.PerspectiveCamera(sensor['fx'], sensor['fy'], sensor['cx'], sensor['cy'], sensor['near'], sensor['far'])
+        psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
+        psdr_scene.add_Sensor(psdr_sensor)
+        cache['name_map'][name] = f"Sensor[{psdr_scene.num_sensors - 1}]"
+
+    psdr_sensor = psdr_scene.param_map[cache['name_map'][name]]
+    
+    # Update parameters
+    updated = sensor.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == "to_world":
+                psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
+            sensor.params[param_name]['updated'] = False
+
+    # Enable grad for parameters requiring grad
+    drjit_params = []
+    requiring_grad = sensor.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            if param_name == "to_world":
+                drjit_param = psdr_sensor.to_world
+                drjit.enable_grad(drjit_param)
+                drjit_params.append(drjit_param)
+
+    return drjit_params
+
 @PSDRJITConnector.register(Mesh)
 def process_mesh(name, scene):
     mesh = scene[name]
