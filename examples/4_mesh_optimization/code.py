@@ -105,6 +105,7 @@ optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.003, lmbda=1)
 losses = []
 images_gif = []
 duration_this_frame = 0
+max_loss = 0
 for i in range(num_epoch):
 
     ref_sensors = (np.random.permutation(num_ref_sensors) + 1).tolist()
@@ -122,8 +123,10 @@ for i in range(num_epoch):
         loss.backward()
         
         # visualize
-        loss = l1_loss(images_ref[0], images_opt[1])
-        losses.append(loss.detach().cpu().item())
+        loss = l1_loss(images_ref[0], images_opt[1]).detach().cpu().item()
+        losses.append(loss)
+        if loss > max_loss:
+            max_loss = loss
         duration_per_img = max_gif_duration / (num_epoch * num_ref_sensors)
         duration_this_frame += duration_per_img
         if duration_this_frame >= 20:
@@ -131,7 +134,7 @@ for i in range(num_epoch):
             images_gif.append(image_gif)
             duration_this_frame = 0
         
-        print(f'Epoch {i+1}/{num_epoch}, cam {sensor_id}, loss: {loss.detach().cpu():.4f}')
+        print(f'Epoch {i+1}/{num_epoch}, cam {sensor_id}, loss: {loss:.4f}')
 
         optimizer.step()
         
@@ -145,6 +148,10 @@ for i in range(num_epoch):
 #     write_image(ref_dir + f'/ref_{i}.png', image)
 
 imageio.mimsave(file_prefix + '_opt.gif', images_gif, duration=20, loop=0)
+plt.title(f'Final loss: {losses[-1]:.4g}')
+plt.xlabel('iter')
+plt.ylabel('loss')
+plt.ylim(bottom=0, top=max_loss * 1.05)
 plt.plot(range(len(losses)), losses, label='loss')
 plt.savefig(file_prefix + '_loss.png')
 write_mesh(file_prefix + '_opt.obj', scene['object']['v'], scene['object']['f'])
