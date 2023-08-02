@@ -1,12 +1,12 @@
 # run from ./inv-render-toolkit with `python -m examples.4_mesh_optimization.code <backend>`
 
-import ivt
-from ivt.scene import *
-from ivt.renderer import Renderer
-from ivt.io import write_image, to_srgb, write_mesh
-from ivt.loss import l1_loss
-from ivt.sampling import sample_sphere
-# from ivt.utils import LargeStepsOptimizer
+import irt
+from irt.scene import *
+from irt.renderer import Renderer
+from irt.io import write_image, to_srgb, write_mesh
+from irt.loss import l1_loss
+from irt.sampling import sample_sphere
+# from irt.utils import LargeStepsOptimizer
 
 import matplotlib.pyplot as plt
 import imageio
@@ -20,11 +20,11 @@ import numpy as np
 
 if len(sys.argv) >= 2:
     renderer = sys.argv[1]
-elif len(ivt.get_connector_list()) == 1:
-    renderer = ivt.get_connector_list()[0]
+elif len(irt.get_connector_list()) == 1:
+    renderer = irt.get_connector_list()[0]
 else:
     print("Please specify backend renderer. Currently available backend(s):")
-    print(ivt.get_connector_list())
+    print(irt.get_connector_list())
     exit()
 
 mesh_target = 'cow'
