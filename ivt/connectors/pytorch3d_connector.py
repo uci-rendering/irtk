@@ -226,7 +226,8 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         
         colored_grads = []
         for img in list(grads):
-            img = apply_pmkmp_cm(img.sum(-1).sigmoid().cpu().numpy())
+            img_transformed = (img.sum(-1) * 0.1).sigmoid()
+            img = apply_pmkmp_cm(img_transformed.cpu().numpy())
             colored_grads.append(to_torch_f(img))
         return colored_grads
 
