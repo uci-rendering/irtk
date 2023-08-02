@@ -51,6 +51,9 @@ class Scene:
         return '\n'.join(lines)
     
     def clear_cache(self):
+        for connector in self.cached.keys():
+            if 'clean_up' in self.cached[connector]:
+                self.cached[connector]['clean_up']()
         self.cached = {}
         # Detach the tensors requiring grad
         for param_name in self.requiring_grad:

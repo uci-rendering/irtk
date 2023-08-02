@@ -35,6 +35,12 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
             cache['integrators'] = OrderedDict()
             cache['configured'] = False
 
+            def clean_up():
+                drjit.flush_malloc_cache()
+                drjit.flush_kernel_cache()
+
+            cache['clean_up'] = clean_up
+
         cache['scene'].opts.spp = render_options['spp']
         cache['scene'].opts.sppe = render_options['sppe']
         cache['scene'].opts.sppse = render_options['sppse']
