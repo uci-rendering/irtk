@@ -6,8 +6,6 @@ from ..utils import apply_pmkmp_cm
 from pytorch3d.structures import Meshes, join_meshes_as_scene
 import pytorch3d.renderer as pr
 import torch
-import numpy as np
-import matplotlib.pyplot as plt
 
 class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
 
@@ -226,7 +224,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         
         colored_grads = []
         for img in list(grads):
-            img_transformed = (img.sum(-1) * 0.1).sigmoid()
+            img_transformed = (img.sum(-1) * 0.05).sigmoid()
             img = apply_pmkmp_cm(img_transformed.cpu().numpy())
             colored_grads.append(to_torch_f(img))
         return colored_grads

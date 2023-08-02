@@ -42,13 +42,13 @@ diff_to_world[0, 3] = diff_x_offset
 scene['object']['to_world'] = to_torch_f(diff_to_world)
 diff_image = render(scene)[0]
 diff_image = (diff_image[..., :3] - image[..., :3]) / diff_x_offset
-diff_image_transformed = (diff_image.sum(-1) * 0.1).sigmoid()
+diff_image_transformed = (diff_image.sum(-1) * 0.05).sigmoid()
 diff_image = to_torch_f(apply_pmkmp_cm(diff_image_transformed.cpu().numpy()))
 write_image(f'{file_prefix}_diff.png', diff_image)
 
 # render grad using differentiable rendering
-print('Rendering grad...')
-# NOTE: can't set a component twice if it's cached
-scene.set('film', HDRFilm(width=256, height=256))
-grad_image = render.connector.renderGrad(scene, render.render_options)[0]
-write_image(f'{file_prefix}_grad.png', grad_image)
+# print('Rendering grad...')
+# # NOTE: can't set a component twice if it's cached
+# scene.set('film', HDRFilm(width=256, height=256))
+# grad_image = render.connector.renderGrad(scene, render.render_options)[0]
+# write_image(f'{file_prefix}_grad.png', grad_image)

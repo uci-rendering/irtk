@@ -6,7 +6,7 @@ from irt.renderer import Renderer
 from irt.io import write_image, to_srgb, write_mesh
 from irt.loss import l1_loss
 from irt.sampling import sample_sphere
-# from irt.utils import LargeStepsOptimizer
+from largesteps_optimizer import LargeStepsOptimizer
 
 import matplotlib.pyplot as plt
 import imageio
@@ -14,9 +14,6 @@ from skimage import img_as_ubyte
 import sys
 import os
 import numpy as np
-
-# from pytorch3d.loss import mesh_normal_consistency, mesh_edge_loss, mesh_laplacian_smoothing
-# from pytorch3d.structures import Meshes
 
 if len(sys.argv) >= 2:
     renderer = sys.argv[1]
@@ -29,9 +26,11 @@ else:
 
 mesh_target = 'cow'
 mesh_init = 'cow'
-output_folder = 'cow_scale'
+output_folder = 'cow_scale_largesteps'
 num_ref_sensors = 50
 sensor_radius = 3
+num_epoch = 5
+max_gif_duration = 5000 # ms
 
 # define scene
 scene = Scene()
@@ -85,12 +84,9 @@ write_image(file_prefix + '_ref.png', images_ref[0])
 
 # render init
 print('Rendering init...')
-# NOTE: bug - cannot clear_cache() and pop() when using collocated integrator
-mesh_init = read_mesh(f'./examples/data/meshes/{mesh_init}.obj')
-scene['object']['v'] = mesh_init[0]
-scene['object']['f'] = mesh_init[1]
-scene['object']['uv'] = mesh_init[2]
-scene['object']['fuv'] = mesh_init[3]
+scene.clear_cache()
+scene.components.pop('object')
+scene.set('object', Mesh.from_file(f'./examples/data/meshes/{mesh_init}.obj', mat_id='blue'))
 
 # v = scene['object']['f'][300].long()
 # offset = torch.zeros_like(scene['object']['v'][v])
@@ -102,20 +98,13 @@ verts.requires_grad_()
 image_init = render(scene)[0]
 write_image(file_prefix + '_init.png', image_init)
 
-# for different imageio versions
-if renderer == 'psdr_jit':  # 
-    writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=30, loop=0)
-elif renderer == 'pytorch3d':
-    writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=0.03)
-
 # optimization
-num_epoch = 5
-num_iter = 0
-num_ref_per_iter = 2
-optimizer = torch.optim.Adam([verts], lr=0.0005)
-# optimizer = LargeStepsOptimizer(scene_opt['object']['v'], scene_opt['object']['f'], lr=0.01, lmbda=1)
+# optimizer = torch.optim.Adam([verts], lr=0.0005)
+optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.003, lmbda=1)
 
 losses = []
+images_gif = []
+duration_this_frame = 0
 for i in range(num_epoch):
 
     ref_sensors = (np.random.permutation(num_ref_sensors) + 1).tolist()
@@ -123,25 +112,24 @@ for i in range(num_epoch):
     
     for sensor_id in ref_sensors:
         optimizer.zero_grad()
-        # scene_opt['object']['v'] = verts
         scene['object']['v'] = verts
         scene.configure()
         
         # NOTE: bug - only the first sensor has grad
         images_opt = render(scene, sensor_ids=[sensor_id, 0])
-        image_gif = img_as_ubyte(to_srgb(images_opt[1]))
-        writer.append_data(image_gif)
         
         loss = l1_loss(images_ref[sensor_id], images_opt[0])
-        # if renderer == 'pytorch3d':
-        #     mesh = Meshes([verts], [scene['object']['f']])
-        #     loss += 0.01 * mesh_normal_consistency(mesh)
-        #     loss += mesh_edge_loss(mesh)
-        #     loss += mesh_laplacian_smoothing(mesh, method="uniform")
         loss.backward()
         
+        # visualize
         loss = l1_loss(images_ref[0], images_opt[1])
         losses.append(loss.detach().cpu().item())
+        duration_per_img = max_gif_duration / (num_epoch * num_ref_sensors)
+        duration_this_frame += duration_per_img
+        if duration_this_frame >= 20:
+            image_gif = img_as_ubyte(to_srgb(images_opt[1]))
+            images_gif.append(image_gif)
+            duration_this_frame = 0
         
         print(f'Epoch {i+1}/{num_epoch}, cam {sensor_id}, loss: {loss.detach().cpu():.4f}')
 
@@ -156,9 +144,11 @@ for i in range(num_epoch):
 # for i, image in enumerate(images_opt):
 #     write_image(ref_dir + f'/ref_{i}.png', image)
 
-writer.close()
+imageio.mimsave(file_prefix + '_opt.gif', images_gif, duration=20, loop=0)
 plt.plot(range(len(losses)), losses, label='loss')
 plt.savefig(file_prefix + '_loss.png')
 write_mesh(file_prefix + '_opt.obj', scene['object']['v'], scene['object']['f'])
 image_opt = render(scene)[0]
 write_image(file_prefix + '_opt.png', image_opt)
+
+scene.clear_cache()
