@@ -147,6 +147,6 @@ def write_video(video_path, frames, fps=20, kwargs={}):
     video_path.parent.mkdir(exist_ok=True, parents=True)
     writer = imageio.get_writer(video_path, fps=fps, **kwargs)
     for frame in frames:
-        frame = (to_numpy(frame).clip(0, 1) * 255).astype(np.uint8)
+        frame = (to_srgb(to_numpy(frame)) * 255).astype(np.uint8)
         writer.append_data(frame)
     writer.close()
