@@ -6,6 +6,7 @@ from irt.renderer import Renderer
 from irt.io import write_image, to_srgb, write_mesh
 from irt.loss import l1_loss
 from irt.sampling import sample_sphere
+from irt.utils import Timer
 from largesteps_optimizer import LargeStepsOptimizer
 
 import matplotlib.pyplot as plt
@@ -24,17 +25,17 @@ else:
     print(irt.get_connector_list())
     exit()
 
-mesh_target = 'cow'
-mesh_init = 'cow'
-output_folder = 'cow_scale_largesteps'
+mesh_target = 'pig'
+mesh_init = 'pig_smooth'
+output_folder = 'pig_smooth'
 num_ref_sensors = 50
 sensor_radius = 3
-num_epoch = 5
+num_epoch = 15
 max_gif_duration = 5000 # ms
 
 # define scene
 scene = Scene()
-scene.set('object', Mesh.from_file(f'./examples/data/meshes/{mesh_target}.obj', mat_id='blue'))
+scene.set('object', Mesh.from_file(f'./examples/data/meshes/{mesh_target}.obj', mat_id='blue', to_world=torch.diag(torch.Tensor([0.015, 0.015, 0.015, 1]))))
 scene.set('blue', DiffuseBRDF((0.2, 0.2, 0.9)))
 # scene.set('envlight', EnvironmentLight.from_file('./examples/data/envmaps/factory.exr'))
 # scene.set('sensor_main', PerspectiveCamera.from_lookat(fov=40, origin=(-1.5, 1.5, 1.5), target=(0, 0, 0), up=(0, 1, 0)))
@@ -92,7 +93,8 @@ scene.set('object', Mesh.from_file(f'./examples/data/meshes/{mesh_init}.obj', ma
 # offset = torch.zeros_like(scene['object']['v'][v])
 # offset[..., 0] = 0.05 *  torch.ones_like(offset[..., 0])
 # scene['object']['v'][v] = scene['object']['v'][v] + offset
-scene['object']['v'] = scene['object']['v'] * 0.95
+# scene['object']['v'] = scene['object']['v'] * 0.95
+scene['object']['v'] = scene['object']['v'] * 1.5
 verts = scene['object']['v'].clone()
 verts.requires_grad_()
 image_init = render(scene)[0]
@@ -100,43 +102,45 @@ write_image(file_prefix + '_init.png', image_init)
 
 # optimization
 # optimizer = torch.optim.Adam([verts], lr=0.0005)
-optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.003, lmbda=1)
+# optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.003, lmbda=1)
+optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.0005, lmbda=1)
 
 losses = []
 images_gif = []
 duration_this_frame = 0
 max_loss = 0
-for i in range(num_epoch):
+with Timer('Optimization') as timer:
+    for i in range(num_epoch):
 
-    ref_sensors = (np.random.permutation(num_ref_sensors) + 1).tolist()
-    # ref_sensors = (np.arange(num_ref_sensors) + 1).tolist()
-    
-    for sensor_id in ref_sensors:
-        optimizer.zero_grad()
-        scene['object']['v'] = verts
-        scene.configure()
+        ref_sensors = (np.random.permutation(num_ref_sensors) + 1).tolist()
+        # ref_sensors = (np.arange(num_ref_sensors) + 1).tolist()
         
-        # NOTE: bug - only the first sensor has grad
-        images_opt = render(scene, sensor_ids=[sensor_id, 0])
-        
-        loss = l1_loss(images_ref[sensor_id], images_opt[0])
-        loss.backward()
-        
-        # visualize
-        loss = l1_loss(images_ref[0], images_opt[1]).detach().cpu().item()
-        losses.append(loss)
-        if loss > max_loss:
-            max_loss = loss
-        duration_per_img = max_gif_duration / (num_epoch * num_ref_sensors)
-        duration_this_frame += duration_per_img
-        if duration_this_frame >= 20:
-            image_gif = img_as_ubyte(to_srgb(images_opt[1]))
-            images_gif.append(image_gif)
-            duration_this_frame = 0
-        
-        print(f'Epoch {i+1}/{num_epoch}, cam {sensor_id}, loss: {loss:.4f}')
+        for sensor_id in ref_sensors:
+            optimizer.zero_grad()
+            scene['object']['v'] = verts
+            scene.configure()
+            
+            # NOTE: bug - only the first sensor has grad
+            images_opt = render(scene, sensor_ids=[sensor_id, 0])
+            
+            loss = l1_loss(images_ref[sensor_id], images_opt[0])
+            loss.backward()
+            
+            # visualize
+            loss = l1_loss(images_ref[0], images_opt[1]).detach().cpu().item()
+            losses.append(loss)
+            if loss > max_loss:
+                max_loss = loss
+            duration_per_img = max_gif_duration / (num_epoch * num_ref_sensors)
+            duration_this_frame += duration_per_img
+            if duration_this_frame >= 20:
+                image_gif = img_as_ubyte(to_srgb(images_opt[1]))
+                images_gif.append(image_gif)
+                duration_this_frame = 0
+            
+            print(f'Epoch {i+1}/{num_epoch}, cam {sensor_id}, loss: {loss:.4f}')
 
-        optimizer.step()
+            optimizer.step()
         
 
 # images_opt = render(scene, sensor_ids=[ i for i in range(num_ref_sensors + 1) ])
