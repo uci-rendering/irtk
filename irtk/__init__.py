@@ -9,4 +9,4 @@ try:
 except:
     pass
 
-from irt.renderer import Renderer
+from .renderer import Renderer

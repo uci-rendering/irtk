@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'irt'
+project = 'irtk'
 copyright = '2023, Guangyan Cai'
 author = 'Guangyan Cai'
 
