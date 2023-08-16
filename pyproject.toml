@@ -3,7 +3,7 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "ivt"
+name = "irtk"
 authors = [{name = "Guangyan Cai", email = "gcai3@uci.edu"}]
 readme = "README.md"
 dynamic = ["version", "description"]
@@ -11,6 +11,7 @@ requires-python = ">=3.8"
 dependencies = [
     'imageio >= 2.27.0',
     'imageio-freeimage',
+    'imageio_ffmpeg',
     'numpy',
     'gin-config',
     'gpytoolbox'
