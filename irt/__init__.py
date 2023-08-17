@@ -14,4 +14,9 @@ try:
 except:
     pass
 
+try:
+    from .connectors.nvdiffrast_connector import NvdiffrastConnector
+except:
+    pass
+
 from irt.renderer import Renderer

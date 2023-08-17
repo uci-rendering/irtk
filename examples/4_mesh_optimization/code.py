@@ -62,6 +62,12 @@ elif renderer == 'pytorch3d':
     render = Renderer(renderer, render_options={
         'npass': 1
     })
+    
+elif renderer == 'nvdiffrast':
+        render = Renderer('nvdiffrast', render_options={
+        'npass': 1,
+        'light_power': 2.0
+    })
 
 if output_folder == '':
     if not os.path.exists(f'output/4_mesh_optimization'):
@@ -69,7 +75,7 @@ if output_folder == '':
     file_prefix = f'output/4_mesh_optimization/{renderer}'
 else:
     if not os.path.exists(f'output/4_mesh_optimization/{output_folder}'):
-        os.makedirs(f'output/4_mesh_optimization/{output_folder}')
+        os.makedirs(f'output/4_mesh_optimization/{output_folder}', exist_ok=True)
     file_prefix = f'output/4_mesh_optimization/{output_folder}/{renderer}'
 
 # render ref

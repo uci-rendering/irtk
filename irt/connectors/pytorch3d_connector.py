@@ -155,7 +155,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             image_grad = torch.stack(image_grads) / npass
             for j in range(npass):
                 image = renderer(cache['mesh'])[..., :3]
-                tmp = (image_grad[..., :3] * image).sum(dim=2)
+                tmp = (image_grad[..., :3] * image).sum(dim=3)
                 pytorch3d_grads = torch.autograd.grad(tmp, pytorch3d_params, torch.ones_like(tmp), retain_graph=True)
                 for param_grad, pytorch3d_grad in zip(param_grads, pytorch3d_grads):
                     param_grad += pytorch3d_grad
@@ -222,12 +222,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         # colored_grads = cm(grads.sum(-1).sigmoid().cpu().numpy())
         # print(to_torch_f(colored_grads).shape)
         
-        colored_grads = []
-        for img in list(grads):
-            img_transformed = (img.sum(-1) * 0.05).sigmoid()
-            img = apply_pmkmp_cm(img_transformed.cpu().numpy())
-            colored_grads.append(to_torch_f(img))
-        return colored_grads
+        return list(grads)
 
 
 """
