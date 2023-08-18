@@ -14,7 +14,9 @@ dependencies = [
     'imageio_ffmpeg',
     'numpy',
     'gin-config',
-    'gpytoolbox'
+    'gpytoolbox',
+    'trimesh',
+    'chamferdist @ git+https://github.com/krrish94/chamferdist.git',
 ]
 
 [project.urls]
