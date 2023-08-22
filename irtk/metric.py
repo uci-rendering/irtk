@@ -3,7 +3,7 @@ from chamferdist import ChamferDistance
 import numpy as np
 import torch
 
-def chamfer_distance(mesh_a_path, mesh_b_path, num_samples, mode='bidirectional', return_extra=False):
+def chamfer_distance(mesh_a_path, mesh_b_path, num_samples, mode='bidirectional'):
     assert mode in ['forward', 'backward', 'bidirectional']
 
     mesh_a = trimesh.load_mesh(mesh_a_path)
@@ -23,18 +23,8 @@ def chamfer_distance(mesh_a_path, mesh_b_path, num_samples, mode='bidirectional'
 
     cd = ChamferDistance()
     dist = cd(samples_a, samples_b, 
-                  reverse=reverse, 
-                  bidirectional=bidirectional, 
-                  point_reduction=None, 
-                  batch_reduction=None).squeeze(0)
-    mean_dist = dist.mean().item()
-
-    if return_extra:
-        extra = {
-            'dist': dist, 
-            'samples_a': samples_a,
-            'samples_b': samples_b,
-        }
-        return mean_dist, extra
+              reverse=reverse, 
+              bidirectional=bidirectional).item()
+    mean_dist = dist / num_samples
 
     return mean_dist
