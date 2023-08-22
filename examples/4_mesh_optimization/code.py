@@ -57,16 +57,24 @@ if renderer == 'psdr_jit':
         'log_level': 0,
         'npass': 1
     })
-
 elif renderer == 'pytorch3d':
     render = Renderer(renderer, render_options={
         'npass': 1
     })
-    
 elif renderer == 'nvdiffrast':
         render = Renderer('nvdiffrast', render_options={
         'npass': 1,
         'light_power': 2.0
+    })
+elif renderer == 'mitsuba':
+    scene.set('integrator', Integrator(type='path', config={
+        'max_depth': 4,
+        'hide_emitters': False
+    }))
+    
+    render = Renderer('mitsuba', render_options={
+        'spp': 128,
+        'npass': 1
     })
 
 if output_folder == '':
@@ -164,7 +172,7 @@ plt.ylabel('loss')
 plt.ylim(bottom=0, top=max_loss * 1.05)
 plt.plot(range(len(losses)), losses, label='loss')
 plt.savefig(file_prefix + '_loss.png')
-write_mesh(file_prefix + '_opt.obj', scene['object']['v'], scene['object']['f'])
+# write_mesh(file_prefix + '_opt.obj', scene['object']['v'], scene['object']['f'])
 image_opt = render(scene)[0]
 write_image(file_prefix + '_opt.png', image_opt)
 

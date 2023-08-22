@@ -19,4 +19,9 @@ try:
 except:
     pass
 
+try:
+    from .connectors.mitsuba_connector import MitsubaConnector
+except:
+    pass
+
 from irt.renderer import Renderer

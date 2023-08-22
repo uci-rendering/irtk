@@ -359,7 +359,7 @@ def process_mesh(name, scene):
     if len(requiring_grad) > 0:
         for param_name in requiring_grad:
             if param_name == 'v':
-                # nvdiffrast_mesh['v'].requires_grad = True
+                nvdiffrast_mesh['v'].requires_grad = True
                 nvdiffrast_params.append(nvdiffrast_mesh['v'])
 
     return nvdiffrast_params
