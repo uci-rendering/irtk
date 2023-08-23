@@ -24,4 +24,9 @@ try:
 except:
     pass
 
+try:
+    from .connectors.redner_connector import RednerConnector
+except:
+    pass
+
 from .renderer import Renderer

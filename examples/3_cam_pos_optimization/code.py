@@ -1,10 +1,10 @@
 # run from ./inv-render-toolkit with `python -m examples.3_cam_pos_optimization.code <backend>`
 
-import irt
-from irt.scene import *
-from irt.renderer import Renderer
-from irt.io import write_image, to_srgb
-from irt.loss import l1_loss
+import irtk
+from irtk.scene import *
+from irtk.renderer import Renderer
+from irtk.io import write_image, to_srgb
+from irtk.loss import l1_loss
 
 import matplotlib.pyplot as plt
 import imageio
@@ -14,11 +14,11 @@ import os
 
 if len(sys.argv) >= 2:
     renderer = sys.argv[1]
-elif len(irt.get_connector_list()) == 1:
-    renderer = irt.get_connector_list()[0]
+elif len(irtk.get_connector_list()) == 1:
+    renderer = irtk.get_connector_list()[0]
 else:
     print("Please specify backend renderer. Currently available backend(s):")
-    print(irt.get_connector_list())
+    print(irtk.get_connector_list())
     exit()
 
 # define scene

@@ -1,8 +1,8 @@
-import irt
-from irt.scene import *
-from irt.renderer import Renderer
-from irt.io import write_image, to_torch_f
-from irt.utils import apply_pmkmp_cm
+import irtk
+from irtk.scene import *
+from irtk.renderer import Renderer
+from irtk.io import write_image, to_torch_f
+from irtk.utils import apply_pmkmp_cm
 
 import os
 import sys
@@ -11,11 +11,11 @@ mesh_target = 'armadillo'
 
 if len(sys.argv) >= 2:
     renderer = sys.argv[1]
-elif len(irt.get_connector_list()) == 1:
-    renderer = irt.get_connector_list()[0]
+elif len(irtk.get_connector_list()) == 1:
+    renderer = irtk.get_connector_list()[0]
 else:
     print("Please specify backend renderer. Currently available backend(s):")
-    print(irt.get_connector_list())
+    print(irtk.get_connector_list())
     exit()
 
 if not os.path.exists(f'output/0_introduction'):
@@ -66,6 +66,16 @@ elif renderer == 'mitsuba':
         'spp': 128,
         'npass': 1
     })
+elif renderer == 'redner':
+    scene.set('integrator', Integrator(type='path', config={
+        'max_depth': 1,
+        'hide_emitters': False
+    }))
+
+    render = Renderer('redner', render_options={
+        'spp': 128,
+        'npass': 1
+    })
     
 
 # render forward
@@ -79,20 +89,20 @@ def img_transform(image):
     return image
 
 # render grad using finite difference
-print('Rendering diff...')
-diff_x_offset = 0.01
-diff_to_world = torch.eye(4)
-diff_to_world[0, 3] = diff_x_offset
-scene['object']['to_world'] = to_torch_f(diff_to_world)
-diff_image = render(scene)[0]
-diff_image = (diff_image[..., :3] - image[..., :3]) / diff_x_offset
-diff_image = img_transform(diff_image)
-write_image(f'{file_prefix}_diff.png', diff_image)
+# print('Rendering diff...')
+# diff_x_offset = 0.01
+# diff_to_world = torch.eye(4)
+# diff_to_world[0, 3] = diff_x_offset
+# scene['object']['to_world'] = to_torch_f(diff_to_world)
+# diff_image = render(scene)[0]
+# diff_image = (diff_image[..., :3] - image[..., :3]) / diff_x_offset
+# diff_image = img_transform(diff_image)
+# write_image(f'{file_prefix}_diff.png', diff_image)
 
-# render grad using differentiable rendering
-print('Rendering grad...')
-# NOTE: can't set a component twice if it's cached
-scene.set('film', HDRFilm(width=256, height=256))
-grad_image = render.connector.renderGrad(scene, render.render_options)[0]
-grad_image = img_transform(grad_image)
-write_image(f'{file_prefix}_grad.png', grad_image)
+# # render grad using differentiable rendering
+# print('Rendering grad...')
+# # NOTE: can't set a component twice if it's cached
+# scene.set('film', HDRFilm(width=256, height=256))
+# grad_image = render.connector.renderGrad(scene, render.render_options)[0]
+# grad_image = img_transform(grad_image)
+# write_image(f'{file_prefix}_grad.png', grad_image)

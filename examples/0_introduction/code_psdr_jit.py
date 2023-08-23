@@ -1,9 +1,9 @@
 # run from ./inv-render-toolkit with `python -m examples.0_introduction.code`
 
-import irt
-from irt.scene import *
-from irt.renderer import Renderer
-from irt.io import write_image
+import irtk
+from irtk.scene import *
+from irtk.renderer import Renderer
+from irtk.io import write_image
 
 scene = Scene()
 scene.set('armadillo', Mesh.from_file('./examples/data/meshes/armadillo.obj', mat_id='blue'))

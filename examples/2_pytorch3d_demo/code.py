@@ -1,10 +1,10 @@
 # run from ./inv-render-toolkit with `python -m examples.2_pytorch3d_demo.code`
 
-import irt
-from irt.scene import *
-from irt.renderer import Renderer
-from irt.io import write_image, to_torch_f
-from irt.utils import apply_pmkmp_cm
+import irtk
+from irtk.scene import *
+from irtk.renderer import Renderer
+from irtk.io import write_image, to_torch_f
+from irtk.utils import apply_pmkmp_cm
 
 import os
 

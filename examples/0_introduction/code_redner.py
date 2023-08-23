@@ -20,15 +20,15 @@ scene.set('sensor2', PerspectiveCamera.from_lookat(fov=40, origin=(1.5, 0, 1.5),
 
 scene.set('film', HDRFilm(width=512, height=512))
 scene.set('integrator', Integrator(type='path', config={
-    'max_depth': 4,
+    'max_depth': 1,
     'hide_emitters': False
 }))
 
-render = Renderer('mitsuba', render_options={
+render = Renderer('redner', render_options={
     'spp': 128,
     'npass': 1
 })
 image = render(scene)[0]
 
-# write_image('output/cow_mitsuba.png', image)
-write_image('output/armadillo_mitsuba.png', image)
+# write_image('output/cow_redner.png', image)
+write_image('output/armadillo_redner.png', image)

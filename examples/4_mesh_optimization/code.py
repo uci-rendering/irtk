@@ -1,12 +1,12 @@
 # run from ./inv-render-toolkit with `python -m examples.4_mesh_optimization.code <backend>`
 
-import irt
-from irt.scene import *
-from irt.renderer import Renderer
-from irt.io import write_image, to_srgb, write_mesh
-from irt.loss import l1_loss
-from irt.sampling import sample_sphere
-from irt.utils import Timer
+import irtk
+from irtk.scene import *
+from irtk.renderer import Renderer
+from irtk.io import write_image, to_srgb, write_mesh
+from irtk.loss import l1_loss
+from irtk.sampling import sample_sphere
+from irtk.utils import Timer
 from largesteps_optimizer import LargeStepsOptimizer
 
 import matplotlib.pyplot as plt
@@ -18,11 +18,11 @@ import numpy as np
 
 if len(sys.argv) >= 2:
     renderer = sys.argv[1]
-elif len(irt.get_connector_list()) == 1:
-    renderer = irt.get_connector_list()[0]
+elif len(irtk.get_connector_list()) == 1:
+    renderer = irtk.get_connector_list()[0]
 else:
     print("Please specify backend renderer. Currently available backend(s):")
-    print(irt.get_connector_list())
+    print(irtk.get_connector_list())
     exit()
 
 mesh_target = 'pig'
@@ -32,6 +32,7 @@ num_ref_sensors = 50
 sensor_radius = 3
 num_epoch = 15
 max_gif_duration = 5000 # ms
+device = 'cuda'
 
 # define scene
 scene = Scene()
@@ -76,6 +77,18 @@ elif renderer == 'mitsuba':
         'spp': 128,
         'npass': 1
     })
+elif renderer == 'redner':
+    scene.set('integrator', Integrator(type='path', config={
+        'max_depth': 1,
+        'hide_emitters': False
+    }))
+
+    render = Renderer('redner', render_options={
+        'spp': 64,
+        'npass': 1
+    })
+    
+    device = 'cpu'
 
 if output_folder == '':
     if not os.path.exists(f'output/4_mesh_optimization'):
@@ -117,7 +130,7 @@ write_image(file_prefix + '_init.png', image_init)
 # optimization
 # optimizer = torch.optim.Adam([verts], lr=0.0005)
 # optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.003, lmbda=1)
-optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.0005, lmbda=1)
+optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.0005, lmbda=1, device=device)
 
 losses = []
 images_gif = []
@@ -134,21 +147,22 @@ with Timer('Optimization') as timer:
             scene['object']['v'] = verts
             scene.configure()
             
-            # NOTE: bug - only the first sensor has grad
-            images_opt = render(scene, sensor_ids=[sensor_id, 0])
+            # NOTE: psdr bug - only the first sensor has grad
+            image_opt = render(scene, sensor_ids=[sensor_id])[0]
             
-            loss = l1_loss(images_ref[sensor_id], images_opt[0])
+            loss = l1_loss(images_ref[sensor_id], image_opt)
             loss.backward()
             
             # visualize
-            loss = l1_loss(images_ref[0], images_opt[1]).detach().cpu().item()
+            image_main = render(scene)[0]
+            loss = l1_loss(images_ref[0], image_main).detach().cpu().item()
             losses.append(loss)
             if loss > max_loss:
                 max_loss = loss
             duration_per_img = max_gif_duration / (num_epoch * num_ref_sensors)
             duration_this_frame += duration_per_img
             if duration_this_frame >= 20:
-                image_gif = img_as_ubyte(to_srgb(images_opt[1]))
+                image_gif = img_as_ubyte(to_srgb(image_main))
                 images_gif.append(image_gif)
                 duration_this_frame = 0
             
