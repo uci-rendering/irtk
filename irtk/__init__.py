@@ -1,6 +1,6 @@
 """Inverse-Rendering Toolkit"""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from .connector import is_connector_available, get_connector_list, get_connector
 
@@ -24,4 +24,4 @@ try:
 except:
     pass
 
-from irt.renderer import Renderer
+from .renderer import Renderer

@@ -1,7 +1,7 @@
-from irt import PSDRJITConnector
-from irt.io import to_torch_f
-from irt.parameter import ParamGroup
-from irt.transform import lookat
+from irtk import PSDRJITConnector
+from irtk.io import to_torch_f
+from irtk.parameter import ParamGroup
+from irtk.transform import lookat
 
 import drjit
 import psdr_jit

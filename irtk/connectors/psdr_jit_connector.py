@@ -182,7 +182,7 @@ def process_perspective_camera(name, scene):
     return drjit_params
 
 @PSDRJITConnector.register(PerspectiveCameraFull)
-def process_perspective_camera(name, scene):
+def process_perspective_camera_full(name, scene):
     sensor = scene[name]
     cache = scene.cached['psdr_jit']
     psdr_scene = cache['scene']

@@ -1,12 +1,14 @@
 from .config import *
 import imageio
-import imageio_freeimage
-import imageio_ffmpeg
 import imageio.v3 as iio
 import numpy as np
 import torch
 from pathlib import Path
 import gpytoolbox
+
+# Download necessary imageio plugins. If they already exists they won't be 
+# downloaded again. 
+imageio.plugins.freeimage.download()
 
 def read_mesh(mesh_path):
     v, f, uv, fuv = gpytoolbox.read_mesh(str(mesh_path), return_UV=True)
@@ -19,15 +21,13 @@ def write_mesh(mesh_path, v, f, uv=None, fuv=None):
     v = to_numpy(v)
     f = to_numpy(f)
     if uv is not None: 
+        uv = to_numpy(uv)
         if uv.size == 0:
             uv = None
-        else:
-            uv = to_numpy(uv)
     if fuv is not None: 
+        fuv = to_numpy(fuv)
         if fuv.size == 0:
             fuv = None
-        else:
-            fuv = to_numpy(fuv)
     gpytoolbox.write_mesh(str(mesh_path), v, f, uv, fuv)
 
 def linear_to_srgb(l):
@@ -86,8 +86,17 @@ def to_torch_i(data):
 
 def read_image(image_path, is_srgb=None, remove_alpha=True):
     image_path = Path(image_path)
-    image = iio.imread(image_path)
+    
+    image_ext = image_path.suffix
+    iio_plugins = {
+        '.exr': 'EXR-FI',
+        '.hdr': 'HDR-FI',
+        '.png': 'PNG-FI',
+    }
+    
+    image = iio.imread(image_path, plugin=iio_plugins.get(image_ext))
     image = np.atleast_3d(image)
+    
     if remove_alpha and image.shape[2] == 4:
         image = image[:, :, 0:3]
 
@@ -97,7 +106,7 @@ def read_image(image_path, is_srgb=None, remove_alpha=True):
         image = image.astype("float32") / 65535.0
 
     if is_srgb is None:
-        if image_path.suffix in ['.exr', '.hdr', '.rgbe']:
+        if image_ext in ['.exr', '.hdr', '.rgbe']:
             is_srgb = False
         else:
             is_srgb = True
@@ -109,26 +118,41 @@ def read_image(image_path, is_srgb=None, remove_alpha=True):
 
 def write_image(image_path, image, is_srgb=None):
     image_path = Path(image_path)
+    
+    image_ext = image_path.suffix
+    iio_plugins = {
+        '.exr': 'EXR-FI',
+        '.hdr': 'HDR-FI',
+        '.png': 'PNG-FI',
+    }
+    iio_flags = {
+        '.exr': imageio.plugins.freeimage.IO_FLAGS.EXR_NONE,
+    }
+    hdr_formats = ['.exr', '.hdr', '.rgbe']
+    
     image = to_numpy(image)
     image = np.atleast_3d(image)
     if image.shape[2] == 1:
         image = np.repeat(image, 3, axis=2)
-
-    if is_srgb is None:
-        if image_path.suffix in ['.exr', '.hdr', '.rgbe']:
-            is_srgb = False
-        else:
-            is_srgb = True
-
+        
+    if image_ext in hdr_formats:
+        is_srgb = False if is_srgb is None else is_srgb
+    else:
+        is_srgb = True if is_srgb is None else is_srgb
     if is_srgb:
         image = to_srgb(image)
-
-    if image_path.suffix == '.exr':
+        
+    if image_ext in hdr_formats:
         image = image.astype(np.float32)
-        iio.imwrite(image_path, image, flags=imageio.plugins.freeimage.IO_FLAGS.EXR_NONE)
     else:
         image = (image * 255).astype(np.uint8)
-        iio.imwrite(image_path, image)
+    
+    flags = iio_flags.get(image_ext)
+    if flags is None: flags = 0
+    
+    iio.imwrite(image_path, image, 
+                flags=flags,
+                plugin=iio_plugins.get(image_ext))
 
 def exr2png(image_path, verbose=False):
     image_path = Path(image_path)
