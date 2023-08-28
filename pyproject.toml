@@ -16,6 +16,7 @@ dependencies = [
     'gpytoolbox',
     'trimesh',
     'chamferdist == 1.0.0',
+    'matplotlib',
 ]
 
 [project.urls]
