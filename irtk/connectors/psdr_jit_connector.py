@@ -105,6 +105,43 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
                     param_grad += grad
 
         return param_grads       
+    
+    def forward_ad_mesh_translation(self, mesh_id, scene, render_options, sensor_ids=[0], integrator_id=0):
+        cache, drjit_params = self.update_scene_objects(scene, render_options)
+        assert len(drjit_params) == 0
+
+        P = FloatD(0.) 
+        drjit.enable_grad(P) 
+        psdr_mesh = cache['scene'].param_map[cache['name_map'][mesh_id]]
+        psdr_mesh.set_transform(Matrix4fD([[1.,0.,0.,P],[0.,1.,0.,0.],[0.,0.,1.,0.],[0.,0.,0.,1.],]))
+
+        cache['scene'].configure(sensor_ids)
+
+        npass = render_options['npass']
+        h, w, c = cache['film']['shape']
+        if type(integrator_id) == int:
+            integrator = list(cache['integrators'].values())[integrator_id]
+        elif type(integrator_id) == str:
+            integrator = cache['integrators'][integrator_id]
+        else:
+            raise RuntimeError('integrator_id is invalid: {integrator_id}')
+
+        
+        image = to_torch_f(torch.zeros((h * w, c)))
+        grad_image = to_torch_f(torch.zeros((h * w, c)))
+
+        for j in range(npass):
+            drjit_image = integrator.renderD(cache['scene'], sensor_ids[0])
+            image += to_torch_f(drjit_image.torch()) / npass
+
+            drjit.set_grad(P, 1.0)
+            drjit.forward_to(drjit_image)
+            drjit_grad_image = drjit.grad(drjit_image)
+            grad_image += to_torch_f(drjit_grad_image.torch()) / npass
+
+        image = image.reshape(h, w, c)
+        grad_image = grad_image.reshape(h, w, c)
+        return image, grad_image
 
 @PSDRJITConnector.register(Integrator)
 def process_integrator(name, scene):
