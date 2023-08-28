@@ -1,6 +1,5 @@
 from ..connector import Connector
 from ..scene import *
-from ..config import *
 from ..io import write_mesh
 from collections import OrderedDict
 
@@ -15,11 +14,6 @@ import torch
 import os
 
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
-
-    backend = 'torch'
-    device = 'cuda'
-    ftype = torch.float32
-    itype = torch.long
 
     def __init__(self):
         super().__init__()
@@ -73,7 +67,7 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
         images = []
         for sensor_id in sensor_ids:
-            image = torch.zeros((h * w, c)).to(device).to(ftype)
+            image = to_torch_f(torch.zeros((h * w, c)))
             for i in range(npass):
                 image_pass = integrator.renderC(cache['scene'], sensor_id).torch()
                 image += image_pass / npass
@@ -106,11 +100,11 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
                 drjit.backward(tmp)
 
                 for param_grad, drjit_param in zip(param_grads, drjit_params):
-                    grad = drjit.grad(drjit_param).torch().to(device).to(ftype)
+                    grad = to_torch_f(drjit.grad(drjit_param).torch())
                     grad = torch.nan_to_num(grad).reshape(param_grad.shape)
                     param_grad += grad
 
-        return param_grads
+        return param_grads       
 
 @PSDRJITConnector.register(Integrator)
 def process_integrator(name, scene):
