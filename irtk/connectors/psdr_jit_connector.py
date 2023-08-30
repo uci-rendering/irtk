@@ -7,7 +7,7 @@ import drjit
 import psdr_jit
 from drjit.scalar import Array3f
 from drjit.cuda import Array3f as Vector3fC, Array3i as Vector3iC
-from drjit.cuda.ad import Array3f as Vector3fD, Float32 as FloatD, Matrix4f as Matrix4fD, Matrix3f as Matrix3fD
+from drjit.cuda.ad import Array3f as Vector3fD, Array1f as Vector1fD, Float32 as FloatD, Matrix4f as Matrix4fD, Matrix3f as Matrix3fD
 from drjit.cuda.ad import Float32 as FloatD
 import torch
 
@@ -448,4 +448,64 @@ def process_environment_light(name, scene):
             if param_name == 'radiance':
                 enable_grad(psdr_emitter.radiance.data)
                 
+    return drjit_params
+
+
+# Scene components specfic to psdr-jit
+class MicrofacetBRDFPerVertex(ParamGroup):
+
+    def __init__(self, d, s, r):
+        super().__init__()
+        
+        self.add_param('d', to_torch_f(d), is_tensor=True, is_diff=True, help_msg='diffuse reflectance')
+        self.add_param('s', to_torch_f(s), is_tensor=True, is_diff=True, help_msg='specular reflectance')
+        self.add_param('r', to_torch_f(r), is_tensor=True, is_diff=True, help_msg='roughness')
+
+@PSDRJITConnector.register(MicrofacetBRDFPerVertex)
+def process_microfacet_brdf_per_vertex(name, scene):
+    brdf = scene[name]
+    cache = scene.cached['psdr_jit']
+    psdr_scene = cache['scene']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        d = Vector3fD(brdf['d'])
+        s = Vector3fD(brdf['s'])
+        r = Vector1fD(brdf['r'])
+
+        psdr_bsdf = psdr_jit.MicrofacetBSDFPerVertex(s, d, r)
+        psdr_scene.add_BSDF(psdr_bsdf, name)
+        cache['name_map'][name] = f"BSDF[id={name}]"
+
+    psdr_brdf = psdr_scene.param_map[cache['name_map'][name]]
+
+    # Update parameters
+    updated = brdf.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == 'd':
+                psdr_brdf.diffuseReflectance = Vector3fD(brdf['d'])
+            elif param_name == 's':
+                psdr_brdf.specularReflectance = Vector3fD(brdf['s'])
+            elif param_name == 'r':
+                psdr_brdf.roughness= Vector1fD(brdf['r'])
+            brdf.params[param_name]['updated'] = False
+
+    # Enable grad for parameters requiring grad
+    drjit_params = []
+    
+    def enable_grad(drjit_param):
+        drjit.enable_grad(drjit_param)
+        drjit_params.append(drjit_param)
+
+    requiring_grad = brdf.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            if param_name == 'd':
+                enable_grad(psdr_brdf.diffuseReflectance)
+            elif param_name == 's':
+                enable_grad(psdr_brdf.specularReflectance)
+            elif param_name == 'r':
+                enable_grad(psdr_brdf.roughness)
+
     return drjit_params
