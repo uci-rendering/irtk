@@ -8,6 +8,7 @@ import nvdiffrast.torch as dr
 import torch
 import numpy as np
 import math
+import time
 
 class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
 
@@ -18,6 +19,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
 
     def __init__(self):
         super().__init__()
+        self.render_time = 0
 
     def update_scene_objects(self, scene, render_options):
         if 'nvdiffrast' in scene.cached:
@@ -105,8 +107,10 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                 }
                 nv_mesh =  NvMesh(vtx_pos, pos_idx.long(), vts_normals, pos_idx.long(), vtx_uv, uv_idx.long(), v_weights=None, bone_mtx=None, material=material)
                 nv_mesh_tng = compute_tangents(nv_mesh)
+                t = time.time()
                 image_pass = render_mesh(self.glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, render_options['light_power'], cache['film'][1], 
                     num_layers=1, spp=1, background=None, min_roughness=0.08)
+                self.render_time += time.time() - t
 
                 image_pass.squeeze_(0)
                 if image:
@@ -180,6 +184,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                     }
                     nv_mesh =  NvMesh(vtx_pos, pos_idx.long(), vts_normals, pos_idx.long(), vtx_uv, uv_idx.long(), v_weights=None, bone_mtx=None, material=material)
                     nv_mesh_tng = compute_tangents(nv_mesh)
+                    t = time.time()
                     image_pass = render_mesh(glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, render_options['light_power'], cache['film'][1], 
                         num_layers=1, spp=1, background=None, min_roughness=0.08)
 
@@ -187,6 +192,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                     image_grad = image_grads[img_index] / npass
                     tmp = (image_grad[..., :3] * image_pass).sum(dim=2)
                     nv_grads = torch.autograd.grad(tmp, nv_params, torch.ones_like(tmp), retain_graph=True)
+                    self.render_time += time.time() - t
                     for param_grad, nv_grad in zip(param_grads, nv_grads):
                         param_grad += nv_grad
 

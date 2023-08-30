@@ -23,6 +23,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
 
     def __init__(self):
         super().__init__()
+        self.render_time = 0
 
     def update_scene_objects(self, scene, render_options):
         if 'mitsuba' in scene.cached:
@@ -70,28 +71,35 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         if len(cache['envlights']) >= 1:
             for envlight_name, envlight_value in cache['envlights'].items():
                 mi_scene[envlight_name] = envlight_value
-        elif len(cache['cameras']) >= 1:
-            # Add point light
+        # Point Light
+        if 'point_light_intensity' in render_options:
             mi_scene['emitter'] = {
                 'type': 'point',
-                # 'to_world': list(cache['cameras'].items())[0][1]['to_world'],
-                'to_world': list(cache['cameras'].values())[0]['to_world'],
+                'position': list(cache['cameras'].values())[0]['to_world'].translation(),
                 'intensity': {
-                    'type': 'spectrum',
-                    'value': 20.0
+                    'type': 'rgb',
+                    'value': render_options['point_light_intensity']
                 }
             }
         # print(mi_scene)
         loaded_mi_scene = mi.load_dict(mi_scene)
         # print(loaded_mi_scene)
+        params = mi.traverse(loaded_mi_scene)
    
         images = []
         npass = render_options['npass']
         h, w, c = (cache['film']['height'], cache['film']['width'], 3)
         for sensor_id in sensor_ids:
+            # change light pos according to sensor
+            if 'point_light_intensity' in render_options:
+                params['emitter.position'] = list(cache['cameras'].values())[sensor_id]['to_world'].translation()
+                params.update()
+            
             image = torch.zeros((h, w, c)).to(device).to(ftype)
             for i in range(npass):
+                t = time.time()
                 image_pass = mi.render(loaded_mi_scene, sensor=mi_sensors[sensor_id], spp=render_options['spp']).torch()
+                self.render_time += time.time() - t
                 image += image_pass / npass
             images.append(image)
 
@@ -119,15 +127,14 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             if len(cache['envlights']) >= 1:
                 for envlight_name, envlight_value in cache['envlights'].items():
                     mi_scene[envlight_name] = envlight_value
-            elif len(cache['cameras']) >= 1:
-                # Add point light
+            # Point Light
+            if 'point_light_intensity' in render_options:
                 mi_scene['emitter'] = {
                     'type': 'point',
-                    # 'to_world': list(cache['cameras'].items())[0][1]['to_world'],
-                    'to_world': list(cache['cameras'].values())[0]['to_world'],
+                    'position': list(cache['cameras'].values())[0]['to_world'].translation(),
                     'intensity': {
-                        'type': 'spectrum',
-                        'value': 20.0
+                        'type': 'rgb',
+                        'value': render_options['point_light_intensity']
                     }
                 }
             # print(mi_scene)
@@ -138,8 +145,15 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
 
             for i, sensor_id in enumerate(sensor_ids):
+                # change light pos according to sensor
+                if 'point_light_intensity' in render_options:
+                    params['emitter.position'] = list(cache['cameras'].values())[sensor_id]['to_world'].translation()
+                    params.update()
+                
                 image_grad = mi.TensorXf(image_grads[i] / npass)
                 for j in range(npass):
+                    t = time.time()
+                    
                     image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'])
                     tmp = image_grad * image_pass
                     drjit.backward(tmp)
@@ -155,6 +169,8 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                             grad = drjit.grad(mitsuba_param).torch().to(device).to(ftype)
                             grad = torch.nan_to_num(grad).reshape(param_grad.shape)
                             param_grad += grad
+                    
+                    self.render_time += time.time() - t
 
             return param_grads
 

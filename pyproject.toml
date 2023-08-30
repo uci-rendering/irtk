@@ -15,7 +15,7 @@ dependencies = [
     'gin-config',
     'gpytoolbox',
     'trimesh',
-    'chamferdist=1.0.0',
+    'chamferdist==1.0.0',
 ]
 
 [project.urls]

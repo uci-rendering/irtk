@@ -45,6 +45,18 @@ elif renderer == 'pytorch3d':
     render = Renderer(renderer, render_options={
         'npass': 1
     })
+    
+elif renderer == 'redner':
+    scene.set('integrator', Integrator(type='path', config={
+        'max_depth': 1,
+        'hide_emitters': False
+    }))
+
+    render = Renderer('redner', render_options={
+        'spp': 64,
+        'npass': 1,
+        'light_intensity': [27.0, 27.0, 27.0]
+    })
 
 if not os.path.exists('output/3_cam_pos_optimization'):
     os.makedirs('output/3_cam_pos_optimization')
@@ -62,10 +74,11 @@ image_init = render(scene)[0]
 write_image(file_prefix + '_init.png', image_init)
 
 # for different imageio versions
-if renderer == 'psdr_jit':
-    writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=30, loop=0)
-elif renderer == 'pytorch3d':
-    writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=0.03)
+# if renderer == 'psdr_jit':
+#     writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=30, loop=0)
+# elif renderer == 'pytorch3d':
+#     writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=0.03)
+writer = imageio.get_writer(file_prefix + '_opt.gif', mode='I', duration=30, loop=0)
 
 # optimization
 num_iter = 100

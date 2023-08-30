@@ -6,10 +6,11 @@ from collections import OrderedDict
 
 import pyredner
 import torch
+import time
 
 # FIXME: Redner depends on OptiX Prime which fails with RTX 30 series.
 pyredner.set_use_gpu(False)
-# pyredner.set_print_timing(False)
+pyredner.set_print_timing(False)
 
 class RednerConnector(Connector, connector_name='redner'):
 
@@ -20,6 +21,7 @@ class RednerConnector(Connector, connector_name='redner'):
 
     def __init__(self):
         super().__init__()
+        self.render_time = 0
 
     def update_scene_objects(self, scene, render_options):
         if 'redner' in scene.cached:
@@ -52,7 +54,10 @@ class RednerConnector(Connector, connector_name='redner'):
         images = []
         for sensor_id in sensor_ids:
             # Sensors
-            camera = pyredner.automatic_camera_placement(objects, resolution=(cache['film']['height'], cache['film']['width']))
+            # camera = pyredner.automatic_camera_placement(objects, resolution=(cache['film']['height'], cache['film']['width']))
+            camera = pyredner.Camera(fov=to_torch_f([cache['cameras'][sensor_id]['fov']]).cpu(), 
+                                     cam_to_world=cache['cameras'][sensor_id]['cam_to_world'].clone(),
+                                     resolution=(cache['film']['height'], cache['film']['width']))
             if len(cache['cameras']) >= 1:
                 camera.fov = to_torch_f([cache['cameras'][sensor_id]['fov']]).cpu()
                 camera.cam_to_world = cache['cameras'][sensor_id]['cam_to_world'].clone()
@@ -61,11 +66,11 @@ class RednerConnector(Connector, connector_name='redner'):
             # Environment Lights
             if len(cache['envlights']) >= 1:
                 redner_scene = pyredner.Scene(camera = camera, objects = objects, envmap = cache['envlights'][0])
-            else:
+            if 'light_intensity' in render_options:
                 light = pyredner.generate_quad_light(position = camera.cam_to_world[:3, 3],
-                                                look_at = camera.cam_to_world[:3, 2] + camera.cam_to_world[:3, 3],
-                                                size = torch.tensor([1.0, 1.0]),
-                                                intensity = torch.tensor([20.0, 20.0, 20.0]))
+                                                    look_at = camera.cam_to_world[:3, 2] + camera.cam_to_world[:3, 3],
+                                                    size = torch.tensor([1.0, 1.0]),
+                                                    intensity = torch.tensor(render_options['light_intensity']))
                 objects.append(light)
                 redner_scene = pyredner.Scene(camera = camera, objects = objects)
 
@@ -80,12 +85,15 @@ class RednerConnector(Connector, connector_name='redner'):
         
             image = torch.zeros((h, w, c)).to(device).to(ftype).cpu()
             for i in range(npass):
+                t = time.time()
                 image_pass = render_pathtracing(redner_scene, max_bounces = max_bounces, num_samples = (render_options['spp'], 4))
+                self.render_time += time.time() - t
                 image += image_pass / npass
             images.append(image)
             
             # remove temp light
-            objects.pop()
+            if 'light_intensity' in render_options:
+                objects.pop()
 
         return images
         
@@ -99,7 +107,10 @@ class RednerConnector(Connector, connector_name='redner'):
             param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
             for sensor_index, sensor_id in enumerate(sensor_ids):
                 # Sensors
-                camera = pyredner.automatic_camera_placement(objects, resolution=(cache['film']['height'], cache['film']['width']))
+                # camera = pyredner.automatic_camera_placement(objects, resolution=(cache['film']['height'], cache['film']['width']))
+                camera = pyredner.Camera(fov=to_torch_f([cache['cameras'][sensor_id]['fov']]).cpu(), 
+                                         cam_to_world=cache['cameras'][sensor_id]['cam_to_world'].clone(),
+                                         resolution=(cache['film']['height'], cache['film']['width']))
                 if len(cache['cameras']) >= 1:
                     camera.fov = to_torch_f([cache['cameras'][sensor_id]['fov']]).cpu()
                     camera.cam_to_world = cache['cameras'][sensor_id]['cam_to_world'].clone()
@@ -108,14 +119,14 @@ class RednerConnector(Connector, connector_name='redner'):
                 # Environment Lights
                 if len(cache['envlights']) >= 1:
                     redner_scene = pyredner.Scene(camera = camera, objects = objects, envmap = cache['envlights'][0])
-                else:
+                if 'light_intensity' in render_options:
                     light = pyredner.generate_quad_light(position = camera.cam_to_world[:3, 3],
                                                     look_at = camera.cam_to_world[:3, 2] + camera.cam_to_world[:3, 3],
                                                     size = torch.tensor([1.0, 1.0]),
-                                                    intensity = torch.tensor([20.0, 20.0, 20.0]))
+                                                    intensity = torch.tensor(render_options['light_intensity']))
                     objects.append(light)
                     redner_scene = pyredner.Scene(camera = camera, objects = objects)
-
+                
                 # redner Scene
                 max_bounces = 1
                 if len(cache['integrators']) >= 1:
@@ -127,14 +138,17 @@ class RednerConnector(Connector, connector_name='redner'):
             
                 image_grad = image_grads[sensor_index] / npass
                 for i in range(npass):
+                    t = time.time()
                     image_pass = render_pathtracing(redner_scene, max_bounces = max_bounces, num_samples = (render_options['spp'], 4))
                     tmp = (image_grad[..., :3] * image_pass).sum(dim=2)
                     redner_grads = torch.autograd.grad(tmp, redner_params, torch.ones_like(tmp), retain_graph=True)
+                    self.render_time += time.time() - t
                     for param_grad, redner_grad in zip(param_grads, redner_grads):
-                        param_grad += redner_grad
+                        param_grad += to_torch_f(torch.nan_to_num(redner_grad))
                         
                 # remove temp light
-                objects.pop()
+                if 'light_intensity' in render_options:
+                    objects.pop()
 
             return param_grads
 

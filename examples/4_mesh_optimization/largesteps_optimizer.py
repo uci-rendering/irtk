@@ -5,15 +5,13 @@ from largesteps.optimize import AdamUniform
 from largesteps.parameterize import from_differential, to_differential
 
 class LargeStepsOptimizer(torch.optim.Optimizer):
-    def __init__(self, V, F, lr=0.1, betas=(0.9, 0.999), lmbda=20, device='cuda'):
-        self.device = device
-        largesteps.geometry.device = self.device
+    def __init__(self, V, F, lr=0.1, betas=(0.9, 0.999), lmbda=20):
         self.V = V
-        self.F = F.to(self.device)
+        self.F = F.cuda()
 
-        self.M = compute_matrix(self.V.detach().clone().to(self.device), self.F, lmbda)
+        self.M = compute_matrix(self.V.detach().clone().cuda(), self.F, lmbda)
         self.u = to_differential(
-            self.M, self.V.detach().clone().to(self.device)).clone().requires_grad_()
+            self.M, self.V.detach().clone().cuda()).clone().requires_grad_()
         defaults = dict(F=self.F, lr=lr, betas=betas)
 
         self.optimizer = AdamUniform([self.u], lr=lr, betas=betas)
@@ -23,7 +21,7 @@ class LargeStepsOptimizer(torch.optim.Optimizer):
         # build compute graph from u to V
         V = from_differential(self.M, self.u, 'Cholesky')
         # propagate gradients from V to u
-        V.backward(self.V.grad.to(self.device))
+        V.backward(self.V.grad.cuda())
         # step u
         self.optimizer.step()
         # update param

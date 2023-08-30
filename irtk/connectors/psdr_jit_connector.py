@@ -13,6 +13,7 @@ from drjit.cuda.ad import Float32 as FloatD
 import torch
 
 import os
+import time
 
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
@@ -23,6 +24,7 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
     def __init__(self):
         super().__init__()
+        self.render_time = 0
 
     def update_scene_objects(self, scene, render_options):
         if 'psdr_jit' in scene.cached:
@@ -75,7 +77,9 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         for sensor_id in sensor_ids:
             image = torch.zeros((h * w, c)).to(device).to(ftype)
             for i in range(npass):
+                t = time.time()
                 image_pass = integrator.renderC(cache['scene'], sensor_id).torch()
+                self.render_time += time.time() - t
                 image += image_pass / npass
             image = image.reshape(h, w, c)
             images.append(image)
@@ -101,6 +105,7 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         for i, sensor_id in enumerate(sensor_ids):
             image_grad = Vector3fC(image_grads[i].reshape(-1, 3) / npass)
             for j in range(npass):
+                t = time.time()
                 image = integrator.renderD(cache['scene'], sensor_id)
                 tmp = drjit.dot(image_grad, image)
                 drjit.backward(tmp)
@@ -109,6 +114,8 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
                     grad = drjit.grad(drjit_param).torch().to(device).to(ftype)
                     grad = torch.nan_to_num(grad).reshape(param_grad.shape)
                     param_grad += grad
+                    
+                self.render_time += time.time() - t
 
         return param_grads
 

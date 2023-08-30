@@ -8,6 +8,7 @@ from irtk.loss import l1_loss
 from irtk.sampling import sample_sphere
 from irtk.utils import Timer
 from irtk.metric import chamfer_distance
+from irtk.connector import get_connector
 from largesteps_optimizer import LargeStepsOptimizer
 
 import matplotlib.pyplot as plt
@@ -16,6 +17,7 @@ from skimage import img_as_ubyte
 import sys
 import os
 import numpy as np
+import time
 
 if len(sys.argv) >= 2:
     renderer = sys.argv[1]
@@ -31,16 +33,14 @@ mesh_target = 'pig'
 mesh_init = 'pig_smooth'
 output_folder = 'pig_smooth'
 num_ref_sensors = 50
-num_epoch = 20
+num_epoch = 30
 sensor_radius = 3
-lr = 0.0005
+lr = 0.001
 num_mesh_samples = 300000
 
 num_losses = 30
-loss_interval = int(num_epoch * num_ref_sensors / num_losses)
+loss_interval = max(int(num_epoch * num_ref_sensors / num_losses), 1)
 max_gif_duration = 5000 # ms
-device = 'cuda'
-
 
 # define scene
 scene = Scene()
@@ -69,12 +69,13 @@ if renderer == 'psdr_jit':
     })
 elif renderer == 'pytorch3d':
     render = Renderer(renderer, render_options={
-        'npass': 1
+        'npass': 1,
+        'light_diffuse_color': (1.1, 1.1, 1.1)
     })
 elif renderer == 'nvdiffrast':
         render = Renderer('nvdiffrast', render_options={
         'npass': 1,
-        'light_power': 2.0
+        'light_power': 3.0
     })
 elif renderer == 'mitsuba':
     scene.set('integrator', Integrator(type='path', config={
@@ -84,7 +85,8 @@ elif renderer == 'mitsuba':
     
     render = Renderer('mitsuba', render_options={
         'spp': 128,
-        'npass': 1
+        'npass': 1,
+        'point_light_intensity': 27
     })
 elif renderer == 'redner':
     scene.set('integrator', Integrator(type='path', config={
@@ -94,10 +96,9 @@ elif renderer == 'redner':
 
     render = Renderer('redner', render_options={
         'spp': 64,
-        'npass': 1
+        'npass': 1,
+        'light_intensity': [27.0, 27.0, 27.0]
     })
-    
-    device = 'cpu'
 
 if output_folder == '':
     if not os.path.exists(f'output/4_mesh_optimization'):
@@ -143,58 +144,70 @@ write_image(file_prefix + '_init.png', image_init)
 
 # optimization
 print('Optimizing...')
+timer_opt_start = time.time()
+render.connector.render_time = 0
+
 # optimizer = torch.optim.Adam([verts], lr=0.0005)
 # optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=0.003, lmbda=1)
-optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=lr, lmbda=1, device=device)
+optimizer = LargeStepsOptimizer(verts, scene['object']['f'], lr=lr, lmbda=1)
 
 losses = []
 images_gif = []
 duration_this_frame = 0
 iter = 0
 max_loss = 0
-with Timer('Optimization') as timer:
-    for i in range(num_epoch):
+min_loss = 1000
+min_loss_iter = 0
+for i in range(num_epoch):
 
-        ref_sensors = (np.random.permutation(num_ref_sensors) + 1).tolist()
-        # ref_sensors = (np.arange(num_ref_sensors) + 1).tolist()
+    ref_sensors = (np.random.permutation(num_ref_sensors) + 1).tolist()
+    # ref_sensors = (np.arange(num_ref_sensors) + 1).tolist()
+    
+    for j, sensor_id in enumerate(ref_sensors):
+        optimizer.zero_grad()
+        scene['object']['v'] = verts
+        scene.configure()
         
-        for sensor_id in ref_sensors:
-            optimizer.zero_grad()
-            scene['object']['v'] = verts
-            scene.configure()
-            
-            # NOTE: psdr bug - only the first sensor has grad
-            # image_opt, image_main = render(scene, sensor_ids=[sensor_id, 0])
-            image_opt = render(scene, sensor_ids=[sensor_id])[0]
-            image_main = render(scene)[0]
-            
-            loss = l1_loss(images_ref[sensor_id], image_opt)
-            loss.backward()
-            
-            # visualize
-            img_loss = l1_loss(images_ref[0], image_main).detach().cpu().item()
-            if iter % loss_interval == 0:
-                mesh_opt = {
-                    'v': scene['object']['v'].detach().cpu(),
-                    'f': scene['object']['f'].detach().cpu()
-                }
-                mesh_loss = chamfer_distance(mesh_ref, mesh_opt, num_mesh_samples)
-                losses.append(mesh_loss)
-                if mesh_loss > max_loss:
-                    max_loss = mesh_loss
-            
-            duration_per_img = max_gif_duration / (num_epoch * num_ref_sensors)
-            duration_this_frame += duration_per_img
-            if duration_this_frame >= 20:
-                image_gif = img_as_ubyte(to_srgb(image_main))
-                images_gif.append(image_gif)
-                duration_this_frame = 0
-            
-            print(f'Epoch {i+1}/{num_epoch}, cam {sensor_id}, img loss: {img_loss:.4g}')
+        # NOTE: psdr bug - only the first sensor has grad
+        # image_opt, image_main = render(scene, sensor_ids=[sensor_id, 0])
+        image_opt = render(scene, sensor_ids=[sensor_id])[0]
+        image_main = render(scene)[0]
+        
+        loss = l1_loss(images_ref[sensor_id], image_opt)
+        loss.backward()
+        
+        # visualize
+        img_loss = l1_loss(images_ref[0], image_main).detach().cpu().item()
+        if iter % loss_interval == 0:
+            mesh_opt = {
+                'v': scene['object']['v'].detach().cpu(),
+                'f': scene['object']['f'].detach().cpu()
+            }
+            mesh_loss = chamfer_distance(mesh_ref, mesh_opt, num_mesh_samples)
+            losses.append(mesh_loss)
+            if mesh_loss > max_loss:
+                max_loss = mesh_loss
+            if mesh_loss < min_loss:
+                min_loss = mesh_loss
+                min_loss_iter = i * num_ref_sensors + j
+        
+        duration_per_img = max_gif_duration / (num_epoch * num_ref_sensors)
+        duration_this_frame += duration_per_img
+        if duration_this_frame >= 20:
+            image_gif = img_as_ubyte(to_srgb(image_main))
+            images_gif.append(image_gif)
+            duration_this_frame = 0
+        
+        print(f'Epoch {i+1}/{num_epoch}, cam {sensor_id}, img loss: {img_loss:.4g}')
 
-            optimizer.step()
-            iter += 1
-        
+        optimizer.step()
+        iter += 1
+
+timer_opt_end = time.time()
+render_time = render.connector.render_time
+opt_time = timer_opt_end - timer_opt_start
+print(f"Rendering elapsed time: {render_time:.4g} seconds.")
+print(f"Optimization elapsed time: {opt_time:.4g} seconds.")
 
 # images_opt = render(scene, sensor_ids=[ i for i in range(num_ref_sensors + 1) ])
 # # write_image(file_prefix + '_ref.png', images_ref[0])
@@ -209,16 +222,30 @@ mesh_opt = {
     'f': scene['object']['f'].detach().cpu()
 }
 final_loss = chamfer_distance(mesh_ref, mesh_opt, num_mesh_samples)
-losses = losses + [final_loss]
+losses.append(final_loss)
+if final_loss > max_loss:
+    max_loss = final_loss
+if final_loss < min_loss:
+    min_loss = final_loss
+    min_loss_iter = num_epoch * num_ref_sensors
+print(f"Final loss: {final_loss:.4g}")
+print(f"Best loss: {min_loss:.4g} at iter {min_loss_iter}")
 
-plt.title(f'Final loss: {final_loss:.4g}')
+plt.title('Chamfer Distance Loss')
 plt.xlabel('iter')
 plt.ylabel('loss')
 plt.ylim(bottom=0, top=max_loss * 1.05)
-plt.plot(range(0, iter, loss_interval) + [iter], losses, label='loss')
+plt.plot(list(range(0, iter, loss_interval)) + [iter], losses, label='loss')
 plt.savefig(file_prefix + '_loss.png')
 
-# write_mesh(file_prefix + '_opt.obj', scene['object']['v'], scene['object']['f'])
+output_file = open(file_prefix + '.txt', 'w')
+output_file.write(f"Rendering elapsed time: {render_time:.4g} seconds.\n")
+output_file.write(f"Optimization elapsed time: {opt_time:.4g} seconds.\n")
+output_file.write(f"Final loss: {final_loss:.4g}\n")
+output_file.write(f"Best loss: {min_loss:.4g} at iter {min_loss_iter}\n")
+output_file.close()
+
+write_mesh(file_prefix + '_opt.obj', scene['object']['v'], scene['object']['f'])
 imageio.mimsave(file_prefix + '_opt.gif', images_gif, duration=20, loop=0)
 image_opt = render(scene)[0]
 write_image(file_prefix + '_opt.png', image_opt)
