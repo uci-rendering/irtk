@@ -323,6 +323,11 @@ def process_mesh(name, scene):
         
         verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
         verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
+        if mesh['uv'].nelement() == 0:
+            mesh['uv'] = torch.zeros((1, 2)).to(device)
+        if mesh['fuv'].nelement() == 0:
+            mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+            
         nvdiffrast_mesh = {
             'v': verts,
             'f': mesh['f'],
@@ -344,6 +349,11 @@ def process_mesh(name, scene):
             if param_name == 'v' or param_name == 'to_world':
                 verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
                 verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
+                if mesh['uv'].nelement() == 0:
+                    mesh['uv'] = torch.zeros((1, 2)).to(device)
+                if mesh['fuv'].nelement() == 0:
+                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+                    
                 if mesh['can_change_topology']:
                     nvdiffrast_mesh = {
                         'v': verts,
