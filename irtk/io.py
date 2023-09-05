@@ -21,15 +21,13 @@ def write_mesh(mesh_path, v, f, uv=None, fuv=None):
     v = to_numpy(v)
     f = to_numpy(f)
     if uv is not None: 
+        uv = to_numpy(uv)
         if uv.size == 0:
             uv = None
-        else:
-            uv = to_numpy(uv)
     if fuv is not None: 
+        fuv = to_numpy(fuv)
         if fuv.size == 0:
             fuv = None
-        else:
-            fuv = to_numpy(fuv)
     gpytoolbox.write_mesh(str(mesh_path), v, f, uv, fuv)
 
 def linear_to_srgb(l):

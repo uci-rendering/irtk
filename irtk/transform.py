@@ -32,6 +32,18 @@ def perspective(fov, aspect_ratio, near=1e-6, far=1e7):
 
     return mat
 
+def perspective_full(fx, fy, cx, cy, aspect_ratio, near=1e-6, far=1e7):
+    recip = 1 / (far - near)
+    mat = torch.diag(to_torch_f([1, 1, far * recip, 0]))
+    mat[2, 3] = -near * far * recip
+    mat[3, 2] = 1
+
+    mat = translate([1 - 2 * cx, 1 - 2 * cy, 0]) @ scale([2 * fx, 2 * fy, 1]) @ mat
+
+    mat = scale([-0.5, -0.5 * aspect_ratio, 1]) @ translate([-1, -1 / aspect_ratio, 0]) @ mat
+    mat = scale([-0.5, -0.5, 1]) @ translate([-1, -1, 0]) @ mat
+    return mat
+
 def batched_transform_pos(mat, vec):
     mat = mat.view(1, 4, 4)
     vec = vec.view(-1, 3, 1)
