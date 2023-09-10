@@ -142,9 +142,10 @@ class RednerConnector(Connector, connector_name='redner'):
                     image_pass = render_pathtracing(redner_scene, max_bounces = max_bounces, num_samples = (render_options['spp'], 4))
                     tmp = (image_grad[..., :3] * image_pass).sum(dim=2)
                     redner_grads = torch.autograd.grad(tmp, redner_params, torch.ones_like(tmp), retain_graph=True)
-                    self.render_time += time.time() - t
                     for param_grad, redner_grad in zip(param_grads, redner_grads):
                         param_grad += to_torch_f(torch.nan_to_num(redner_grad))
+                        
+                    self.render_time += time.time() - t
                         
                 # remove temp light
                 if 'light_intensity' in render_options:

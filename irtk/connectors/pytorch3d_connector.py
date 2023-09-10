@@ -61,10 +61,6 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             faces=[mesh['faces'] for mesh in cache['meshes']],
             textures=cache['texture'],
         )
-        # update verts with offset_verts()
-        # TODO: multi mesh
-        if len(cache['meshes']) == 1 and 'v_offset' in cache['meshes'][0].keys():
-            cache['mesh'].offset_verts_(cache['meshes'][0]['v_offset'])
         
         # extend mesh to all views(batches)
         if len(cache['meshes']) == 1:
@@ -165,9 +161,10 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 image = renderer(cache['mesh'])[..., :3]
                 tmp = (image_grad[..., :3] * image).sum(dim=3)
                 pytorch3d_grads = torch.autograd.grad(tmp, pytorch3d_params, torch.ones_like(tmp), retain_graph=True)
-                self.render_time += time.time() - t
                 for param_grad, pytorch3d_grad in zip(param_grads, pytorch3d_grads):
                     param_grad += pytorch3d_grad
+                    
+                self.render_time += time.time() - t
 
             return param_grads
     
@@ -362,18 +359,14 @@ def process_mesh(name, scene):
                 if mesh['fuv'].nelement() == 0:
                     mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
                     
-                if mesh['can_change_topology'] or True:
-                    pytorch3d_mesh = {
-                        'verts': verts,
-                        'faces': mesh['f'],
-                        'uv': mesh['uv'][..., :2],
-                        'fuv': mesh['fuv'].long(),
-                        'mat_id': mesh['mat_id']
-                    }
+                if mesh['can_change_topology']:
+                    pytorch3d_mesh['verts'] = verts
+                    pytorch3d_mesh['faces'] = mesh['f']
+                    pytorch3d_mesh['uv'] = mesh['uv'][..., :2]
+                    pytorch3d_mesh['fuv'] = mesh['fuv'].long()
+                    pytorch3d_mesh['mat_id'] = mesh['mat_id']
                 else:
-                    # use pytorch3d's offset_verts() instead of changing verts directly
-                    # pytorch3d_mesh['verts'] remains unchanged
-                    pytorch3d_mesh['v_offset'] = verts - pytorch3d_mesh['verts']
+                    pytorch3d_mesh['verts'] = verts
                     pytorch3d_mesh['faces'] = mesh['f']
 
             mesh.params[param_name]['updated'] = False

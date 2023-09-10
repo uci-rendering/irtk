@@ -57,14 +57,14 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
             to_world = cache['cameras'][sensor_id]['to_world'].clone()
             to_world[:3, 0]  = -to_world[:3, 0]
             to_world[:3, 2]  = -to_world[:3, 2]
-            to_world[:3, 3]  = -to_world[:3, 3]
+            to_world[:3, 3]  = -to_world[:3, 3] * render_options['scale']
             to_world[:3, :3] = torch.transpose(to_world[:3, :3], 0, 1)
             to_world[:3, 3]  = torch.matmul(to_world[:3, :3], to_world[:3, 3])
             a_mv = to_world
             # a_mv = lookAt(np.array([0, 0, -2.7]), np.array([0, 0, 0]), np.array([0, 1, 0]))
             # a_mv = lookAt(np.array([-1.5, 1.5, 1.5]), np.array([0, 0, 0]), np.array([0, 1, 0]))
             # print(a_mv)
-            # proj_mtx = projection(math.tan(cache['cameras'][0]['fov']/2.0*math.pi/180), cache['cameras'][0]['near'], cache['cameras'][0]['far'])
+            # proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180), cache['cameras'][sensor_id]['near'], cache['cameras'][sensor_id]['far'])
             proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180))
             a_mvp = torch.matmul(proj_mtx.to(device), a_mv.to(device))
             a_lightpos = torch.inverse(a_mv)[None, :3, 3]
@@ -72,7 +72,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
 
             name    = cache['meshes'][0]['mat_id']
             pos_idx = cache['meshes'][0]['f'].int()
-            vtx_pos = cache['meshes'][0]['v'].float()
+            vtx_pos = cache['meshes'][0]['v'].float() * render_options['scale']
             uv_idx  = cache['meshes'][0]['fuv'].int()
             vtx_uv  = cache['meshes'][0]['uv'].float()
             # Compute vertex normals
@@ -135,14 +135,14 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                 to_world = cache['cameras'][sensor_id]['to_world'].clone()
                 to_world[:3, 0]  = -to_world[:3, 0]
                 to_world[:3, 2]  = -to_world[:3, 2]
-                to_world[:3, 3]  = -to_world[:3, 3]
+                to_world[:3, 3]  = -to_world[:3, 3] * render_options['scale']
                 to_world[:3, :3] = torch.transpose(to_world[:3, :3], 0, 1)
                 to_world[:3, 3]  = torch.matmul(to_world[:3, :3], to_world[:3, 3])
                 a_mv = to_world
                 # a_mv = lookAt(np.array([0, 0, -2.7]), np.array([0, 0, 0]), np.array([0, 1, 0]))
                 # a_mv = lookAt(np.array([-1.5, 1.5, 1.5]), np.array([0, 0, 0]), np.array([0, 1, 0]))
                 # print(a_mv)
-                # proj_mtx = projection(math.tan(cache['cameras'][0]['fov']/2.0*math.pi/180), cache['cameras'][0]['near'], cache['cameras'][0]['far'])
+                # proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180), cache['cameras'][sensor_id]['near'], cache['cameras'][sensor_id]['far'])
                 proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180))
                 a_mvp = torch.matmul(proj_mtx.to(device), a_mv.to(device))
                 a_lightpos = torch.inverse(a_mv)[None, :3, 3]
@@ -150,7 +150,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
 
                 name    = cache['meshes'][0]['mat_id']
                 pos_idx = cache['meshes'][0]['f'].int()
-                vtx_pos = cache['meshes'][0]['v'].float()
+                vtx_pos = cache['meshes'][0]['v'].float() * render_options['scale']
                 uv_idx  = cache['meshes'][0]['fuv'].int()
                 vtx_uv  = cache['meshes'][0]['uv'].float()
                 # Compute vertex normals
@@ -192,9 +192,10 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                     image_grad = image_grads[img_index] / npass
                     tmp = (image_grad[..., :3] * image_pass).sum(dim=2)
                     nv_grads = torch.autograd.grad(tmp, nv_params, torch.ones_like(tmp), retain_graph=True)
-                    self.render_time += time.time() - t
                     for param_grad, nv_grad in zip(param_grads, nv_grads):
-                        param_grad += nv_grad
+                        param_grad += nv_grad / render_options['scale']
+                        
+                    self.render_time += time.time() - t
 
             return param_grads
 
@@ -355,14 +356,12 @@ def process_mesh(name, scene):
                     mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
                     
                 if mesh['can_change_topology']:
-                    nvdiffrast_mesh = {
-                        'v': verts,
-                        'f': mesh['f'],
-                        'uv': mesh['uv'],
-                        'fuv': mesh['fuv'],
-                        'mat_id': mesh['mat_id'],
-                        'use_face_normal': mesh['use_face_normal']
-                    }
+                    nvdiffrast_mesh['v'] = verts
+                    nvdiffrast_mesh['f'] = mesh['f']
+                    nvdiffrast_mesh['uv'] = mesh['uv']
+                    nvdiffrast_mesh['fuv'] = mesh['fuv']
+                    nvdiffrast_mesh['mat_id'] = mesh['mat_id']
+                    nvdiffrast_mesh['use_face_normal'] = mesh['use_face_normal']
                 else:
                     nvdiffrast_mesh['v'] = verts
                     nvdiffrast_mesh['f'] = mesh['f']
@@ -535,7 +534,7 @@ def process_environment_light(name, scene):
 
 #----------------------------------------------------------------------------
 # Helpers.
-def projection(x=0.1, n=1.0, f=50.0):
+def projection(x=0.1, n=1.0, f=1000.0):
     return torch.Tensor([[n/x,    0,            0,              0], 
                         [  0, n/-x,            0,              0], 
                         [  0,    0, -(f+n)/(f-n), -(2*f*n)/(f-n)], 

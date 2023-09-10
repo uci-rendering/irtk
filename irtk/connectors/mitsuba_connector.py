@@ -265,9 +265,13 @@ def process_mesh(name, scene):
         if mesh['uv'].nelement() == 0:
             mesh['uv'] = torch.zeros((1, 2)).to(device)
         if mesh['fuv'].nelement() == 0:
+            verts_new = verts
+            faces_new = mesh['f'].long()
+            uvs_new = torch.zeros(verts.shape[0], 2).to(device)
+        else:
             mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
-            
-        verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
+            verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
+
         # Set bsdf properties
         props = mi.Properties()
         props['bsdf'] = mi.load_dict(cache['textures'][mat_id])
@@ -300,8 +304,11 @@ def process_mesh(name, scene):
                 if mesh['uv'].nelement() == 0:
                     mesh['uv'] = torch.zeros((1, 2)).to(device)
                 if mesh['fuv'].nelement() == 0:
-                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
-                verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
+                    verts_new = verts
+                    faces_new = mesh['f'].long()
+                    uvs_new = torch.zeros(verts.shape[0], 2).to(device)
+                else:
+                    verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
                 params = mi.traverse(mi_mesh)
                 params['vertex_count'] = len(verts_new)
                 params['face_count'] = len(faces_new)
@@ -322,21 +329,28 @@ def process_mesh(name, scene):
     if len(requiring_grad) > 0:
         for param_name in requiring_grad:
             if param_name == 'v':
-                # frontend
-                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
-                verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
-                verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
+                if mesh['fuv'].nelement() == 0:
+                    params = mi.traverse(mi_mesh)
+                    drjit.enable_grad(params['vertex_positions'])
+                    mitsuba_params.append(params['vertex_positions'])
+                    params.update()
                 
-                # backend
-                params = mi.traverse(mi_mesh)
-                drjit.enable_grad(params['vertex_positions'])
-                
-                mitsuba_params.append({
-                    'param': f'{name}.{param_name}',
-                    'frontend': verts_new,
-                    'backend': params['vertex_positions']
-                })
-                params.update()
+                else:
+                    # frontend
+                    verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+                    verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
+                    verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
+                    
+                    # backend
+                    params = mi.traverse(mi_mesh)
+                    drjit.enable_grad(params['vertex_positions'])
+                    
+                    mitsuba_params.append({
+                        'param': f'{name}.{param_name}',
+                        'frontend': verts_new,
+                        'backend': params['vertex_positions']
+                    })
+                    params.update()
 
     return mitsuba_params
 
