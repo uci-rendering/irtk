@@ -277,6 +277,8 @@ def process_mesh(name, scene):
             os.remove('__psdr_jit_tmp__.obj')
         
         cache['name_map'][name] = f"Mesh[{psdr_scene.num_meshes - 1}]"
+        if psdr_emitter:
+            cache['name_map'][name + ' emitter'] = f"Emitter[{psdr_scene.get_num_emitters() - 1}]"
 
     psdr_mesh = psdr_scene.param_map[cache['name_map'][name]]
 
@@ -290,6 +292,11 @@ def process_mesh(name, scene):
                 else:
                     psdr_mesh.vertex_positions = Vector3fC(mesh['v'])
                     psdr_mesh.face_indices = Vector3iC(mesh['f'])
+            elif param_name == 'to_world':
+                psdr_mesh.set_transform(Matrix4fD(mesh['to_world'].reshape(1, 4, 4)))
+            elif param_name == 'radiance':
+                psdr_emitter = psdr_scene.param_map[cache['name_map'][name + ' emitter']]
+                psdr_emitter.radiance = mesh['radiance'].tolist()
 
             mesh.params[param_name]['updated'] = False
 
