@@ -1,6 +1,6 @@
 """Inverse-Rendering Toolkit"""
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 from .connector import is_connector_available, get_connector_list, get_connector
 
