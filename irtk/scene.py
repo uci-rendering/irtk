@@ -1,5 +1,5 @@
 from .parameter import ParamGroup
-from .transform import lookat, perspective, batched_transform_pos, batched_transform_dir
+from .transform import lookat, perspective, perspective_full, batched_transform_pos, batched_transform_dir
 from .io import read_image, read_mesh, to_torch_f, to_torch_i
 
 from collections import OrderedDict
@@ -118,6 +118,15 @@ class PerspectiveCameraFull(ParamGroup):
         self.add_param('near', near, help_msg='sensor near clip')
         self.add_param('far', far, help_msg='sensor far clip')
         self.add_param('to_world', to_torch_f(to_world), is_tensor=True, is_diff=True, help_msg='sensor to_world matrix')
+
+    def get_rays(self, samples, aspect_ratio):
+        samples = torch.cat([samples, torch.zeros_like(samples)[:, 0:1]], dim=1)
+        sample_to_camera = torch.inverse(perspective_full(
+            self['fx'], self['fy'], self['cx'], self['cy'], aspect_ratio, self['near'], self['far']))
+        rays_o = batched_transform_pos(self['to_world'], to_torch_f([[0, 0, 0]]))
+        rays_d = F.normalize(batched_transform_pos(sample_to_camera, samples), dim=1)
+        rays_d = batched_transform_dir(self['to_world'], rays_d)
+        return rays_o.repeat(samples.shape[0], 1), rays_d
 
     @classmethod
     def from_lookat(cls, fx, fy, cx, cy, origin, target, up, near=1e-6, far=1e7):
