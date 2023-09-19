@@ -273,7 +273,8 @@ def process_mesh(name, scene):
         else:
             write_mesh('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
             psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
-            psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', mesh['to_world'].reshape(1, 4, 4), mat_id, psdr_emitter)
+            psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', torch.eye(4).tolist(), mat_id, psdr_emitter)
+            psdr_scene.param_map[f"Mesh[{psdr_scene.num_meshes - 1}]"].set_transform(mesh['to_world'].reshape(1, 4, 4))
             os.remove('__psdr_jit_tmp__.obj')
         
         cache['name_map'][name] = f"Mesh[{psdr_scene.num_meshes - 1}]"
