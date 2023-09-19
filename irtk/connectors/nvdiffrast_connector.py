@@ -31,6 +31,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
             cache['meshes'] = []
             cache['textures'] = dict()
             cache['cameras'] = []
+            cache['point_light'] = None
             cache['film'] = None
 
             cache['name_map'] = {}
@@ -67,7 +68,12 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
             # proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180), cache['cameras'][sensor_id]['near'], cache['cameras'][sensor_id]['far'])
             proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180))
             a_mvp = torch.matmul(proj_mtx.to(device), a_mv.to(device))
-            a_lightpos = torch.inverse(a_mv)[None, :3, 3]
+            if cache['point_light']:
+                a_lightpos = cache['point_light']['position']
+                a_light_power = cache['point_light']['radiance']
+            else:
+                a_lightpos = torch.inverse(a_mv)[None, :3, 3]
+                a_light_power = render_options['light_power']
             a_campos = torch.inverse(a_mv)[None, :3, 3]
 
             name    = cache['meshes'][0]['mat_id']
@@ -108,7 +114,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                 nv_mesh =  NvMesh(vtx_pos, pos_idx.long(), vts_normals, pos_idx.long(), vtx_uv, uv_idx.long(), v_weights=None, bone_mtx=None, material=material)
                 nv_mesh_tng = compute_tangents(nv_mesh)
                 t = time.time()
-                image_pass = render_mesh(self.glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, render_options['light_power'], cache['film'][1], 
+                image_pass = render_mesh(self.glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, a_light_power, cache['film'][1], 
                     num_layers=1, spp=1, background=None, min_roughness=0.08)
                 self.render_time += time.time() - t
 
@@ -145,7 +151,12 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                 # proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180), cache['cameras'][sensor_id]['near'], cache['cameras'][sensor_id]['far'])
                 proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180))
                 a_mvp = torch.matmul(proj_mtx.to(device), a_mv.to(device))
-                a_lightpos = torch.inverse(a_mv)[None, :3, 3]
+                if cache['point_light']:
+                    a_lightpos = cache['point_light']['position']
+                    a_light_power = cache['point_light']['radiance']
+                else:
+                    a_lightpos = torch.inverse(a_mv)[None, :3, 3]
+                    a_light_power = render_options['light_power']
                 a_campos = torch.inverse(a_mv)[None, :3, 3]
 
                 name    = cache['meshes'][0]['mat_id']
@@ -185,7 +196,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                     nv_mesh =  NvMesh(vtx_pos, pos_idx.long(), vts_normals, pos_idx.long(), vtx_uv, uv_idx.long(), v_weights=None, bone_mtx=None, material=material)
                     nv_mesh_tng = compute_tangents(nv_mesh)
                     t = time.time()
-                    image_pass = render_mesh(glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, render_options['light_power'], cache['film'][1], 
+                    image_pass = render_mesh(glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, a_light_power, cache['film'][1], 
                         num_layers=1, spp=1, background=None, min_roughness=0.08)
 
                     image_pass.squeeze_(0)
@@ -531,6 +542,42 @@ def process_environment_light(name, scene):
                 
     return drjit_params
 """
+
+@NvdiffrastConnector.register(PointLight)
+def process_point_light(name, scene):
+    light = scene[name]
+    cache = scene.cached['nvdiffrast']
+
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        nvdiffrast_point_light = {
+            'radiance': light['radiance'],
+            'position': light['position']
+        }
+        
+        cache['point_light'] = nvdiffrast_point_light
+        cache['name_map'][name] = nvdiffrast_point_light
+
+    nvdiffrast_point_light = cache['name_map'][name]
+    
+    # Update parameters
+    updated = light.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == "position":
+                nvdiffrast_point_light['position'] = light['position']
+            light.params[param_name]['updated'] = False
+
+    # Enable grad for parameters requiring grad
+    nvdiffrast_params = []
+    requiring_grad = light.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            if param_name == "position":
+                nvdiffrast_point_light['position'].requires_grad_()
+                nvdiffrast_params.append(nvdiffrast_point_light['position'])
+                
+    return nvdiffrast_params
 
 #----------------------------------------------------------------------------
 # Helpers.

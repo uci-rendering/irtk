@@ -238,6 +238,12 @@ def process_mesh(name, scene):
         verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
         verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
         verts = verts.contiguous()
+        
+        if mesh['uv'].nelement() == 0:
+            mesh['uv'] = torch.zeros((1, 2)).to(device)
+        if mesh['fuv'].nelement() == 0:
+            mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+        
         material = cache['textures'][mat_id]
         vts_normals = compute_vertex_normals(verts, mesh['f'].long())
         redner_mesh = pyredner.Object(vertices = verts.cpu(),
@@ -261,6 +267,10 @@ def process_mesh(name, scene):
                 verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
                 verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
                 verts = verts.contiguous()
+                if mesh['uv'].nelement() == 0:
+                    mesh['uv'] = torch.zeros((1, 2)).to(device)
+                if mesh['fuv'].nelement() == 0:
+                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
                 vts_normals = compute_vertex_normals(verts, mesh['f'].long())
                 redner_mesh.vertices = verts.cpu()
                 redner_mesh.normals = vts_normals.cpu()

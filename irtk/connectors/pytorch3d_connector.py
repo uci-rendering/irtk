@@ -30,6 +30,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             cache['textures'] = dict()
             cache['materials'] = dict()
             cache['cameras'] = []
+            cache['point_light'] = None
             cache['film'] = None
 
             cache['name_map'] = {}
@@ -79,15 +80,22 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         )
         # change light here
         # lights = pr.AmbientLights(ambient_color=((1, 1, 1), ), device=device)
-        diffuse_color = (1, 1, 1)
-        if 'light_diffuse_color' in render_options:
-            diffuse_color = render_options['light_diffuse_color']
-        lights = pr.PointLights(
-            location=cache['camera'].get_camera_center(), 
-            # location=((-1.5, 1.5, 1.5), ),
-            diffuse_color=(diffuse_color, ),
-            device=device
-        )
+        if cache['point_light']:
+            lights = pr.PointLights(
+                location=[list(cache['point_light']['position']) for i in range(len(selected_cameras))], 
+                diffuse_color=(tuple(cache['point_light']['radiance']), ),
+                device=device
+            )
+        else: 
+            diffuse_color = (1, 1, 1)
+            if 'light_diffuse_color' in render_options:
+                diffuse_color = render_options['light_diffuse_color']
+            lights = pr.PointLights(
+                location=cache['camera'].get_camera_center(), 
+                # location=((-1.5, 1.5, 1.5), ),
+                diffuse_color=(diffuse_color, ),
+                device=device
+            )
         cache['light'] = lights
         # cache['mesh'] = join_meshes_as_batch(cache['meshes'])
         return scene.cached['pytorch3d'], pytorch3d_params
@@ -540,3 +548,39 @@ def process_environment_light(name, scene):
                 
     return drjit_params
 """
+
+@PyTorch3DConnector.register(PointLight)
+def process_point_light(name, scene):
+    light = scene[name]
+    cache = scene.cached['pytorch3d']
+
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        pytorch_point_light = {
+            'radiance': light['radiance'],
+            'position': light['position']
+        }
+        
+        cache['point_light'] = pytorch_point_light
+        cache['name_map'][name] = pytorch_point_light
+
+    pytorch_point_light = cache['name_map'][name]
+    
+    # Update parameters
+    updated = light.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == "position":
+                pytorch_point_light['position'] = light['position']
+            light.params[param_name]['updated'] = False
+
+    # Enable grad for parameters requiring grad
+    torch_params = []
+    requiring_grad = light.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            if param_name == "position":
+                pytorch_point_light['position'].requires_grad_()
+                torch_params.append(pytorch_point_light['position'])
+                
+    return torch_params

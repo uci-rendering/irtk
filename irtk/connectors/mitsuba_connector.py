@@ -40,6 +40,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             cache['cameras'] = OrderedDict()
             cache['integrators'] = OrderedDict()
             cache['envlights'] = {}
+            cache['point_light'] = None
             cache['film'] = None
             cache['name_map'] = {}
         
@@ -72,6 +73,8 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             for envlight_name, envlight_value in cache['envlights'].items():
                 mi_scene[envlight_name] = envlight_value
         # Point Light
+        if cache['point_light']:
+            mi_scene['emitter'] = cache['point_light']
         if 'point_light_intensity' in render_options:
             mi_scene['emitter'] = {
                 'type': 'point',
@@ -128,6 +131,8 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                 for envlight_name, envlight_value in cache['envlights'].items():
                     mi_scene[envlight_name] = envlight_value
             # Point Light
+            if cache['point_light']:
+                mi_scene['emitter'] = cache['point_light']
             if 'point_light_intensity' in render_options:
                 mi_scene['emitter'] = {
                     'type': 'point',
@@ -560,6 +565,46 @@ def process_environment_light(name, scene):
                     mi_emitter['bitmap'].requires_grad = True
                     mitsuba_params.append(mi_emitter['bitmap'])
 
+    return mitsuba_params
+
+@MitsubaConnector.register(PointLight)
+def process_point_light(name, scene):
+    light = scene[name]
+    cache = scene.cached['mitsuba']
+
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        mi_point_light = {
+            'type': 'point',
+            'position': mi.ScalarVector3f(light['position'].cpu().numpy()),
+            'intensity': {
+                'type': 'rgb',
+                'value': light['radiance'].item()
+            }
+        }
+        
+        cache['point_light'] = mi_point_light
+        cache['name_map'][name] = mi_point_light
+
+    mi_point_light = cache['name_map'][name]
+    
+    # Update parameters
+    updated = light.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == "position":
+                mi_point_light['position'] = mi.ScalarVector3f(light['position'].cpu().numpy())
+            light.params[param_name]['updated'] = False
+
+    # Enable grad for parameters requiring grad
+    mitsuba_params = []
+    requiring_grad = light.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            if param_name == "position":
+                drjit.enable_grad(mi_point_light['position'])
+                mitsuba_params.append(mi_point_light['position'])
+                
     return mitsuba_params
 
 #----------------------------------------------------------------------------

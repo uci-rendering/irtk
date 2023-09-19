@@ -194,3 +194,10 @@ class EnvironmentLight(ParamGroup):
         radiance_texture = read_image(radiance_filename, radiance_is_srgb)
 
         return cls(radiance_texture, to_world)
+    
+class PointLight(ParamGroup):
+    def __init__(self, radiance, position):
+        super().__init__()
+        
+        self.add_param('radiance', to_torch_f(radiance), is_tensor=True, is_diff=False, help_msg='point light radiance')
+        self.add_param('position', to_torch_f(position), is_tensor=True, is_diff=True, help_msg='point light position')

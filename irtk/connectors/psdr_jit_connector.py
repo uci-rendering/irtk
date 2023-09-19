@@ -425,3 +425,7 @@ def process_environment_light(name, scene):
                 enable_grad(psdr_emitter.radiance.data)
                 
     return drjit_params
+
+@PSDRJITConnector.register(PointLight)
+def process_point_light(name, scene):
+    pass
