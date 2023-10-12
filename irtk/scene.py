@@ -64,7 +64,7 @@ class Scene:
 
 class Integrator(ParamGroup):
 
-    def __init__(self, type, config):
+    def __init__(self, type, config={}):
         super().__init__()
         
         self.add_param('type', type, help_msg='integrator type')
