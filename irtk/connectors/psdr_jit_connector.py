@@ -12,7 +12,7 @@ from drjit.cuda.ad import Float32 as FloatD
 import torch
 
 import os
-
+from ..utils import Timer
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
     def __init__(self):
@@ -234,6 +234,15 @@ def process_perspective_camera_full(name, scene):
         for param_name in updated:
             if param_name == "to_world":
                 psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
+            elif param_name == "fx":
+                psdr_sensor.fx = sensor['fx']
+            elif param_name == "fy":
+                psdr_sensor.fy = sensor['fy']
+            elif param_name == "cx":
+                psdr_sensor.cx = sensor['cx']
+            elif param_name == "cy":
+                psdr_sensor.cy = sensor['cy']
+            
             sensor.params[param_name]['updated'] = False
 
     # Enable grad for parameters requiring grad
@@ -271,6 +280,7 @@ def process_mesh(name, scene):
 
             psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
             psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
+            psdr_scene.param_map[f"Mesh[{psdr_scene.num_meshes - 1}]"].set_transform(mesh['to_world'].reshape(1, 4, 4))
         else:
             write_mesh('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
             psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
