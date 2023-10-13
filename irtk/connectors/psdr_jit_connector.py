@@ -135,7 +135,8 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
             image += to_torch_f(drjit_image.torch()) / npass
 
             drjit.set_grad(P, 1.0)
-            drjit.forward_to(drjit_image)
+            drjit.enqueue(drjit.ADMode.Forward, P)
+            drjit.traverse(drjit.cuda.ad.Float, drjit.ADMode.Forward, drjit.ADFlag.ClearInterior)
             drjit_grad_image = drjit.grad(drjit_image)
             grad_image += to_torch_f(drjit_grad_image.torch()) / npass
 
