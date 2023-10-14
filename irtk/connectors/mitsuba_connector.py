@@ -75,7 +75,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         # Point Light
         if cache['point_light']:
             mi_scene['emitter'] = cache['point_light']
-        if 'point_light_intensity' in render_options:
+        elif 'point_light_intensity' in render_options:
             mi_scene['emitter'] = {
                 'type': 'point',
                 'position': list(cache['cameras'].values())[0]['to_world'].translation(),
@@ -84,8 +84,33 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     'value': render_options['point_light_intensity']
                 }
             }
+        elif 'plane_light_intensity' in render_options:
+            mi_scene['emitter'] = {
+                # 'type': 'obj',
+                # 'filename': 'assets/meshes/plane_light.obj',
+                'type': 'rectangle',
+                # 'to_world': mi.ScalarTransform4f([
+                #     [100, 0, 0, 0],
+                #     [0, 0, -100, 0],
+                #     [0, 100, 0, -300],
+                #     [0, 0, 0, 1]
+                # ]),
+                'to_world': mi.ScalarTransform4f([
+                    [50, 0, 0, 0],
+                    [0, 50, 0, 0],
+                    [0, 0, 50, -300],
+                    [0, 0, 0, 1]
+                ]),
+                'focused-emitter': {
+                    'type': 'area',
+                    'radiance': {
+                        'type': 'rgb',
+                        'value': render_options['plane_light_intensity']
+                    }
+                },
+            }
         # print(mi_scene)
-        loaded_mi_scene = mi.load_dict(mi_scene)
+        loaded_mi_scene = mi.load_dict(mi_scene, False)
         # print(loaded_mi_scene)
         params = mi.traverse(loaded_mi_scene)
    
@@ -114,7 +139,10 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             cache, mitsuba_params = self.update_scene_objects(scene, render_options)
 
             # Mitsuba Scene
-            mi_scene = cache['scene']
+            # mi_scene = cache['scene']
+            mi_scene = {
+                'type': 'scene',
+            }
             mi_sensors = []
             # Sensors
             for sensor_name, sensor_value in cache['cameras'].items():
@@ -133,7 +161,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             # Point Light
             if cache['point_light']:
                 mi_scene['emitter'] = cache['point_light']
-            if 'point_light_intensity' in render_options:
+            elif 'point_light_intensity' in render_options:
                 mi_scene['emitter'] = {
                     'type': 'point',
                     'position': list(cache['cameras'].values())[0]['to_world'].translation(),
@@ -142,10 +170,36 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                         'value': render_options['point_light_intensity']
                     }
                 }
+            elif 'plane_light_intensity' in render_options:
+                mi_scene['emitter'] = {
+                    # 'type': 'obj',
+                    # 'filename': 'assets/meshes/plane_light.obj',
+                    'type': 'rectangle',
+                    # 'to_world': mi.ScalarTransform4f([
+                    #     [100, 0, 0, 0],
+                    #     [0, 0, -100, 0],
+                    #     [0, 100, 0, -300],
+                    #     [0, 0, 0, 1]
+                    # ]),
+                    'to_world': mi.ScalarTransform4f([
+                        [50, 0, 0, 0],
+                        [0, 50, 0, 0],
+                        [0, 0, 50, -300],
+                        [0, 0, 0, 1]
+                    ]),
+                    'focused-emitter': {
+                        'type': 'area',
+                        'radiance': {
+                            'type': 'rgb',
+                            'value': render_options['plane_light_intensity']
+                        }
+                    },
+                }
             # print(mi_scene)
-            loaded_mi_scene = mi.load_dict(mi_scene)
+            loaded_mi_scene = mi.load_dict(mi_scene, False)
+            # print(loaded_mi_scene)
             params = mi.traverse(loaded_mi_scene)
-    
+
             npass = render_options['npass']
             param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
 
@@ -162,7 +216,6 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'])
                     tmp = image_grad * image_pass
                     drjit.backward(tmp)
-
                     for param_grad, mitsuba_param in zip(param_grads, mitsuba_params):
                         if type(mitsuba_param) == dict:
                             backend_grad = drjit.grad(mitsuba_param['backend']).torch().to(device).to(ftype)
@@ -277,9 +330,18 @@ def process_mesh(name, scene):
             mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
             verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
 
-        # Set bsdf properties
+        # Set bsdf and emitter properties
         props = mi.Properties()
         props['bsdf'] = mi.load_dict(cache['textures'][mat_id])
+        # if mesh['is_emitter']:
+        #     props['emitter'] = mi.load_dict({
+        #         'type': 'area',
+        #         'radiance': {
+        #             'type': 'rgb',
+        #             'value': 20
+        #         }
+        #     })
+            
         # Create mitsuba mesh
         mi_mesh = mi.Mesh(name, len(verts_new), len(faces_new), props=props, has_vertex_normals=True, has_vertex_texcoords=True)
         params = mi.traverse(mi_mesh)
@@ -303,7 +365,7 @@ def process_mesh(name, scene):
     updated = mesh.get_updated()
     if len(updated) > 0:
         for param_name in updated:
-            if param_name == 'v':
+            if param_name == 'v' or param_name == 'to_world':
                 verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
                 verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
                 if mesh['uv'].nelement() == 0:
@@ -334,7 +396,7 @@ def process_mesh(name, scene):
     if len(requiring_grad) > 0:
         for param_name in requiring_grad:
             if param_name == 'v':
-                if mesh['fuv'].nelement() == 0:
+                if mesh['fuv'].nelement() == 0 and torch.equal(mesh['to_world'], to_torch_f(torch.eye(4))):
                     params = mi.traverse(mi_mesh)
                     drjit.enable_grad(params['vertex_positions'])
                     mitsuba_params.append(params['vertex_positions'])
@@ -344,7 +406,11 @@ def process_mesh(name, scene):
                     # frontend
                     verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
                     verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
-                    verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
+                    
+                    if mesh['fuv'].nelement() != 0:
+                        verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
+                    else:
+                        verts_new = verts
                     
                     # backend
                     params = mi.traverse(mi_mesh)
@@ -444,9 +510,9 @@ def process_microfacet_brdf(name, scene):
         ks = brdf['s']
         if ks.dim() == 4:
             ks = ks[0]
-        if len(ks) <= 3:
+        if ks.dim() == 0:
             mi_brdf['specular_reflectance']['type'] = 'rgb'
-            mi_brdf['specular_reflectance']['value'] = ks.cpu().numpy()
+            mi_brdf['specular_reflectance']['value'] = ks.item()
         else:
             mi_brdf['specular_reflectance']['type'] = 'bitmap'
             mi_brdf['specular_reflectance']['bitmap'] = mi.Bitmap(ks.cpu().numpy())

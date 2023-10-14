@@ -87,8 +87,9 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
             bsdf = cache['textures'][name]['bsdf']
             if len(cache['textures'][name]['d']) <= 3:
                 kd = to_torch_f(cache['textures'][name]['d'])
-                if 'ks' in cache['textures'][name]:
-                    ks = cache['textures'][name]['ks']
+                if 's' in cache['textures'][name]:
+                    ks = to_torch_f([cache['textures'][name]['s'].item(), cache['textures'][name]['r'].item(), 0])
+                    ks = ks.unsqueeze(0).unsqueeze(0)
                 else:
                     ks = to_torch_f((0, 0, 0))
             else:
