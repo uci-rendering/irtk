@@ -93,15 +93,18 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
             psdr_scene.camera.height = h
             psdr_scene.configure()
             psdr_scene_ad = psdr_cpu.SceneAD(psdr_scene)
+            boundary_integrator = psdr_cpu.BoundaryIntegrator(psdr_scene)
+
             image_grad = to_numpy(image_grads[i]).reshape(-1, 1)
             integrator.renderD(psdr_scene_ad, cache['render_options'], image_grad)
+            boundary_integrator.renderD(psdr_scene_ad, cache['render_options'], image_grad)
 
             for param_grad, param in zip(param_grads, params):
                 enzyme_grad = eval(f'psdr_scene_ad.der.{param}')
                 if isinstance(enzyme_grad, psdr_cpu.Bitmap):
                     enzyme_grad = enzyme_grad.m_data
-                enzyme_grad = to_torch_f(np.array(enzyme_grad))
-                param_grad += enzyme_grad.reshape_as(param_grad)
+                grad = to_torch_f(np.array(enzyme_grad))
+                param_grad += torch.nan_to_num(grad).reshape_as(param_grad)
 
         return param_grads
 
