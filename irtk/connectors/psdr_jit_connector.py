@@ -2,6 +2,7 @@ from ..connector import Connector
 from ..scene import *
 from ..io import write_mesh
 from collections import OrderedDict
+from ..utils import Timer
 
 import drjit
 import psdr_jit
@@ -18,7 +19,6 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
     def __init__(self):
         super().__init__()
-        self.render_time = 0
 
     def update_scene_objects(self, scene, render_options):
         if 'psdr_jit' in scene.cached:
@@ -45,7 +45,9 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         drjit_params = []
         for name in scene.components:
             component = scene[name]
-            drjit_params += self.extensions[type(component)](name, scene)
+            component_type = str.split(str(type(component)), '.')[-1][:-2]
+            with Timer(f"'{component_type}' preparation", False):
+                drjit_params += self.extensions[type(component)](name, scene)
 
         if not cache['configured']:
             cache['scene'].configure() 
@@ -56,8 +58,9 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         cache, _ = self.update_scene_objects(scene, render_options)
 
-        cache['scene'].configure(sensor_ids)
-
+        with Timer('Forward configure'):
+            cache['scene'].configure(sensor_ids)
+        
         npass = render_options['npass']
         h, w, c = cache['film']['shape']
         if type(integrator_id) == int:
@@ -67,23 +70,23 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         else:
             raise RuntimeError('integrator_id is invalid: {integrator_id}')
 
-        images = []
-        for sensor_id in sensor_ids:
-            image = to_torch_f(torch.zeros((h * w, c)))
-            for i in range(npass):
-                t = time.time()
-                image_pass = integrator.renderC(cache['scene'], sensor_id).torch()
-                self.render_time += time.time() - t
-                image += image_pass / npass
-            image = image.reshape(h, w, c)
-            images.append(image)
+        with Timer('Forward'):
+            images = []
+            for sensor_id in sensor_ids:
+                image = to_torch_f(torch.zeros((h * w, c)))
+                for i in range(npass):
+                    image_pass = integrator.renderC(cache['scene'], sensor_id).torch()
+                    image += image_pass / npass
+                image = image.reshape(h, w, c)
+                images.append(image)
 
         return images
         
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
         cache, drjit_params = self.update_scene_objects(scene, render_options)
 
-        cache['scene'].configure(sensor_ids)
+        with Timer('Backward configure', False):
+            cache['scene'].configure(sensor_ids)
 
         npass = render_options['npass']
         h, w, c = cache['film']['shape']
@@ -96,20 +99,19 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         
         param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
 
-        for i, sensor_id in enumerate(sensor_ids):
-            image_grad = Vector3fC(image_grads[i].reshape(-1, 3) / npass)
-            for j in range(npass):
-                t = time.time()
-                image = integrator.renderD(cache['scene'], sensor_id)
-                tmp = drjit.dot(image_grad, image)
-                drjit.backward(tmp)
-
-                for param_grad, drjit_param in zip(param_grads, drjit_params):
-                    grad = to_torch_f(drjit.grad(drjit_param).torch())
-                    grad = torch.nan_to_num(grad).reshape(param_grad.shape)
-                    param_grad += grad
+        with Timer('Backward'):
+            for i, sensor_id in enumerate(sensor_ids):
+                image_grad = Vector3fC(image_grads[i].reshape(-1, 3) / npass)
+                for j in range(npass):
                     
-                self.render_time += time.time() - t
+                    image = integrator.renderD(cache['scene'], sensor_id)
+                    tmp = drjit.dot(image_grad, image)
+                    drjit.backward(tmp)
+
+                    for param_grad, drjit_param in zip(param_grads, drjit_params):
+                        grad = to_torch_f(drjit.grad(drjit_param).torch())
+                        grad = torch.nan_to_num(grad).reshape(param_grad.shape)
+                        param_grad += grad
 
         return param_grads       
     

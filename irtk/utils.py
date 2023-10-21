@@ -2,6 +2,7 @@ from .io import to_numpy
 
 import time
 from pathlib import Path
+from collections import OrderedDict
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,15 +10,33 @@ from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 
 class Timer:
-    def __init__(self, label):
+    
+    timers = OrderedDict()
+    timers['Forward'] = 0
+    timers['Backward'] = 0
+    
+    def __init__(self, label, prt=True, record=True):
         self.label = label
+        self.prt = prt
+        self.record = record
+        if self.record and not label in self.timers:
+            self.timers[label] = 0
 
     def __enter__(self):
         self.start_time = time.time()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         elapsed_time = time.time() - self.start_time
-        print(f"[{self.label}] Elapsed time: {elapsed_time} seconds")
+        if self.prt:
+            print(f"[{self.label}] Elapsed time: {elapsed_time} seconds")
+        if self.record:
+            self.timers[self.label] += elapsed_time
+    
+    @classmethod
+    def reset_timers(cls):
+        cls.timers = OrderedDict()
+        cls.timers['Forward'] = 0
+        cls.timers['Backward'] = 0
 
 def apply_pmkmp_cm(image, vmin=0, vmax=1):
     """

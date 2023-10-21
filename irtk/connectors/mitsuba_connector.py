@@ -3,6 +3,7 @@ from ..scene import *
 from ..config import *
 from ..io import write_mesh
 from collections import OrderedDict
+from ..utils import Timer
 
 import drjit
 from drjit.cuda import Array3f as Vector3fC, Array3i as Vector3iC
@@ -32,9 +33,6 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             cache = {}
             scene.cached['mitsuba'] = cache
 
-            cache['scene'] = {
-                'type': 'scene',
-            }
             cache['meshes'] = {}
             cache['textures'] = {}
             cache['cameras'] = OrderedDict()
@@ -47,107 +45,15 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         mitsuba_params = []
         for name in scene.components:
             component = scene[name]
-            mitsuba_params += self.extensions[type(component)](name, scene)
+            component_type = str.split(str(type(component)), '.')[-1][:-2]
+            with Timer(f"'{component_type}' preparation", False):
+                mitsuba_params += self.extensions[type(component)](name, scene)
         
-        return scene.cached['mitsuba'], mitsuba_params
-
-    def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
-        mi.set_variant('cuda_ad_rgb')
-        cache, _ = self.update_scene_objects(scene, render_options)
-
         # Mitsuba Scene
-        mi_scene = cache['scene']
-        mi_sensors = []
-        # Sensors
-        for sensor_name, sensor_value in cache['cameras'].items():
-            sensor_value['film'] = cache['film']
-            mi_sensors.append(mi.load_dict(sensor_value))
-        # Integrators
-        for integrator_name, integrator_value in cache['integrators'].items():
-            mi_scene[integrator_name] = integrator_value
-        # Meshs
-        for mesh_name, mesh_value in cache['meshes'].items():
-            mi_scene[mesh_name] = mesh_value
-        # Environment Lights
-        if len(cache['envlights']) >= 1:
-            for envlight_name, envlight_value in cache['envlights'].items():
-                mi_scene[envlight_name] = envlight_value
-        # Point Light
-        if cache['point_light']:
-            mi_scene['emitter'] = cache['point_light']
-        elif 'point_light_intensity' in render_options:
-            mi_scene['emitter'] = {
-                'type': 'point',
-                'position': list(cache['cameras'].values())[0]['to_world'].translation(),
-                'intensity': {
-                    'type': 'rgb',
-                    'value': render_options['point_light_intensity']
-                }
-            }
-        elif 'plane_light_intensity' in render_options:
-            mi_scene['emitter'] = {
-                # 'type': 'obj',
-                # 'filename': 'assets/meshes/plane_light.obj',
-                'type': 'rectangle',
-                # 'to_world': mi.ScalarTransform4f([
-                #     [100, 0, 0, 0],
-                #     [0, 0, -100, 0],
-                #     [0, 100, 0, -300],
-                #     [0, 0, 0, 1]
-                # ]),
-                'to_world': mi.ScalarTransform4f([
-                    [50, 0, 0, 0],
-                    [0, 50, 0, 0],
-                    [0, 0, 50, -300],
-                    [0, 0, 0, 1]
-                ]),
-                'focused-emitter': {
-                    'type': 'area',
-                    'radiance': {
-                        'type': 'rgb',
-                        'value': render_options['plane_light_intensity']
-                    }
-                },
-            }
-        # print(mi_scene)
-        loaded_mi_scene = mi.load_dict(mi_scene, False)
-        # print(loaded_mi_scene)
-        params = mi.traverse(loaded_mi_scene)
-   
-        images = []
-        npass = render_options['npass']
-        h, w, c = (cache['film']['height'], cache['film']['width'], 3)
-        for sensor_id in sensor_ids:
-            # change light pos according to sensor
-            if 'point_light_intensity' in render_options:
-                params['emitter.position'] = list(cache['cameras'].values())[sensor_id]['to_world'].translation()
-                params.update()
-            
-            image = torch.zeros((h, w, c)).to(device).to(ftype)
-            for i in range(npass):
-                t = time.time()
-                image_pass = mi.render(loaded_mi_scene, sensor=mi_sensors[sensor_id], spp=render_options['spp']).torch()
-                self.render_time += time.time() - t
-                image += image_pass / npass
-            images.append(image)
-
-        return images
-        
-    def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
-        with torch.enable_grad():
-            mi.set_variant('cuda_ad_rgb')
-            cache, mitsuba_params = self.update_scene_objects(scene, render_options)
-
-            # Mitsuba Scene
-            # mi_scene = cache['scene']
+        with Timer(f"'Load scene"):
             mi_scene = {
                 'type': 'scene',
             }
-            mi_sensors = []
-            # Sensors
-            for sensor_name, sensor_value in cache['cameras'].items():
-                sensor_value['film'] = cache['film']
-                mi_sensors.append(mi.load_dict(sensor_value))
             # Integrators
             for integrator_name, integrator_value in cache['integrators'].items():
                 mi_scene[integrator_name] = integrator_value
@@ -170,65 +76,104 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                         'value': render_options['point_light_intensity']
                     }
                 }
-            elif 'plane_light_intensity' in render_options:
+            elif 'plane_light' in render_options:
                 mi_scene['emitter'] = {
                     # 'type': 'obj',
                     # 'filename': 'assets/meshes/plane_light.obj',
                     'type': 'rectangle',
-                    # 'to_world': mi.ScalarTransform4f([
-                    #     [100, 0, 0, 0],
-                    #     [0, 0, -100, 0],
-                    #     [0, 100, 0, -300],
-                    #     [0, 0, 0, 1]
-                    # ]),
-                    'to_world': mi.ScalarTransform4f([
-                        [50, 0, 0, 0],
-                        [0, 50, 0, 0],
-                        [0, 0, 50, -300],
-                        [0, 0, 0, 1]
-                    ]),
+                    'to_world': mi.ScalarTransform4f(render_options['plane_light']['to_world']),
                     'focused-emitter': {
                         'type': 'area',
                         'radiance': {
                             'type': 'rgb',
-                            'value': render_options['plane_light_intensity']
+                            'value': render_options['plane_light']['radiance']
                         }
                     },
                 }
             # print(mi_scene)
             loaded_mi_scene = mi.load_dict(mi_scene, False)
             # print(loaded_mi_scene)
-            params = mi.traverse(loaded_mi_scene)
+            cache['scene'] = loaded_mi_scene
+        
+        return scene.cached['mitsuba'], mitsuba_params
 
+    def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
+        mi.set_variant('cuda_ad_rgb')
+        cache, _ = self.update_scene_objects(scene, render_options)
+
+        loaded_mi_scene = cache['scene']
+        params = mi.traverse(loaded_mi_scene)
+        
+        # Sensors
+        mi_sensors = []
+        for sensor_name, sensor_value in cache['cameras'].items():
+            sensor_value['film'] = cache['film']
+            mi_sensors.append(mi.load_dict(sensor_value))
+
+        with Timer('Forward'):
+            images = []
             npass = render_options['npass']
-            param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
-
-            for i, sensor_id in enumerate(sensor_ids):
+            h, w, c = (cache['film']['height'], cache['film']['width'], 3)
+            for sensor_id in sensor_ids:
                 # change light pos according to sensor
                 if 'point_light_intensity' in render_options:
                     params['emitter.position'] = list(cache['cameras'].values())[sensor_id]['to_world'].translation()
                     params.update()
                 
-                image_grad = mi.TensorXf(image_grads[i] / npass)
-                for j in range(npass):
+                image = torch.zeros((h, w, c)).to(device).to(ftype)
+                for i in range(npass):
                     t = time.time()
-                    
-                    image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'])
-                    tmp = image_grad * image_pass
-                    drjit.backward(tmp)
-                    for param_grad, mitsuba_param in zip(param_grads, mitsuba_params):
-                        if type(mitsuba_param) == dict:
-                            backend_grad = drjit.grad(mitsuba_param['backend']).torch().to(device).to(ftype)
-                            backend_grad = torch.nan_to_num(backend_grad).reshape(mitsuba_param['frontend'].shape)
-                            tmp = backend_grad * mitsuba_param['frontend']
-                            frontend_grad = torch.autograd.grad(tmp, scene[mitsuba_param['param']], torch.ones_like(tmp), retain_graph=True)
-                            param_grad += frontend_grad[0]
-                        else:
-                            grad = drjit.grad(mitsuba_param).torch().to(device).to(ftype)
-                            grad = torch.nan_to_num(grad).reshape(param_grad.shape)
-                            param_grad += grad
-                    
+                    image_pass = mi.render(loaded_mi_scene, sensor=mi_sensors[sensor_id], spp=render_options['spp']).torch()
                     self.render_time += time.time() - t
+                    image += image_pass / npass
+                images.append(image)
+
+        return images
+        
+    def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
+        with torch.enable_grad():
+            mi.set_variant('cuda_ad_rgb')
+            cache, mitsuba_params = self.update_scene_objects(scene, render_options)
+
+            # Sensors
+            mi_sensors = []
+            for sensor_name, sensor_value in cache['cameras'].items():
+                sensor_value['film'] = cache['film']
+                mi_sensors.append(mi.load_dict(sensor_value))
+            
+            loaded_mi_scene = cache['scene']
+            params = mi.traverse(loaded_mi_scene)
+
+            npass = render_options['npass']
+            param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
+
+            with Timer('Backward'):
+                for i, sensor_id in enumerate(sensor_ids):
+                    # change light pos according to sensor
+                    if 'point_light_intensity' in render_options:
+                        params['emitter.position'] = list(cache['cameras'].values())[sensor_id]['to_world'].translation()
+                        params.update()
+                    
+                    image_grad = mi.TensorXf(image_grads[i] / npass)
+                    for j in range(npass):
+                        t = time.time()
+                        
+                        image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'])
+                        tmp = image_grad * image_pass
+                        drjit.backward(tmp)
+                        for param_grad, mitsuba_param in zip(param_grads, mitsuba_params):
+                            if type(mitsuba_param) == dict:
+                                backend_grad = drjit.grad(mitsuba_param['backend']).torch().to(device).to(ftype)
+                                backend_grad = torch.nan_to_num(backend_grad).reshape(mitsuba_param['frontend'].shape)
+                                tmp = backend_grad * mitsuba_param['frontend']
+                                frontend_grad = torch.autograd.grad(tmp, scene[mitsuba_param['param']], torch.ones_like(tmp), retain_graph=True)
+                                param_grad += frontend_grad[0]
+                            else:
+                                grad = drjit.grad(mitsuba_param).torch().to(device).to(ftype)
+                                grad = torch.nan_to_num(grad).reshape(param_grad.shape)
+                                param_grad += grad
+                        
+                        self.render_time += time.time() - t
 
             return param_grads
 

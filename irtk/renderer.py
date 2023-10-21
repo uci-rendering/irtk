@@ -1,5 +1,6 @@
 from .connector import get_connector
 from .config import *
+from .utils import Timer
 import torch 
 import numpy as np
 
@@ -21,7 +22,8 @@ class RenderFunction(torch.autograd.Function):
 
         ctx.params = params
        
-        assert(images.sum().isfinite())
+        with Timer('\'Isfinite\' assertion', False):
+            assert(images.sum().isfinite())
         return images
 
     @staticmethod
