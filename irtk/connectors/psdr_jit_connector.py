@@ -13,12 +13,23 @@ from drjit.cuda.ad import Float32 as FloatD
 import torch
 
 import os
-import time
 
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
     def __init__(self):
         super().__init__()
+
+        self.default_render_options = {
+            'spp': 64,
+            'sppe': 0,
+            'sppse': 0,
+            'log_level': 0,
+            'npass': 1,
+            'seed': 0,
+            'guiding_options': {
+                'type': 'none'
+            }
+        }
 
     def update_scene_objects(self, scene, render_options):
         if 'psdr_jit' in scene.cached:
@@ -37,10 +48,17 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
             cache['clean_up'] = clean_up
 
-        cache['scene'].opts.spp = render_options['spp']
-        cache['scene'].opts.sppe = render_options['sppe']
-        cache['scene'].opts.sppse = render_options['sppse']
-        cache['scene'].opts.log_level = render_options['log_level']
+        for k in self.default_render_options:
+            if k not in render_options:
+                render_options[k] = self.default_render_options[k]
+
+        psdr_scene = cache['scene']
+
+        psdr_scene.opts.spp = render_options['spp']
+        psdr_scene.opts.sppe = render_options['sppe']
+        psdr_scene.opts.sppse = render_options['sppse']
+        psdr_scene.opts.log_level = render_options['log_level']
+        psdr_scene.seed = render_options['seed']
 
         drjit_params = []
         for name in scene.components:
@@ -50,17 +68,18 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
                 drjit_params += self.extensions[type(component)](name, scene)
 
         if not cache['configured']:
-            cache['scene'].configure() 
+            psdr_scene.configure() 
             cache['configured'] = True
         
         return scene.cached['psdr_jit'], drjit_params
 
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         cache, _ = self.update_scene_objects(scene, render_options)
+        psdr_scene = cache['scene']
 
         with Timer('Forward configure'):
-            cache['scene'].configure(sensor_ids)
-        
+            psdr_scene.configure(sensor_ids)
+
         npass = render_options['npass']
         h, w, c = cache['film']['shape']
         if type(integrator_id) == int:
@@ -75,7 +94,7 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
             for sensor_id in sensor_ids:
                 image = to_torch_f(torch.zeros((h * w, c)))
                 for i in range(npass):
-                    image_pass = integrator.renderC(cache['scene'], sensor_id).torch()
+                    image_pass = integrator.renderC(psdr_scene, sensor_id).torch()
                     image += image_pass / npass
                 image = image.reshape(h, w, c)
                 images.append(image)
@@ -84,16 +103,17 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
         cache, drjit_params = self.update_scene_objects(scene, render_options)
-
+        psdr_scene = cache['scene']
+        
         with Timer('Backward configure', False):
-            cache['scene'].configure(sensor_ids)
+            psdr_scene.configure(sensor_ids)
 
         npass = render_options['npass']
         h, w, c = cache['film']['shape']
         if type(integrator_id) == int:
-            integrator = list(cache['integrators'].values())[integrator_id]
+            psdr_integrator = list(cache['integrators'].values())[integrator_id]
         elif type(integrator_id) == str:
-            integrator = cache['integrators'][integrator_id]
+            psdr_integrator = cache['integrators'][integrator_id]
         else:
             raise RuntimeError('integrator_id is invalid: {integrator_id}')
         
@@ -102,9 +122,9 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         with Timer('Backward'):
             for i, sensor_id in enumerate(sensor_ids):
                 image_grad = Vector3fC(image_grads[i].reshape(-1, 3) / npass)
+                self.preprocess_guiding(psdr_integrator, psdr_scene, sensor_id, render_options['guiding_options'])
                 for j in range(npass):
-                    
-                    image = integrator.renderD(cache['scene'], sensor_id)
+                    image = psdr_integrator.renderD(psdr_scene, sensor_id)
                     tmp = drjit.dot(image_grad, image)
                     drjit.backward(tmp)
 
@@ -113,25 +133,34 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
                         grad = torch.nan_to_num(grad).reshape(param_grad.shape)
                         param_grad += grad
 
-        return param_grads       
+        return param_grads
+
+    def preprocess_guiding(self, psdr_integrator, psdr_scene, sensor_id, guiding_options):
+        if isinstance(psdr_integrator, psdr_jit.PathTracer):
+            if guiding_options['type'] == 'grid':
+                psdr_integrator.preprocess_secondary_edges(psdr_scene, sensor_id, guiding_options['res'], guiding_options['nrounds'])
+
     
     def forward_ad_mesh_translation(self, mesh_id, scene, render_options, sensor_ids=[0], integrator_id=0):
         cache, drjit_params = self.update_scene_objects(scene, render_options)
+        psdr_scene = cache['scene']
+
         assert len(drjit_params) == 0
+        assert len(sensor_ids) == 1
 
         P = FloatD(0.) 
         drjit.enable_grad(P) 
-        psdr_mesh = cache['scene'].param_map[cache['name_map'][mesh_id]]
+        psdr_mesh = psdr_scene.param_map[cache['name_map'][mesh_id]]
         psdr_mesh.set_transform(Matrix4fD([[1.,0.,0.,P],[0.,1.,0.,0.],[0.,0.,1.,0.],[0.,0.,0.,1.],]))
 
-        cache['scene'].configure(sensor_ids)
+        psdr_scene.configure(sensor_ids)
 
         npass = render_options['npass']
         h, w, c = cache['film']['shape']
         if type(integrator_id) == int:
-            integrator = list(cache['integrators'].values())[integrator_id]
+            psdr_integrator = list(cache['integrators'].values())[integrator_id]
         elif type(integrator_id) == str:
-            integrator = cache['integrators'][integrator_id]
+            psdr_integrator = cache['integrators'][integrator_id]
         else:
             raise RuntimeError('integrator_id is invalid: {integrator_id}')
 
@@ -139,12 +168,15 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         image = to_torch_f(torch.zeros((h * w, c)))
         grad_image = to_torch_f(torch.zeros((h * w, c)))
 
+        self.preprocess_guiding(psdr_integrator, psdr_scene, sensor_ids[0], render_options['guiding_options'])
+
         for j in range(npass):
-            drjit_image = integrator.renderD(cache['scene'], sensor_ids[0])
+            drjit_image = psdr_integrator.renderD(psdr_scene, sensor_ids[0])
             image += to_torch_f(drjit_image.torch()) / npass
 
             drjit.set_grad(P, 1.0)
-            drjit.forward_to(drjit_image)
+            drjit.enqueue(drjit.ADMode.Forward, P)
+            drjit.traverse(drjit.cuda.ad.Float, drjit.ADMode.Forward, drjit.ADFlag.ClearInterior)
             drjit_grad_image = drjit.grad(drjit_image)
             grad_image += to_torch_f(drjit_grad_image.torch()) / npass
 
@@ -177,12 +209,13 @@ def process_integrator(name, scene):
 def process_hdr_film(name, scene):
     film = scene[name]
     cache = scene.cached['psdr_jit']
+    psdr_scene = cache['scene']
 
     cache['film'] = {
         'shape': (film['height'], film['width'], 3)
     }
-    cache['scene'].opts.width = film['width']
-    cache['scene'].opts.height = film['height']
+    psdr_scene.opts.width = film['width']
+    psdr_scene.opts.height = film['height']
 
     return []
 
@@ -242,6 +275,15 @@ def process_perspective_camera_full(name, scene):
         for param_name in updated:
             if param_name == "to_world":
                 psdr_sensor.to_world = Matrix4fD(sensor['to_world'].reshape(1, 4, 4))
+            elif param_name == "fx":
+                psdr_sensor.fx = sensor['fx']
+            elif param_name == "fy":
+                psdr_sensor.fy = sensor['fy']
+            elif param_name == "cx":
+                psdr_sensor.cx = sensor['cx']
+            elif param_name == "cy":
+                psdr_sensor.cy = sensor['cy']
+            
             sensor.params[param_name]['updated'] = False
 
     # Enable grad for parameters requiring grad
@@ -279,6 +321,7 @@ def process_mesh(name, scene):
 
             psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
             psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
+            psdr_scene.param_map[f"Mesh[{psdr_scene.num_meshes - 1}]"].set_transform(mesh['to_world'].reshape(1, 4, 4))
         else:
             write_mesh('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
             psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
