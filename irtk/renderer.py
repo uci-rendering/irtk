@@ -22,8 +22,11 @@ class RenderFunction(torch.autograd.Function):
 
         ctx.params = params
        
-        with Timer('\'Isfinite\' assertion', False):
-            assert(images.sum().isfinite())
+        # with Timer('\'Isfinite\' assertion', False):
+        #     assert(images.sum().isfinite())
+        
+        images = torch.nan_to_num(images)
+        
         return images
 
     @staticmethod

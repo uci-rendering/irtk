@@ -463,7 +463,7 @@ def process_microfacet_brdf(name, scene):
             'd': brdf['d'],
             's': brdf['s'],
             'r': brdf['r'],
-            'bsdf': 'pbr'
+            'bsdf': 'microfacet'
         }
         cache['textures'][name] = nvdiffrast_brdf
         cache['name_map'][name] = nvdiffrast_brdf
@@ -782,6 +782,43 @@ def bsdf_pbr_specular(col, nrm, wo, wi, alpha, min_roughness=0.08):
     frontfacing = (woDotN > SPECULAR_EPSILON) & (wiDotN > SPECULAR_EPSILON)
     return torch.where(frontfacing, w, torch.zeros_like(w))
 
+def microfacet_eval(kd, ks, nrm, wo, wi, _roughness):
+    
+    cos_theta_nv = _dot(wi, nrm)    # view dir
+    cos_theta_nl = _dot(wo, nrm)    # light dir
+    
+    diffuse = kd / torch.pi
+
+    H = _safe_normalize(wi + wo)
+    cos_theta_nh = _dot(nrm, H)
+    cos_theta_vh = _dot(H, wi)
+
+    F0 = ks
+    roughness = _roughness
+    alpha = roughness ** 2
+    k = (roughness + 1) ** 2 / 8
+
+    # GGX NDF term
+    tmp = alpha / (cos_theta_nh * cos_theta_nh * (alpha ** 2 - 1) + 1)
+    ggx = tmp * tmp / torch.pi
+
+    # Fresnel term
+    coeff = cos_theta_vh * (-5.55473 * cos_theta_vh - 6.8316)
+    fresnel = F0 + (1 - F0) * torch.pow(2, coeff)
+
+    # Geometry term
+    smithG1 = cos_theta_nv / (cos_theta_nv * (1 - k) + k)
+    smithG2 = cos_theta_nl / (cos_theta_nl * (1 - k) + k)
+    smithG = smithG1 * smithG2
+
+    numerator = ggx * smithG * fresnel
+    denominator = 4 * cos_theta_nl * cos_theta_nv
+    specular = numerator / (denominator + 1e-6)
+
+    value = (diffuse + specular) * cos_theta_nl
+    
+    return value
+
 def bsdf_pbr(kd, arm, pos, nrm, view_pos, light_pos, min_roughness=0.08):
     wo = _safe_normalize(view_pos - pos)
     wi = _safe_normalize(light_pos - pos)
@@ -795,6 +832,18 @@ def bsdf_pbr(kd, arm, pos, nrm, view_pos, light_pos, min_roughness=0.08):
     diffuse = kd * bsdf_lambert(nrm, wi)
     specular = bsdf_pbr_specular(ks, nrm, wo, wi, roughness*roughness, min_roughness=min_roughness)
     return diffuse + specular
+
+def bsdf_microfacet(kd, arm, pos, nrm, view_pos, light_pos, min_roughness=0.08):
+    wo = _safe_normalize(view_pos - pos)
+    wi = _safe_normalize(light_pos - pos)
+
+    spec_str  = arm[..., 0:1] # x component
+    roughness = arm[..., 1:2] # y component
+    metallic  = arm[..., 2:3] # z component
+    ks = spec_str
+    kd = kd * (1.0 - metallic)
+    
+    return microfacet_eval(kd, ks, nrm, wo, wi, roughness) / _dot(pos - light_pos, pos - light_pos)
 
 # BSDF functions
 def lambert(nrm, wi):
@@ -836,6 +885,29 @@ def pbr_bsdf(kd, arm, pos, nrm, view_pos, light_pos, min_roughness=0.08):
     
     if torch.is_anomaly_enabled():
         assert torch.all(torch.isfinite(out)), "Output of pbr_bsdf contains inf or NaN"
+    return out
+
+def microfacet_bsdf(kd, arm, pos, nrm, view_pos, light_pos, min_roughness=0.08):
+    '''Microfacet bsdf, both diffuse & specular lobes
+    All tensors assume a shape of [minibatch_size, height, width, 3] or broadcastable equivalent unless otherwise noted.
+
+    Args:
+        kd: Diffuse albedo.
+        arm: Specular parameters (attenuation, linear roughness, metalness).
+        pos: World space position.
+        nrm: World space shading normal.
+        view_pos: Camera position in world space, typically using broadcasting.
+        light_pos: Light position in world space, typically using broadcasting.
+        min_roughness: Scalar roughness clamping threshold
+
+    Returns:
+        Shaded color.
+    '''    
+
+    out = bsdf_microfacet(kd, arm, pos, nrm, view_pos, light_pos, min_roughness=min_roughness)
+    
+    if torch.is_anomaly_enabled():
+        assert torch.all(torch.isfinite(out)), "Output of micro_bsdf contains inf or NaN"
     return out
 
 # Transform points function
@@ -1087,6 +1159,8 @@ def shade(
     assert 'bsdf' in material, "Material must specify a BSDF type"
     if material['bsdf'] == 'pbr':
         shaded_col = pbr_bsdf(kd, ks, gb_pos, gb_normal, view_pos, light_pos, min_roughness) * light_power
+    if material['bsdf'] == 'microfacet':
+        shaded_col = microfacet_bsdf(kd, ks, gb_pos, gb_normal, view_pos, light_pos, min_roughness) * light_power
     elif material['bsdf'] == 'diffuse':
         shaded_col = kd * lambert(gb_normal, _safe_normalize(light_pos - gb_pos)) * light_power
     elif material['bsdf'] == 'normal':

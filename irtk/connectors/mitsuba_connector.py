@@ -14,6 +14,7 @@ import time
 import os
 
 mi.set_variant('cuda_ad_rgb')
+mi.register_bsdf("MitsubaMicrofacetBSDF", lambda props: MitsubaMicrofacetBSDF(props))
 
 class MitsubaConnector(Connector, connector_name='mitsuba'):
 
@@ -76,6 +77,10 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                         'value': render_options['point_light_intensity']
                     }
                 }
+                # mi_scene['emitter'] = {
+                #     'type': 'constant',
+                #     'radiance': 0.99,
+                # }
             elif 'plane_light' in render_options:
                 mi_scene['emitter'] = {
                     # 'type': 'obj',
@@ -429,6 +434,46 @@ def process_diffuse_brdf(name, scene):
     return mitsuba_params
 
 @MitsubaConnector.register(MicrofacetBRDF)
+def process_mitsuba_microfacet_brdf(name, scene):
+    brdf = scene[name]
+    cache = scene.cached['mitsuba']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        # TODO: support more BRDF types
+        mi_brdf = {
+            'type': 'MitsubaMicrofacetBSDF',
+            'diffuse': brdf['d'].cpu().numpy(),
+            'specular': brdf['s'].cpu().item(),
+            'roughness': brdf['r'].cpu().item()
+        }
+
+        cache['textures'][name] = mi_brdf
+        cache['name_map'][name] = mi_brdf
+    
+    mi_brdf = cache['name_map'][name]
+
+    # Update parameters
+    updated = brdf.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == 'd':
+                mi_brdf['diffuse'] = brdf['d'].cpu().numpy()
+            elif param_name == 's':
+                mi_brdf['specular'] = brdf['s'].cpu().item()
+            elif param_name == 'r':
+                mi_brdf['roughness'] = brdf['r'].cpu().item()
+            brdf.params[param_name]['updated'] = False
+
+    # Enable grad for parameters requiring grad
+    mitsuba_params = []
+    requiring_grad = brdf.get_requiring_grad()
+    if len(requiring_grad) > 0:
+        for param_name in requiring_grad:
+            pass
+
+    return mitsuba_params
+
 def process_microfacet_brdf(name, scene):
     brdf = scene[name]
     cache = scene.cached['mitsuba']
@@ -682,3 +727,174 @@ def compute_texture_coordinates(verts, faces, uv, fuv):
     faces_new = torch.cat([i0, i1, i2], axis=1).to(device)
 
     return verts_new, faces_new, uvs_new
+
+
+class MitsubaMicrofacetBSDF(mi.BSDF):
+    def __init__(self, props):
+        mi.BSDF.__init__(self, props)
+
+        self.m_diffuse = props['diffuse']
+        self.m_specular = props['specular']
+        self.m_roughness = props['roughness']
+
+        # Set the BSDF flags
+        reflection_flags   = mi.BSDFFlags.GlossyReflection  | mi.BSDFFlags.FrontSide
+        self.m_components  = [reflection_flags]
+        self.m_flags = reflection_flags
+        # reflection_flags   = mi.BSDFFlags.DeltaReflection   | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
+        # transmission_flags = mi.BSDFFlags.DeltaTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
+        # self.m_components  = [reflection_flags, transmission_flags]
+        # self.m_flags = reflection_flags | transmission_flags
+        
+    def sample_visible_11(self, cos_theta_i, sample):
+        # print('sample_visible_11')
+        p = mi.warp.square_to_uniform_disk_concentric(sample)
+        s = 0.5 * (1.0 + cos_theta_i)
+        p.y = drjit.lerp(drjit.safe_sqrt(1.0 - drjit.sqr(p.x)), p.y, s)
+        x = p.x
+        y = p.y
+        z = drjit.safe_sqrt(1.0 - drjit.squared_norm(p))
+        sin_theta_i = drjit.safe_sqrt(1.0 - drjit.sqr(cos_theta_i))
+        norm = drjit.rcp(sin_theta_i * y + cos_theta_i * z)
+        return mi.Vector2f(cos_theta_i * y - sin_theta_i * z, x) * norm
+    
+    def smith_g1(self, v, m, m_alpha_u, m_alpha_v):
+        # print('smith_g1')
+        xy_alpha_2 = drjit.sqr(m_alpha_u * v.x) + drjit.sqr(m_alpha_v * v.y)
+        tan_theta_alpha_2 = xy_alpha_2 / drjit.sqr(v.z)
+        result = 2.0 / (1.0 + drjit.sqrt(1.0 + tan_theta_alpha_2))
+        # if xy_alpha_2 == 0.0:
+        #     result = 1.0
+        # if drjit.dot(v, m) * mi.Frame3f.cos_theta(v) <= 0.0:
+        #     result = 0.0
+        # masked(result, eq(xy_alpha_2, 0.f)) = 1.f;
+        # masked(result, dot(v, m) * Frame<ad>::cos_theta(v) <= 0.f) = 0.f;
+        return result
+    
+    def distr_eval(self, m, m_alpha_u, m_alpha_v):
+        # print('distr_eval')
+        alpha_uv = m_alpha_u * m_alpha_v
+        cos_theta = mi.Frame3f.cos_theta(m)
+        cos_theta_2 = drjit.sqr(cos_theta)
+        result = drjit.rcp(drjit.pi * alpha_uv * drjit.sqr(drjit.sqr(m.x / m_alpha_u) + drjit.sqr(m.y / m_alpha_v) + drjit.sqr(m.z)))
+        return drjit.select(result * cos_theta > 1e-5, result, 0.0)
+    
+    def distr_sample(self, wi, sample2, m_alpha_u, m_alpha_v):
+        # print('disr_sample')
+        wi_p = drjit.normalize(mi.Vector3f(
+            m_alpha_u * wi.x,
+            m_alpha_v * wi.y,
+            wi.z
+        ))
+
+        sin_phi = mi.Frame3f.sin_phi(wi_p)
+        cos_phi = mi.Frame3f.cos_phi(wi_p)
+        cos_theta = mi.Frame3f.cos_theta(wi_p)
+        # sample2 = mi.Vector2f(_sample1, _sample2.x)
+        slope = self.sample_visible_11(cos_theta, sample2)
+
+        slope = mi.Vector2f(
+            (cos_phi * slope.x - sin_phi * slope.y) * m_alpha_u,
+            (sin_phi * slope.x + cos_phi * slope.y) * m_alpha_v
+        )
+        m = drjit.normalize(mi.Vector3f(-slope.x, -slope.y, 1))
+
+        # Compute probability density of the sampled position
+        pdf = self.smith_g1(wi, m, m_alpha_u, m_alpha_v) * drjit.abs(drjit.dot(wi, m)) * self.distr_eval(m, m_alpha_u, m_alpha_v) / drjit.abs(mi.Frame3f.cos_theta(wi))
+        pdf = drjit.detach(pdf)
+        return m, pdf
+    
+    def sample(self, ctx, si, sample1, sample2, active):
+        # print('sample')
+        bs = mi.BSDFSample3f()
+        cos_theta_i =  mi.Frame3f.cos_theta(si.wi)
+        alpha_u = self.m_roughness
+        alpha_v = self.m_roughness
+        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_u, alpha_v)
+        m, m_pdf = distr.sample(si.wi, sample2)
+        # m, m_pdf = self.distr_sample(si.wi, sample2, alpha_u, alpha_v)
+        bs.wo = m * 2.0 * drjit.dot(si.wi, m) - si.wi
+        bs.eta = 1.0
+        bs.pdf = (m_pdf / (4.0 * drjit.dot(bs.wo, m)))
+        bs.sampled_component = 0
+        bs.sampled_type = mi.BSDFFlags.GlossyReflection
+        
+        value = self.eval(ctx, si, bs.wo, active)
+        
+        # active = active & (bs.pdf != 0.0)
+        
+        return (bs, value)
+
+    def eval(self, ctx, si, wo, active):
+        # print('eval')
+        
+        cos_theta_nv = mi.Frame3f.cos_theta(si.wi)    # view dir
+        cos_theta_nl = mi.Frame3f.cos_theta(wo)    # light dir
+        
+        diffuse = mi.Vector3f(self.m_diffuse) / drjit.pi
+
+        H = drjit.normalize(si.wi + wo)
+        cos_theta_nh = mi.Frame3f.cos_theta(H)
+        cos_theta_vh = drjit.dot(H, si.wi)
+
+        F0 = self.m_specular
+        roughness = self.m_roughness
+        alpha = drjit.sqr(roughness)
+        k = drjit.sqr(roughness + 1.0) / 8.0
+
+        # GGX NDF term
+        tmp = alpha / (cos_theta_nh * cos_theta_nh * (drjit.sqr(alpha) - 1.0) + 1.0)
+        ggx = tmp * tmp / drjit.pi
+
+        # Fresnel term
+        coeff = cos_theta_vh * (-5.55473 * cos_theta_vh - 6.8316)
+        fresnel = F0 + (1.0 - F0) * drjit.power(2.0, coeff)
+
+        # Geometry term
+        smithG1 = cos_theta_nv / (cos_theta_nv * (1.0 - k) + k)
+        smithG2 = cos_theta_nl / (cos_theta_nl * (1.0 - k) + k)
+        smithG = smithG1 * smithG2
+
+        numerator = ggx * smithG * fresnel
+        denominator = 4.0 * cos_theta_nl * cos_theta_nv
+        specular = numerator / (denominator + 1e-6)
+
+        value = (diffuse + specular) * cos_theta_nl
+        
+        return value
+
+    def pdf(self, ctx, si, wo, active):
+        cos_theta_i = mi.Frame3f.cos_theta(si.wi)
+        cos_theta_o = mi.Frame3f.cos_theta(wo)
+
+        m = drjit.normalize(wo + si.wi)
+        
+        active = active & (cos_theta_i > 0.0) & (cos_theta_o > 0.0) & (drjit.dot(si.wi, m) > 0.0) & (drjit.dot(wo, m) > 0.0)
+
+        alpha_u = self.m_roughness
+        alpha_v = self.m_roughness
+        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_u, alpha_v)
+
+        # result = (self.distr_eval(m, alpha_u, alpha_v) * self.smith_g1(si.wi, m, alpha_u, alpha_v) / (4.0 * cos_theta_i))
+        result = (distr.eval(m) * distr.smith_g1(si.wi, m) / (4.0 * cos_theta_i))
+        return drjit.detach(result)
+
+    def eval_pdf(self, ctx, si, wo, active):
+        eval_value = self.eval(ctx, si, wo, active)
+        pdf_value = self.pdf(ctx, si, wo, active)
+        return eval_value, pdf_value
+
+    def traverse(self, callback):
+        callback.put_parameter('diffuse', self.m_diffuse, mi.ParamFlags.Differentiable)
+        callback.put_parameter('specular', self.m_specular, mi.ParamFlags.Differentiable)
+        callback.put_parameter('roughness', self.m_roughness, mi.ParamFlags.Differentiable)
+
+    def parameters_changed(self, keys):
+        print("🏝️ there is nothing to do here 🏝️")
+
+    def to_string(self):
+        return ('MicrofacetBSDF[\n'
+                '    diffuse=%s,\n'
+                '    specular=%s,\n'
+                '    roughness=%s,\n'
+                ']' % (self.m_diffuse, self.m_specular, self.m_roughness))
