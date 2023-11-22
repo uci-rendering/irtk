@@ -198,6 +198,11 @@ def process_integrator(name, scene):
         cache['integrators'][name] = psdr_integrator
         if 'hide_emitters' in integrator['config']:
             psdr_integrator.hide_emitters = integrator['config']['hide_emitters']
+    elif integrator['type'] == 'direct':
+        psdr_integrator = psdr_jit.Direct(integrator['config']['mis'])
+        cache['integrators'][name] = psdr_integrator
+        if 'hide_emitters' in integrator['config']:
+            psdr_integrator.hide_emitters = integrator['config']['hide_emitters']
     else:
         raise RuntimeError(f"unrecognized integrator type: {integrator['type']}")
 
