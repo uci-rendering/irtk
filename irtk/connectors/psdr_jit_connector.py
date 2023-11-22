@@ -89,7 +89,7 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
             seed = render_options['seed']
             image = to_torch_f(torch.zeros((h * w, c)))
             for i in range(npass):
-                image_pass = integrator.renderC(psdr_scene, sensor_id, seed).torch()
+                image_pass = integrator.renderC(psdr_scene, sensor_id, seed, cache['film']['pixel_idx']).torch().to(image)
                 image += image_pass / npass
                 seed += 1
             image = image.reshape(h, w, c)
@@ -118,7 +118,7 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
             image_grad = Vector3fC(image_grads[i].reshape(-1, 3) / npass)
             self.preprocess_guiding(psdr_integrator, psdr_scene, sensor_id, render_options['guiding_options'], seed)
             for j in range(npass):
-                image = psdr_integrator.renderD(psdr_scene, sensor_id, seed)
+                image = psdr_integrator.renderD(psdr_scene, sensor_id, seed, cache['film']['pixel_idx'])
                 tmp = drjit.dot(image_grad, image)
                 drjit.backward(tmp)
 
@@ -214,11 +214,27 @@ def process_hdr_film(name, scene):
     cache = scene.cached['psdr_jit']
     psdr_scene = cache['scene']
 
-    cache['film'] = {
-        'shape': (film['height'], film['width'], 3)
-    }
-    psdr_scene.opts.width = film['width']
-    psdr_scene.opts.height = film['height']
+    h = film['height']
+    w = film['width']
+
+    if film['crop_window'] is not None:
+        h_lower, w_lower, h_upper, w_upper = film['crop_window']
+        
+        all_id = torch.arange(h * w).reshape(h, w)
+        pixel_idx = all_id[h_lower:h_upper, w_lower:w_upper].flatten().numpy()
+
+        cache['film'] = {
+            'shape': (h_upper - h_lower, w_upper - w_lower, 3),
+            'pixel_idx': pixel_idx
+        }
+    else:
+        cache['film'] = {
+            'shape': (h, w, 3),
+            'pixel_idx': [-1]
+        }
+
+    psdr_scene.opts.width = w
+    psdr_scene.opts.height = h
 
     return []
 
