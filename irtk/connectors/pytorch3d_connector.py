@@ -83,17 +83,25 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         if cache['point_light']:
             lights = pr.PointLights(
                 location=[list(cache['point_light']['position']) for i in range(len(selected_cameras))], 
+                ambient_color=((0, 0, 0), ),
                 diffuse_color=(tuple(cache['point_light']['radiance']), ),
+                specular_color=((1, 1, 1), ),
                 device=device
             )
         else: 
             diffuse_color = (1, 1, 1)
+            specular_color = (0, 0, 0)
             if 'light_diffuse_color' in render_options:
                 diffuse_color = render_options['light_diffuse_color']
+            if 'light_power' in render_options:
+                diffuse_color = (render_options['light_power'], render_options['light_power'], render_options['light_power'])
+                specular_color = diffuse_color
             lights = pr.PointLights(
                 location=cache['camera'].get_camera_center(), 
                 # location=((-1.5, 1.5, 1.5), ),
+                ambient_color=((0, 0, 0), ),
                 diffuse_color=(diffuse_color, ),
+                specular_color=(specular_color, ),
                 device=device
             )
         cache['light'] = lights
@@ -455,56 +463,55 @@ def process_diffuse_brdf(name, scene):
 
     return pytorch3d_params
 
-"""
-@PSDRJITConnector.register(MicrofacetBRDF)
+@PyTorch3DConnector.register(MicrofacetBRDF)
 def process_microfacet_brdf(name, scene):
     brdf = scene[name]
-    cache = scene.cached['psdr_jit']
-    psdr_scene = cache['scene']
+    cache = scene.cached['pytorch3d']
     
     # Create the object if it has not been created
     if name not in cache['name_map']:
-        d = convert_color(brdf['d'], 3)
-        s = convert_color(brdf['s'], 3)
-        r = convert_color(brdf['r'], 1)
+        if brdf['d'].dim() == 1:
+            pytorch3d_brdf = brdf['d'].reshape(1, 1, 3)
+        else: 
+            pytorch3d_brdf = brdf['d']
+        
+        if brdf['s'].shape == ():
+            brdf['s'] = brdf['s'].repeat(3)
+        
+        cache['textures'][name] = pytorch3d_brdf
+        cache['materials'][name] = {
+            'ambient': (0, 0, 0),
+            'diffuse': (1, 1, 1),
+            'specular': tuple(brdf['s']),
+            'shininess': brdf['r']
+        }
+        cache['name_map'][name] = pytorch3d_brdf
 
-        psdr_bsdf = psdr_jit.MicrofacetBSDF(s, d, r)
-        psdr_scene.add_BSDF(psdr_bsdf, name)
-        cache['name_map'][name] = f"BSDF[id={name}]"
-
-    psdr_brdf = psdr_scene.param_map[cache['name_map'][name]]
+    pytorch3d_brdf = cache['name_map'][name]
 
     # Update parameters
     updated = brdf.get_updated()
     if len(updated) > 0:
         for param_name in updated:
             if param_name == 'd':
-                psdr_brdf.diffuseReflectance.data = convert_color(brdf['d'], 3, bitmap=False)
-            elif param_name == 's':
-                psdr_brdf.specularReflectance.data = convert_color(brdf['s'], 3, bitmap=False)
-            elif param_name == 'r':
-                psdr_brdf.roughness.data = convert_color(brdf['r'], 1, bitmap=False)
+                if brdf['d'].dim() == 1:
+                    pytorch3d_brdf = brdf['d'].reshape(1, 1, 3)
+                else: 
+                    pytorch3d_brdf = brdf['d']
             brdf.params[param_name]['updated'] = False
 
     # Enable grad for parameters requiring grad
-    drjit_params = []
-    
-    def enable_grad(drjit_param):
-        drjit.enable_grad(drjit_param)
-        drjit_params.append(drjit_param)
-
+    pytorch3d_params = []
     requiring_grad = brdf.get_requiring_grad()
     if len(requiring_grad) > 0:
         for param_name in requiring_grad:
             if param_name == 'd':
-                enable_grad(psdr_brdf.diffuseReflectance.data)
-            elif param_name == 's':
-                enable_grad(psdr_brdf.specularReflectance.data)
-            elif param_name == 'r':
-                enable_grad(psdr_brdf.roughness.data)
+                pytorch3d_brdf.requires_grad = True
+                pytorch3d_params.append(pytorch3d_brdf)
 
-    return drjit_params
+    return pytorch3d_params
 
+"""
 @PSDRJITConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):
     emitter = scene[name]
