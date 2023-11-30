@@ -58,7 +58,6 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         psdr_scene.opts.sppe = render_options['sppe']
         psdr_scene.opts.sppse = render_options['sppse']
         psdr_scene.opts.log_level = render_options['log_level']
-        psdr_scene.seed = render_options['seed']
 
         drjit_params = []
         for name in scene.components:
@@ -92,10 +91,12 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         with Timer('Forward'):
             images = []
             for sensor_id in sensor_ids:
+                seed = render_options['seed']
                 image = to_torch_f(torch.zeros((h * w, c)))
                 for i in range(npass):
-                    image_pass = integrator.renderC(psdr_scene, sensor_id).torch()
+                    image_pass = integrator.renderC(psdr_scene, sensor_id, seed, cache['film']['pixel_idx']).torch().to(image)
                     image += image_pass / npass
+                    seed += 1
                 image = image.reshape(h, w, c)
                 images.append(image)
 
@@ -109,7 +110,6 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
             psdr_scene.configure(sensor_ids)
 
         npass = render_options['npass']
-        h, w, c = cache['film']['shape']
         if type(integrator_id) == int:
             psdr_integrator = list(cache['integrators'].values())[integrator_id]
         elif type(integrator_id) == str:
@@ -121,10 +121,11 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
         with Timer('Backward'):
             for i, sensor_id in enumerate(sensor_ids):
+                seed = render_options['seed']
                 image_grad = Vector3fC(image_grads[i].reshape(-1, 3) / npass)
-                self.preprocess_guiding(psdr_integrator, psdr_scene, sensor_id, render_options['guiding_options'])
+                self.preprocess_guiding(psdr_integrator, psdr_scene, sensor_id, render_options['guiding_options'], seed)
                 for j in range(npass):
-                    image = psdr_integrator.renderD(psdr_scene, sensor_id)
+                    image = psdr_integrator.renderD(psdr_scene, sensor_id, seed, cache['film']['pixel_idx'])
                     tmp = drjit.dot(image_grad, image)
                     drjit.backward(tmp)
 
@@ -133,12 +134,14 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
                         grad = torch.nan_to_num(grad).reshape(param_grad.shape)
                         param_grad += grad
 
+                seed += 1
+
         return param_grads
 
-    def preprocess_guiding(self, psdr_integrator, psdr_scene, sensor_id, guiding_options):
+    def preprocess_guiding(self, psdr_integrator, psdr_scene, sensor_id, guiding_options, seed):
         if isinstance(psdr_integrator, psdr_jit.PathTracer):
             if guiding_options['type'] == 'grid':
-                psdr_integrator.preprocess_secondary_edges(psdr_scene, sensor_id, guiding_options['res'], guiding_options['nrounds'])
+                psdr_integrator.preprocess_secondary_edges(psdr_scene, sensor_id, guiding_options['res'], guiding_options['nrounds'], seed)
 
     
     def forward_ad_mesh_translation(self, mesh_id, scene, render_options, sensor_ids=[0], integrator_id=0):
@@ -155,6 +158,7 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
         psdr_scene.configure(sensor_ids)
 
+        seed = render_options['seed']
         npass = render_options['npass']
         h, w, c = cache['film']['shape']
         if type(integrator_id) == int:
@@ -168,10 +172,10 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         image = to_torch_f(torch.zeros((h * w, c)))
         grad_image = to_torch_f(torch.zeros((h * w, c)))
 
-        self.preprocess_guiding(psdr_integrator, psdr_scene, sensor_ids[0], render_options['guiding_options'])
-
+        self.preprocess_guiding(psdr_integrator, psdr_scene, sensor_ids[0], render_options['guiding_options'], seed)
+        
         for j in range(npass):
-            drjit_image = psdr_integrator.renderD(psdr_scene, sensor_ids[0])
+            drjit_image = psdr_integrator.renderD(psdr_scene, sensor_ids[0], seed)
             image += to_torch_f(drjit_image.torch()) / npass
 
             drjit.set_grad(P, 1.0)
@@ -179,6 +183,7 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
             drjit.traverse(drjit.cuda.ad.Float, drjit.ADMode.Forward, drjit.ADFlag.ClearInterior)
             drjit_grad_image = drjit.grad(drjit_image)
             grad_image += to_torch_f(drjit_grad_image.torch()) / npass
+            seed += 1
 
         image = image.reshape(h, w, c)
         grad_image = grad_image.reshape(h, w, c)
@@ -200,6 +205,11 @@ def process_integrator(name, scene):
         cache['integrators'][name] = psdr_integrator
         if 'hide_emitters' in integrator['config']:
             psdr_integrator.hide_emitters = integrator['config']['hide_emitters']
+    elif integrator['type'] == 'direct':
+        psdr_integrator = psdr_jit.Direct(integrator['config']['mis'])
+        cache['integrators'][name] = psdr_integrator
+        if 'hide_emitters' in integrator['config']:
+            psdr_integrator.hide_emitters = integrator['config']['hide_emitters']
     else:
         raise RuntimeError(f"unrecognized integrator type: {integrator['type']}")
 
@@ -211,11 +221,27 @@ def process_hdr_film(name, scene):
     cache = scene.cached['psdr_jit']
     psdr_scene = cache['scene']
 
-    cache['film'] = {
-        'shape': (film['height'], film['width'], 3)
-    }
-    psdr_scene.opts.width = film['width']
-    psdr_scene.opts.height = film['height']
+    h = film['height']
+    w = film['width']
+
+    if film['crop_window'] is not None:
+        h_lower, w_lower, h_upper, w_upper = film['crop_window']
+        
+        all_id = torch.arange(h * w).reshape(h, w)
+        pixel_idx = all_id[h_lower:h_upper, w_lower:w_upper].flatten().numpy()
+
+        cache['film'] = {
+            'shape': (h_upper - h_lower, w_upper - w_lower, 3),
+            'pixel_idx': pixel_idx
+        }
+    else:
+        cache['film'] = {
+            'shape': (h, w, 3),
+            'pixel_idx': [-1]
+        }
+
+    psdr_scene.opts.width = w
+    psdr_scene.opts.height = h
 
     return []
 

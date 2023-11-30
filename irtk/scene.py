@@ -72,11 +72,12 @@ class Integrator(ParamGroup):
 
 class HDRFilm(ParamGroup):
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, crop_window=None, pixel_idx=None):
         super().__init__()
         
         self.add_param('width', width, help_msg='film width')
         self.add_param('height', height, help_msg='film height')
+        self.add_param('crop_window', crop_window, help_msg='film crop window (format: [h_lower, w_lower, h_upper, w_upper])')
 
 class PerspectiveCamera(ParamGroup):
     
