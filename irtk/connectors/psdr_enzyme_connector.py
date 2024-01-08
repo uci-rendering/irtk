@@ -16,6 +16,15 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
     def __init__(self):
         super().__init__()
 
+        self.default_render_options = {
+            'seed': 0,
+            'spp': 64,
+            'sppe': 0,
+            'sppse': 0,
+            'max_bounces': 1, 
+            'quiet': True
+        }
+
     def update_scene_objects(self, scene, render_options):
         if 'psdr_enzyme' not in scene.cached:
             cache = {}
@@ -51,6 +60,10 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
                 cache['ctx']['media'],
             )
             cache['update_scene'] = False
+
+        for key in self.default_render_options:
+            if key not in render_options:
+                render_options[key] = self.default_render_options[key]
 
         for key in render_options:
             setattr(cache['render_options'], key, render_options[key])
@@ -115,10 +128,7 @@ def process_integrator(name, scene):
     cache = scene.cached['psdr_enzyme']
 
     integrator_dict = {
-        'direct': psdr_cpu.Direct,
-        'path': psdr_cpu.Path,
         'path2': psdr_cpu.Path2,
-        'volpath': psdr_cpu.Volpath
     }
     if integrator['type'] in integrator_dict:
         cache['integrators'][name] = integrator_dict[integrator['type']]()
