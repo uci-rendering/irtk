@@ -237,7 +237,7 @@ def convert_color(color, c=3):
         color = color.tile(c)
     if color.shape == (c,):
         color = color.reshape(1, 1, c)
-    h, w, _ = color.shape
+    w, h, _ = color.shape
     color = color.reshape(-1, 1)
     return psdr_cpu.Bitmap(to_numpy(color), to_numpy([h, w]))
 
