@@ -3,6 +3,7 @@ from ..scene import *
 from ..config import *
 from ..io import write_mesh
 from collections import OrderedDict
+from ..utils import Timer
 
 import nvdiffrast.torch as dr
 import torch
@@ -19,7 +20,6 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
 
     def __init__(self):
         super().__init__()
-        self.render_time = 0
 
     def update_scene_objects(self, scene, render_options):
         if 'nvdiffrast' in scene.cached:
@@ -99,33 +99,33 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
             
             image = None
             npass = render_options['npass']
-            for i in range(npass):
-                # Basic render
-                # tex = kd
-                # image_pass = render(glctx, a_mvp, vtx_pos, pos_idx, vtx_uv, uv_idx, tex, cache['film'], enable_mip=True, max_mip_level=9)
-                
-                # Shading
-                a_mvp = a_mvp[None, ...]
-                params = {'mvp' : a_mvp, 'lightpos' : a_lightpos, 'campos' : a_campos, 'resolution' : cache['film'], 'time' : 0}
-                material = {
-                    'kd': Texture2D(kd),
-                    'ks': Texture2D(ks),
-                    'bsdf': bsdf
-                }
-                nv_mesh =  NvMesh(vtx_pos, pos_idx.long(), vts_normals, pos_idx.long(), vtx_uv, uv_idx.long(), v_weights=None, bone_mtx=None, material=material)
-                nv_mesh_tng = compute_tangents(nv_mesh)
-                t = time.time()
-                image_pass = render_mesh(self.glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, a_light_power, cache['film'][1], 
-                    num_layers=1, spp=1, background=None, min_roughness=0.08)
-                self.render_time += time.time() - t
+            with Timer('Forward'):
+                for i in range(npass):
+                    # Basic render
+                    # tex = kd
+                    # image_pass = render(glctx, a_mvp, vtx_pos, pos_idx, vtx_uv, uv_idx, tex, cache['film'], enable_mip=True, max_mip_level=9)
+                    
+                    # Shading
+                    a_mvp = a_mvp[None, ...]
+                    params = {'mvp' : a_mvp, 'lightpos' : a_lightpos, 'campos' : a_campos, 'resolution' : cache['film'], 'time' : 0}
+                    material = {
+                        'kd': Texture2D(kd),
+                        'ks': Texture2D(ks),
+                        'bsdf': bsdf
+                    }
+                    nv_mesh =  NvMesh(vtx_pos, pos_idx.long(), vts_normals, pos_idx.long(), vtx_uv, uv_idx.long(), v_weights=None, bone_mtx=None, material=material)
+                    nv_mesh_tng = compute_tangents(nv_mesh)
 
-                image_pass.squeeze_(0)
-                if image:
-                    image += image_pass / npass
-                else:
-                    image = image_pass / npass
-            
-            images.append(image)
+                    image_pass = render_mesh(self.glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, a_light_power, cache['film'][1], 
+                        num_layers=1, spp=1, background=None, min_roughness=0.08)
+
+                    image_pass.squeeze_(0)
+                    if image:
+                        image += image_pass / npass
+                    else:
+                        image = image_pass / npass
+                
+                images.append(image)
         
         return images
     
@@ -181,33 +181,32 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                     ks = to_torch_f((0, 0, 0))
                 
                 npass = render_options['npass']
-                for i in range(npass):
-                    # Basic render
-                    # tex = kd
-                    # image_pass = render(glctx, a_mvp, vtx_pos, pos_idx, vtx_uv, uv_idx, tex, cache['film'], enable_mip=True, max_mip_level=9)
-                    
-                    # Shading
-                    a_mvp = a_mvp[None, ...]
-                    params = {'mvp' : a_mvp, 'lightpos' : a_lightpos, 'campos' : a_campos, 'resolution' : cache['film'], 'time' : 0}
-                    material = {
-                        'kd': Texture2D(kd),
-                        'ks': Texture2D(ks),
-                        'bsdf': bsdf
-                    }
-                    nv_mesh =  NvMesh(vtx_pos, pos_idx.long(), vts_normals, pos_idx.long(), vtx_uv, uv_idx.long(), v_weights=None, bone_mtx=None, material=material)
-                    nv_mesh_tng = compute_tangents(nv_mesh)
-                    t = time.time()
-                    image_pass = render_mesh(glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, a_light_power, cache['film'][1], 
-                        num_layers=1, spp=1, background=None, min_roughness=0.08)
-
-                    image_pass.squeeze_(0)
-                    image_grad = image_grads[img_index] / npass
-                    tmp = (image_grad[..., :3] * image_pass).sum(dim=2)
-                    nv_grads = torch.autograd.grad(tmp, nv_params, torch.ones_like(tmp), retain_graph=True)
-                    for param_grad, nv_grad in zip(param_grads, nv_grads):
-                        param_grad += nv_grad / render_options['scale']
+                with Timer('Backward'):
+                    for i in range(npass):
+                        # Basic render
+                        # tex = kd
+                        # image_pass = render(glctx, a_mvp, vtx_pos, pos_idx, vtx_uv, uv_idx, tex, cache['film'], enable_mip=True, max_mip_level=9)
                         
-                    self.render_time += time.time() - t
+                        # Shading
+                        a_mvp = a_mvp[None, ...]
+                        params = {'mvp' : a_mvp, 'lightpos' : a_lightpos, 'campos' : a_campos, 'resolution' : cache['film'], 'time' : 0}
+                        material = {
+                            'kd': Texture2D(kd),
+                            'ks': Texture2D(ks),
+                            'bsdf': bsdf
+                        }
+                        nv_mesh =  NvMesh(vtx_pos, pos_idx.long(), vts_normals, pos_idx.long(), vtx_uv, uv_idx.long(), v_weights=None, bone_mtx=None, material=material)
+                        nv_mesh_tng = compute_tangents(nv_mesh)
+                        
+                        image_pass = render_mesh(glctx, nv_mesh_tng.eval(params), a_mvp, a_campos, a_lightpos, a_light_power, cache['film'][1], 
+                            num_layers=1, spp=1, background=None, min_roughness=0.08)
+
+                        image_pass.squeeze_(0)
+                        image_grad = image_grads[img_index] / npass
+                        tmp = (image_grad[..., :3] * image_pass).sum(dim=2)
+                        nv_grads = torch.autograd.grad(tmp, nv_params, torch.ones_like(tmp), retain_graph=True)
+                        for param_grad, nv_grad in zip(param_grads, nv_grads):
+                            param_grad += nv_grad / render_options['scale']
 
             return param_grads
 

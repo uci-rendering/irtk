@@ -1,7 +1,7 @@
 from ..connector import Connector
 from ..scene import *
 from ..config import *
-from ..utils import apply_pmkmp_cm
+from ..utils import Timer
 
 from pytorch3d.structures import Meshes, join_meshes_as_scene
 import pytorch3d.renderer as pr
@@ -17,7 +17,6 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
 
     def __init__(self):
         super().__init__()
-        self.render_time = 0
 
     def update_scene_objects(self, scene, render_options, sensor_ids):
         if 'pytorch3d' in scene.cached:
@@ -133,14 +132,13 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
         
         images = None
         npass = render_options['npass']
-        for i in range(npass):
-            t = time.time()
-            image_pass = renderer(cache['mesh'])[..., :3]
-            self.render_time += time.time() - t
-            if images:
-                images += image_pass / npass
-            else:
-                images = image_pass / npass
+        with Timer('Forward'):
+            for i in range(npass):
+                image_pass = renderer(cache['mesh'])[..., :3]
+                if images:
+                    images += image_pass / npass
+                else:
+                    images = image_pass / npass
 
         return list(images)
         
@@ -172,16 +170,14 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 )
             )
             image_grad = torch.stack(image_grads) / npass
-            for j in range(npass):
-                t = time.time()
-                image = renderer(cache['mesh'])[..., :3]
-                tmp = (image_grad[..., :3] * image).sum(dim=3)
-                pytorch3d_grads = torch.autograd.grad(tmp, pytorch3d_params, torch.ones_like(tmp), retain_graph=True)
-                for param_grad, pytorch3d_grad in zip(param_grads, pytorch3d_grads):
-                    param_grad += pytorch3d_grad
+            with Timer('Backward'):
+                for j in range(npass):
+                    image = renderer(cache['mesh'])[..., :3]
+                    tmp = (image_grad[..., :3] * image).sum(dim=3)
+                    pytorch3d_grads = torch.autograd.grad(tmp, pytorch3d_params, torch.ones_like(tmp), retain_graph=True)
+                    for param_grad, pytorch3d_grad in zip(param_grads, pytorch3d_grads):
+                        param_grad += pytorch3d_grad
                     
-                self.render_time += time.time() - t
-
             return param_grads
     
     def renderGrad(self, scene, render_options, sensor_ids=[0], integrator_id=0):
