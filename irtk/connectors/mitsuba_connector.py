@@ -123,7 +123,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                 }
             # print(mi_scene)
             # print("loading scene dict...", end='')
-            
+
             # print(loaded_mi_scene)
             cache['scene'] = mi_scene
             
@@ -397,6 +397,11 @@ def process_integrator(name, scene):
     elif integrator['type'] == 'prb_reparam':
         mi_integrator['max_depth'] = integrator['config']['max_depth']
         cache['integrators'][name] = mi_integrator
+    elif integrator['type'] == 'direct_projective':
+        mi_integrator['type'] = 'direct_projective'
+        for key in integrator['config'].keys():
+            mi_integrator[key] = integrator['config'][key]
+        cache['integrators'][name] = mi_integrator
     else:
         raise RuntimeError(f"unrecognized integrator type: {integrator['type']}")
 
@@ -484,7 +489,8 @@ def process_mesh(name, scene):
             mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
             verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
 
-        write_mesh('__mitsuba_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
+        # write_mesh('__mitsuba_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
+        write_mesh('__mitsuba_tmp__.obj', verts_new, faces_new, mesh['uv'], mesh['fuv'])
         mi_bsdf = mi.load_dict(cache['textures'][mat_id])
         mi_mesh_dict = {
             'type': 'obj',
@@ -504,23 +510,9 @@ def process_mesh(name, scene):
         mi_mesh = mi.load_dict(mi_mesh_dict)
         os.remove('__mitsuba_tmp__.obj')
         
-        # Set bsdf and emitter properties
-        # props = mi.Properties()
-        # props['bsdf'] = mi.load_dict(cache['textures'][mat_id])
-        # if mesh['is_emitter']:
-        #     props['emitter'] = mi.load_dict({
-        #         'type': 'area',
-        #         'radiance': {
-        #             'type': 'rgb',
-        #             'value': 20
-        #         }
-        #     })
-            
-        # Create mitsuba mesh
-        # mi_mesh = mi.Mesh(name, len(verts_new), len(faces_new), props=props, has_vertex_normals=True, has_vertex_texcoords=True)
         params = mi.traverse(mi_mesh)
-        params['vertex_count'] = len(verts_new)
-        params['face_count'] = len(faces_new)
+        # params['vertex_count'] = len(verts_new)
+        # params['face_count'] = len(faces_new)
         params['faces'] = drjit.ravel(mi.Vector3u(faces_new.cpu().numpy()))
         params['vertex_positions'] = drjit.ravel(mi.Vector3f(verts_new))
         # Compute vertex normals
@@ -553,8 +545,8 @@ def process_mesh(name, scene):
                 else:
                     verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
                 params = mi.traverse(mi_mesh)
-                params['vertex_count'] = len(verts_new)
-                params['face_count'] = len(faces_new)
+                # params['vertex_count'] = len(verts_new)
+                # params['face_count'] = len(faces_new)
                 params['faces'] = drjit.ravel(mi.Vector3u(faces_new.cpu().numpy()))
                 params['vertex_positions'] = drjit.ravel(mi.Vector3f(verts_new))
                 # Compute vertex normals
