@@ -51,7 +51,9 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
 
         cache = scene.cached['psdr_enzyme']
         if cache['update_scene']:
-            cache['scene'] = psdr_cpu.Scene(
+            # use assign instead of psdr_cpu.Scene()
+            # avoid calling destructor
+            cache['scene'].assign(
                 cache['ctx']['cameras'][0],
                 cache['ctx']['shapes'],
                 cache['ctx']['bsdfs'],
