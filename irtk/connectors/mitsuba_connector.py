@@ -222,7 +222,8 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                 
                 image = torch.zeros((h, w, c)).to(device).to(ftype)
                 for i in range(npass):
-                    image_pass = mi.render(loaded_mi_scene, sensor=mi_sensors[sensor_id], spp=render_options['spp'], seed=seed).torch()
+                    # image_pass = mi.render(loaded_mi_scene, sensor=mi_sensors[sensor_id], spp=render_options['spp'], seed=seed).torch()
+                    image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], seed=seed).torch()
                     # image_pass = mi.render(loaded_mi_scene, spp=render_options['spp']).torch()
                     image += image_pass / npass
                     seed += 1
