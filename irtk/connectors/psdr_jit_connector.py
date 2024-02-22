@@ -18,6 +18,8 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
     def __init__(self):
         super().__init__()
+        
+        self.debug = False
 
         self.default_render_options = {
             'spp': 64,
@@ -73,22 +75,22 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         return scene.cached['psdr_jit'], drjit_params
 
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
-        cache, _ = self.update_scene_objects(scene, render_options)
-        psdr_scene = cache['scene']
+        with Timer('-- Prepare Scene', prt=self.debug, record=False):
+            cache, _ = self.update_scene_objects(scene, render_options)
+            psdr_scene = cache['scene']
 
-        with Timer('Forward configure'):
             psdr_scene.configure(sensor_ids)
 
-        npass = render_options['npass']
-        h, w, c = cache['film']['shape']
-        if type(integrator_id) == int:
-            integrator = list(cache['integrators'].values())[integrator_id]
-        elif type(integrator_id) == str:
-            integrator = cache['integrators'][integrator_id]
-        else:
-            raise RuntimeError('integrator_id is invalid: {integrator_id}')
+            npass = render_options['npass']
+            h, w, c = cache['film']['shape']
+            if type(integrator_id) == int:
+                integrator = list(cache['integrators'].values())[integrator_id]
+            elif type(integrator_id) == str:
+                integrator = cache['integrators'][integrator_id]
+            else:
+                raise RuntimeError('integrator_id is invalid: {integrator_id}')
 
-        with Timer('Forward'):
+        with Timer('-- Backend Forward', prt=self.debug, record=False):
             images = []
             for sensor_id in sensor_ids:
                 seed = render_options['seed']
@@ -103,23 +105,23 @@ class PSDRJITConnector(Connector, connector_name='psdr_jit'):
         return images
         
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
-        cache, drjit_params = self.update_scene_objects(scene, render_options)
-        psdr_scene = cache['scene']
-        
-        with Timer('Backward configure', False):
+        with Timer('-- Prepare Scene', prt=self.debug, record=False):
+            cache, drjit_params = self.update_scene_objects(scene, render_options)
+            psdr_scene = cache['scene']
+            
             psdr_scene.configure(sensor_ids)
 
-        npass = render_options['npass']
-        if type(integrator_id) == int:
-            psdr_integrator = list(cache['integrators'].values())[integrator_id]
-        elif type(integrator_id) == str:
-            psdr_integrator = cache['integrators'][integrator_id]
-        else:
-            raise RuntimeError('integrator_id is invalid: {integrator_id}')
-        
-        param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
+            npass = render_options['npass']
+            if type(integrator_id) == int:
+                psdr_integrator = list(cache['integrators'].values())[integrator_id]
+            elif type(integrator_id) == str:
+                psdr_integrator = cache['integrators'][integrator_id]
+            else:
+                raise RuntimeError('integrator_id is invalid: {integrator_id}')
+            
+            param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
 
-        with Timer('Backward'):
+        with Timer('-- Backend Backward', prt=self.debug, record=False):
             for i, sensor_id in enumerate(sensor_ids):
                 seed = render_options['seed']
                 image_grad = Vector3fC(image_grads[i].reshape(-1, 3) / npass)
