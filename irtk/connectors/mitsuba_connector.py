@@ -22,7 +22,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
     device = 'cuda'
     ftype = torch.float32
     itype = torch.long
-    is_debug = False
+    debug = False
 
     def __init__(self):
         super().__init__()
@@ -57,75 +57,72 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         mitsuba_params = []
         for name in scene.components:
             component = scene[name]
-            component_type = str.split(str(type(component)), '.')[-1][:-2]
-            with Timer(f"'{component_type}' preparation", self.is_debug):
-                mitsuba_params += self.extensions[type(component)](name, scene)
+            mitsuba_params += self.extensions[type(component)](name, scene)
         
         # Mitsuba Scene
-        with Timer(f"'Load scene", self.is_debug):
-            mi_scene = {
-                'type': 'scene',
-                # 'rfilter': {
-                #     'type': 'box',
-                # }
-            }
-            # Integrators
-            for integrator_name, integrator_value in cache['integrators'].items():
-                mi_scene[integrator_name] = integrator_value
-            # Meshs
-            for mesh_name, mesh_value in cache['meshes'].items():
-                mi_scene[mesh_name] = mesh_value
-            # Environment Lights
-            if len(cache['envlights']) >= 1:
-                for envlight_name, envlight_value in cache['envlights'].items():
-                    mi_scene[envlight_name] = envlight_value
-            # Point Light
-            if cache['point_light']:
-                mi_scene['emitter'] = cache['point_light']
-            elif 'point_light_intensity' in render_options:
-                # mi_scene['emitter'] = {
-                #     'type': 'point',
-                #     'position': list(cache['cameras'].values())[0]['to_world'].translation(),
-                #     'intensity': {
-                #         'type': 'rgb',
-                #         'value': render_options['point_light_intensity']
-                #     }
-                # }
-                mi_scene['emitter'] = {
-                    'type': 'obj',
-                    'filename': 'assets/meshes/plane_point_light.obj',
-                    'to_world': list(cache['cameras'].values())[0]['to_world'],
-                    'area_light': {
-                        'type': 'area',
-                        'radiance': {
-                            'type': 'rgb',
-                            'value': render_options['point_light_intensity']
-                        }
+        mi_scene = {
+            'type': 'scene',
+            # 'rfilter': {
+            #     'type': 'box',
+            # }
+        }
+        # Integrators
+        for integrator_name, integrator_value in cache['integrators'].items():
+            mi_scene[integrator_name] = integrator_value
+        # Meshs
+        for mesh_name, mesh_value in cache['meshes'].items():
+            mi_scene[mesh_name] = mesh_value
+        # Environment Lights
+        if len(cache['envlights']) >= 1:
+            for envlight_name, envlight_value in cache['envlights'].items():
+                mi_scene[envlight_name] = envlight_value
+        # Point Light
+        if cache['point_light']:
+            mi_scene['emitter'] = cache['point_light']
+        elif 'point_light_intensity' in render_options:
+            # mi_scene['emitter'] = {
+            #     'type': 'point',
+            #     'position': list(cache['cameras'].values())[0]['to_world'].translation(),
+            #     'intensity': {
+            #         'type': 'rgb',
+            #         'value': render_options['point_light_intensity']
+            #     }
+            # }
+            mi_scene['emitter'] = {
+                'type': 'obj',
+                'filename': 'assets/meshes/plane_point_light.obj',
+                'to_world': list(cache['cameras'].values())[0]['to_world'],
+                'area_light': {
+                    'type': 'area',
+                    'radiance': {
+                        'type': 'rgb',
+                        'value': render_options['point_light_intensity']
                     }
                 }
-                # mi_scene['emitter'] = {
-                #     'type': 'constant',
-                #     'radiance': 0.99,
-                # }
-            elif 'plane_light' in render_options:
-                mi_scene['emitter'] = {
-                    # 'type': 'obj',
-                    # 'filename': 'assets/meshes/plane_4f.obj',
-                    'type': 'rectangle',
-                    'to_world': mi.ScalarTransform4f(render_options['plane_light']['to_world']),
-                    'focused-emitter': {
-                        'type': 'area',
-                        'radiance': {
-                            'type': 'rgb',
-                            'value': render_options['plane_light']['radiance']
-                        }
-                    },
-                }
-            # print(mi_scene)
-            # print("loading scene dict...", end='')
+            }
+            # mi_scene['emitter'] = {
+            #     'type': 'constant',
+            #     'radiance': 0.99,
+            # }
+        elif 'plane_light' in render_options:
+            mi_scene['emitter'] = {
+                # 'type': 'obj',
+                # 'filename': 'assets/meshes/plane_4f.obj',
+                'type': 'rectangle',
+                'to_world': mi.ScalarTransform4f(render_options['plane_light']['to_world']),
+                'focused-emitter': {
+                    'type': 'area',
+                    'radiance': {
+                        'type': 'rgb',
+                        'value': render_options['plane_light']['radiance']
+                    }
+                },
+            }
+        # print(mi_scene)
+        # print("loading scene dict...", end='')
 
-            # print(loaded_mi_scene)
-            cache['scene'] = mi_scene
+        # print(loaded_mi_scene)
+        cache['scene'] = mi_scene
             
         return scene.cached['mitsuba'], mitsuba_params
     # """
@@ -187,19 +184,25 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
 
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         mi.set_variant('cuda_ad_rgb')
-        cache, _ = self.update_scene_objects(scene, render_options)
+        
+        with Timer(f"-- Prepare Scene", prt=self.debug, record=False):
+            cache, _ = self.update_scene_objects(scene, render_options)
 
-        mi_scene = cache['scene']
-        loaded_mi_scene = mi.load_dict(mi_scene)
-        params = mi.traverse(loaded_mi_scene)
+            mi_scene = cache['scene']
+            loaded_mi_scene = mi.load_dict(mi_scene)
+            params = mi.traverse(loaded_mi_scene)
 
-        # Sensors
-        mi_sensors = []
-        for sensor_name, sensor_value in cache['cameras'].items():
-            sensor_value['film'] = cache['film']
-            mi_sensors.append(mi.load_dict(sensor_value))
+            # Sensors
+            mi_sensors = []
+            for sensor_name, sensor_value in cache['cameras'].items():
+                sensor_value['film'] = cache['film']
+                sensor_value['sampler'] = {
+                    'type': 'independent',
+                    'sample_count': render_options['spp']
+                },
+                mi_sensors.append(mi.load_dict(sensor_value))
 
-        with Timer('Forward'):
+        with Timer('-- Backend Forward', prt=self.debug, record=False):
             images = []
             npass = render_options['npass']
             h, w, c = (cache['film']['height'], cache['film']['width'], 3)
@@ -224,7 +227,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     image += image_pass / npass
                     seed += 1
                 images.append(image)
-                
+
         # params = mi.traverse(loaded_mi_scene)
         # drjit.enable_grad(params['shape.vertex_positions'])
         # mitsuba_params = [params['shape.vertex_positions']]
@@ -246,23 +249,29 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
         with torch.enable_grad():
             mi.set_variant('cuda_ad_rgb')
-            cache, mitsuba_params = self.update_scene_objects(scene, render_options)
             
-            # """
-            # Sensors
-            mi_sensors = []
-            for sensor_name, sensor_value in cache['cameras'].items():
-                sensor_value['film'] = cache['film']
-                mi_sensors.append(mi.load_dict(sensor_value))
+            with Timer(f"-- Prepare Scene", prt=self.debug, record=False):
+                cache, mitsuba_params = self.update_scene_objects(scene, render_options)
             
-            mi_scene = cache['scene']
-            loaded_mi_scene = mi.load_dict(mi_scene)
-            params = mi.traverse(loaded_mi_scene)
+                # """
+                # Sensors
+                mi_sensors = []
+                for sensor_name, sensor_value in cache['cameras'].items():
+                    sensor_value['film'] = cache['film']
+                    sensor_value['sampler'] = {
+                        'type': 'independent',
+                        'sample_count': render_options['spp']
+                    },
+                    mi_sensors.append(mi.load_dict(sensor_value))
+                
+                mi_scene = cache['scene']
+                loaded_mi_scene = mi.load_dict(mi_scene)
+                params = mi.traverse(loaded_mi_scene)
 
-            npass = render_options['npass']
-            param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
+                npass = render_options['npass']
+                param_grads = [torch.zeros_like(scene[param_name]) for param_name in scene.requiring_grad]
 
-            with Timer('Backward'):
+            with Timer('-- Backend Backward', prt=self.debug, record=False):
                 for i, sensor_id in enumerate(sensor_ids):
                     seed = render_options['seed']
                     
@@ -278,7 +287,8 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     
                     image_grad = mi.TensorXf(image_grads[i] / npass)
                     for j in range(npass):
-                        image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'], seed=seed)
+                        # image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'], seed=seed)
+                        image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], seed=seed)
                         tmp = image_grad * image_pass
                         drjit.backward(tmp)
                         for param_grad, mitsuba_param in zip(param_grads, mitsuba_params):
@@ -294,6 +304,8 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                                 param_grad += grad
                         
                         seed += 1
+                
+                torch.cuda.synchronize()
                         
             # """
             
