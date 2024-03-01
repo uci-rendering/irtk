@@ -190,7 +190,18 @@ class MicrofacetBRDF(ParamGroup):
         r_texture = read_image(r_filename, r_is_srgb)[..., 0:1]
 
         return cls(d_texture, s_texture, r_texture)
-    
+
+class SmoothDielectricBRDF(ParamGroup):
+
+    def __init__(self, int_ior, ext_ior, s_reflect, s_transmit):
+        super().__init__()
+        
+        self.add_param('int_ior', int_ior, is_tensor=False, is_diff=False, help_msg='interior index of refraction')
+        self.add_param('ext_ior', ext_ior, is_tensor=False, is_diff=False, help_msg='exterior index of refraction')
+        self.add_param('s_reflect', to_torch_f(s_reflect), is_tensor=True, is_diff=False, help_msg='specular reflection component')
+        self.add_param('s_transmit', to_torch_f(s_transmit), is_tensor=True, is_diff=False, help_msg='specular transmission component')
+
+
 class EnvironmentLight(ParamGroup):
 
     def __init__(self, radiance, to_world=torch.eye(4)):

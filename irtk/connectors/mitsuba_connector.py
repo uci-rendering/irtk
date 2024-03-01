@@ -199,7 +199,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                 sensor_value['sampler'] = {
                     'type': 'independent',
                     'sample_count': render_options['spp']
-                },
+                }
                 mi_sensors.append(mi.load_dict(sensor_value))
 
         with Timer('-- Backend Forward', prt=self.debug, record=False):
@@ -262,7 +262,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     sensor_value['sampler'] = {
                         'type': 'independent',
                         'sample_count': render_options['spp']
-                    },
+                    }
                     mi_sensors.append(mi.load_dict(sensor_value))
                 
                 mi_scene = cache['scene']
@@ -304,6 +304,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                                 grad = torch.nan_to_num(grad).reshape(param_grad.shape)
                                 param_grad += grad
                         
+                        drjit.flush_malloc_cache()
                         seed += 1
                 
                 torch.cuda.synchronize()
@@ -407,16 +408,25 @@ def process_integrator(name, scene):
         cache['integrators'][name] = mi_integrator
     elif integrator['type'] == 'direct_reparam':
         cache['integrators'][name] = mi_integrator
-    elif integrator['type'] == 'prb_reparam':
-        mi_integrator['max_depth'] = integrator['config']['max_depth']
-        cache['integrators'][name] = mi_integrator
-    elif integrator['type'] == 'direct_projective':
-        mi_integrator['type'] = 'direct_projective'
+    # elif integrator['type'] == 'prb_reparam':
+    #     mi_integrator['max_depth'] = integrator['config']['max_depth']
+    #     cache['integrators'][name] = mi_integrator
+    # elif integrator['type'] == 'direct_projective':
+    #     mi_integrator['type'] = 'direct_projective'
+    #     for key in integrator['config'].keys():
+    #         mi_integrator[key] = integrator['config'][key]
+    #     cache['integrators'][name] = mi_integrator
+    # elif integrator['type'] == 'prb_projective':
+    #     mi_integrator['type'] = 'prb_projective'
+    #     for key in integrator['config'].keys():
+    #         mi_integrator[key] = integrator['config'][key]
+    #     cache['integrators'][name] = mi_integrator
+    else:
+        mi_integrator['type'] = integrator['type']
         for key in integrator['config'].keys():
             mi_integrator[key] = integrator['config'][key]
         cache['integrators'][name] = mi_integrator
-    else:
-        raise RuntimeError(f"unrecognized integrator type: {integrator['type']}")
+        # raise RuntimeError(f"unrecognized integrator type: {integrator['type']}")
 
     return []
 
@@ -802,6 +812,34 @@ def process_microfacet_brdf(name, scene):
                 mitsuba_params.append(mi_brdf['alpha'])
 
     return mitsuba_params
+
+@MitsubaConnector.register(SmoothDielectricBRDF)
+def process_smooth_dielectric_brdf(name, scene):
+    brdf = scene[name]
+    cache = scene.cached['mitsuba']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        mi_brdf = {
+            'type': 'dielectric',
+            'int_ior': brdf['int_ior'],
+            'ext_ior': brdf['ext_ior'],
+            'specular_reflectance': {
+                'type': 'srgb',
+                'color': brdf['s_reflect'].cpu().numpy()
+            },
+            'specular_transmittance': {
+                'type': 'srgb',
+                'color': brdf['s_transmit'].cpu().numpy()
+            }
+        }
+        
+        cache['textures'][name] = mi_brdf
+        cache['name_map'][name] = mi_brdf
+
+    mi_brdf = cache['name_map'][name]
+
+    return []
 
 @MitsubaConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):
