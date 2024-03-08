@@ -1,5 +1,4 @@
 from .connector import get_connector
-from .config import *
 import torch 
 import numpy as np
 

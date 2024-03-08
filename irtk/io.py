@@ -1,4 +1,4 @@
-from .config import *
+from .config import configs
 import imageio
 import imageio.v3 as iio
 import numpy as np
@@ -72,17 +72,17 @@ def to_numpy(data):
     
 def to_torch(data, dtype):
     if torch.is_tensor(data):
-        return data.to(dtype).to(device).contiguous()
+        return data.to(dtype).to(configs['device']).contiguous()
     elif isinstance(data, np.ndarray):
-        return torch.from_numpy(data).to(dtype).to(device).contiguous()
+        return torch.from_numpy(data).to(dtype).to(configs['device']).contiguous()
     else:
-        return torch.tensor(data, dtype=dtype, device=device).contiguous()
+        return torch.tensor(data, dtype=dtype, device=configs['device']).contiguous()
 
 def to_torch_f(data):
-    return to_torch(data, ftype)
+    return to_torch(data, configs['ftype'])
 
 def to_torch_i(data):
-    return to_torch(data, itype)
+    return to_torch(data, configs['itype'])
 
 def read_image(image_path, is_srgb=None, remove_alpha=True):
     image_path = Path(image_path)

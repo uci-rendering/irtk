@@ -1,7 +1,7 @@
 import torch
 from abc import ABC, abstractmethod
 from pathlib import Path
-from .config import *
+from .io import to_torch_f
 
 import gin 
 
@@ -30,7 +30,7 @@ class Model(ABC):
         pass
 
     def get_regularization(self):
-        return torch.tensor(0.0, device=device, dtype=ftype)
+        return to_torch_f([0])
 
 @gin.configurable
 class MultiOpt(Model):
@@ -63,7 +63,7 @@ class MultiOpt(Model):
             model.write_results(result_path)
 
     def get_regularization(self):
-        reg = torch.tensor(0.0, device=device, dtype=ftype)
+        reg = to_torch_f([0])
         for model in self._models:
             reg += model.get_regularization()
         return reg
