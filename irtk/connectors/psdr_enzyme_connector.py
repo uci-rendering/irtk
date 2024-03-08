@@ -234,7 +234,7 @@ def process_mesh(name, scene):
     params = [f'{group}[{idx}].{param_name_map[param_name]}' for param_name in requiring_grad]
     return params
 
-def convert_color(color, c=3):
+def color_to_bitmap(color, c=3):
     if color.shape == ():
         color = color.tile(c)
     if color.shape == (c,):
@@ -242,6 +242,11 @@ def convert_color(color, c=3):
     w, h, _ = color.shape
     color = color.reshape(-1, 1)
     return psdr_cpu.Bitmap(to_numpy(color), to_numpy([h, w]))
+
+def color_to_spectrum(color):
+    if color.shape == ():
+        color = color.tile(3)
+    return psdr_cpu.Spectrum3f(color[0], color[1], color[2])
 
 @PSDREnzymeConnector.register(DiffuseBRDF)
 def process_diffuse_brdf(name, scene):
@@ -251,7 +256,7 @@ def process_diffuse_brdf(name, scene):
     # Create the object if it has not been created
     if name not in cache['name_map']:
         bsdf_id = len(cache['ctx']['bsdfs'])
-        d = convert_color(brdf['d'], 3)
+        d = color_to_bitmap(brdf['d'], 3)
         psdr_bsdf = psdr_cpu.DiffuseBSDF()
         psdr_bsdf.reflectance = d 
         cache['ctx']['bsdfs'].append(psdr_bsdf)
@@ -266,7 +271,7 @@ def process_diffuse_brdf(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == 'd':
-                psdr_brdf.reflectance = convert_color(brdf['d'], 3)
+                psdr_brdf.reflectance = color_to_bitmap(brdf['d'], 3)
             brdf.mark_updated(param_name, False)
         cache['update_scene'] = True
     
@@ -278,6 +283,21 @@ def process_diffuse_brdf(name, scene):
     params = [f'{group}[{idx}].{param_name_map[param_name]}' for param_name in requiring_grad]
     return params
 
+@PSDREnzymeConnector.register(RoughDielectricBSDF)
+def process_rough_dielectric_bsdf(name, scene):
+    bsdf = scene[name]
+    cache = scene.cached['psdr_enzyme']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        bsdf_id = len(cache['ctx']['bsdfs'])
+        psdr_bsdf = psdr_cpu.RoughDielectricBSDF(bsdf['alpha'], bsdf['i_ior'], bsdf['e_ior'])
+        cache['ctx']['bsdfs'].append(psdr_bsdf)
+        cache['name_map'][name] = ("bsdfs", bsdf_id)
+        cache['mat_id_map'][name] = bsdf_id
+
+    return []
+
 @PSDREnzymeConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):
     emitter = scene[name]
@@ -286,7 +306,7 @@ def process_environment_light(name, scene):
     # Create the object if it has not been created
     if name not in cache['name_map']:
         emitter_id = len(cache['ctx']['emitters'])
-        radiance = convert_color(emitter['radiance'], 3)
+        radiance = color_to_bitmap(emitter['radiance'], 3)
         props = Properties()
         props.setBitmap('data', radiance)
         props.set('toWorld', to_numpy(emitter['to_world']))
@@ -296,61 +316,3 @@ def process_environment_light(name, scene):
 
     return []
 
-# # Scene components specfic to psdr-jit
-# class MicrofacetBRDFPerVertex(ParamGroup):
-
-#     def __init__(self, d, s, r):
-#         super().__init__()
-        
-#         self.add_param('d', to_torch_f(d), is_tensor=True, is_diff=True, help_msg='diffuse reflectance')
-#         self.add_param('s', to_torch_f(s), is_tensor=True, is_diff=True, help_msg='specular reflectance')
-#         self.add_param('r', to_torch_f(r), is_tensor=True, is_diff=True, help_msg='roughness')
-
-# @PSDREnzymeConnector.register(MicrofacetBRDFPerVertex)
-# def process_microfacet_brdf_per_vertex(name, scene):
-#     brdf = scene[name]
-#     cache = scene.cached['psdr_enzyme']
-#     psdr_scene = cache['scene']
-    
-#     # Create the object if it has not been created
-#     if name not in cache['name_map']:
-#         d = Vector3fD(brdf['d'])
-#         s = Vector3fD(brdf['s'])
-#         r = Vector1fD(brdf['r'])
-
-#         psdr_bsdf = psdr_enzyme.MicrofacetBSDFPerVertex(s, d, r)
-#         psdr_scene.add_BSDF(psdr_bsdf, name)
-#         cache['name_map'][name] = f"BSDF[id={name}]"
-
-#     psdr_brdf = psdr_scene.param_map[cache['name_map'][name]]
-
-#     # Update parameters
-#     updated = brdf.get_updated()
-#     if len(updated) > 0:
-#         for param_name in updated:
-#             if param_name == 'd':
-#                 psdr_brdf.diffuseReflectance = Vector3fD(brdf['d'])
-#             elif param_name == 's':
-#                 psdr_brdf.specularReflectance = Vector3fD(brdf['s'])
-#             elif param_name == 'r':
-#                 psdr_brdf.roughness= Vector1fD(brdf['r'])
-#             brdf.params[param_name]['updated'] = False
-
-#     # Enable grad for parameters requiring grad
-#     drjit_params = []
-    
-#     def enable_grad(drjit_param):
-#         drjit.enable_grad(drjit_param)
-#         drjit_params.append(drjit_param)
-
-#     requiring_grad = brdf.get_requiring_grad()
-#     if len(requiring_grad) > 0:
-#         for param_name in requiring_grad:
-#             if param_name == 'd':
-#                 enable_grad(psdr_brdf.diffuseReflectance)
-#             elif param_name == 's':
-#                 enable_grad(psdr_brdf.specularReflectance)
-#             elif param_name == 'r':
-#                 enable_grad(psdr_brdf.roughness)
-
-#     return drjit_params
