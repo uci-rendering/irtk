@@ -201,6 +201,24 @@ class SmoothDielectricBRDF(ParamGroup):
         self.add_param('s_reflect', to_torch_f(s_reflect), is_tensor=True, is_diff=False, help_msg='specular reflection component')
         self.add_param('s_transmit', to_torch_f(s_transmit), is_tensor=True, is_diff=False, help_msg='specular transmission component')
 
+class RoughConductorBRDF(ParamGroup):
+
+    def __init__(self, alpha_u, alpha_v, eta, k, s):
+        super().__init__()
+        
+        self.add_param('alpha_u', to_torch_f(alpha_u), is_tensor=True, is_diff=True, help_msg='alpha_u')
+        self.add_param('alpha_v', to_torch_f(alpha_v), is_tensor=True, is_diff=True, help_msg='alpha_v')
+        self.add_param('eta', to_torch_f(eta), is_tensor=True, is_diff=True, help_msg='eta')
+        self.add_param('k', to_torch_f(k), is_tensor=True, is_diff=True, help_msg='k')
+        self.add_param('s', to_torch_f(s), is_tensor=True, is_diff=True, help_msg='specular reflectance')
+
+    # @classmethod
+    # def from_file(cls, d_filename, s_filename, r_filename, d_is_srgb=None, s_is_srgb=None, r_is_srgb=None):
+    #     d_texture = read_image(d_filename, d_is_srgb)
+    #     s_texture = read_image(s_filename, s_is_srgb)
+    #     r_texture = read_image(r_filename, r_is_srgb)[..., 0:1]
+
+    #     return cls(d_texture, s_texture, r_texture)
 
 class EnvironmentLight(ParamGroup):
 

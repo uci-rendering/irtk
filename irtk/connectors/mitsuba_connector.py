@@ -347,6 +347,10 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         mi_sensors = []
         for sensor_name, sensor_value in cache['cameras'].items():
             sensor_value['film'] = cache['film']
+            sensor_value['sampler'] = {
+                'type': 'independent',
+                'sample_count': render_options['spp']
+            }
             mi_sensors.append(mi.load_dict(sensor_value))
 
         seed = render_options['seed']
@@ -379,7 +383,8 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                 
                 drjit.forward(P, drjit.ADFlag.ClearEdges)
                 
-                drjit_image = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'], seed=seed)
+                # drjit_image = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'], seed=seed)
+                drjit_image = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], seed=seed)
                 image += to_torch_f(drjit_image.torch()) / npass
 
                 drjit.forward_to(drjit_image)
@@ -406,8 +411,8 @@ def process_integrator(name, scene):
         if 'hide_emitters' in integrator['config']:
             mi_integrator['hide_emitters'] = integrator['config']['hide_emitters']
         cache['integrators'][name] = mi_integrator
-    elif integrator['type'] == 'direct_reparam':
-        cache['integrators'][name] = mi_integrator
+    # elif integrator['type'] == 'direct_reparam':
+    #     cache['integrators'][name] = mi_integrator
     # elif integrator['type'] == 'prb_reparam':
     #     mi_integrator['max_depth'] = integrator['config']['max_depth']
     #     cache['integrators'][name] = mi_integrator
@@ -841,6 +846,39 @@ def process_smooth_dielectric_brdf(name, scene):
 
     return []
 
+@MitsubaConnector.register(RoughConductorBRDF)
+def process_rough_conductor_brdf(name, scene):
+    brdf = scene[name]
+    cache = scene.cached['mitsuba']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        mi_brdf = {
+            'type': 'roughconductor',
+            'eta': {
+                'type': 'srgb',
+                'color': brdf['eta'].cpu().numpy()
+            },
+            'k': {
+                'type': 'srgb',
+                'color': brdf['k'].cpu().numpy()
+            },
+            'specular_reflectance': {
+                'type': 'srgb',
+                'color': brdf['s'].cpu().numpy()
+            },
+            'distribution': 'ggx',
+            'alpha_u': brdf['alpha_u'].cpu().item(),
+            'alpha_v': brdf['alpha_v'].cpu().item(),
+        }
+        
+        cache['textures'][name] = mi_brdf
+        cache['name_map'][name] = mi_brdf
+
+    mi_brdf = cache['name_map'][name]
+
+    return []
+
 @MitsubaConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):
     emitter = scene[name]
@@ -1013,13 +1051,13 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         self.m_roughness = props['roughness']
 
         # Set the BSDF flags
-        reflection_flags   = mi.BSDFFlags.GlossyReflection  | mi.BSDFFlags.FrontSide
+        reflection_flags   = mi.BSDFFlags.Reflection  | mi.BSDFFlags.FrontSide
         self.m_components  = [reflection_flags]
         self.m_flags = reflection_flags
-        # reflection_flags   = mi.BSDFFlags.DeltaReflection   | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
-        # transmission_flags = mi.BSDFFlags.DeltaTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
-        # self.m_components  = [reflection_flags, transmission_flags]
-        # self.m_flags = reflection_flags | transmission_flags
+        # reflection_flags   = mi.BSDFFlags.GlossyReflection   | mi.BSDFFlags.FrontSide
+        # diffuse_flags = mi.BSDFFlags.DiffuseReflection | mi.BSDFFlags.FrontSide
+        # self.m_components  = [reflection_flags, diffuse_flags]
+        # self.m_flags = reflection_flags | diffuse_flags
         
     def sample_visible_11(self, cos_theta_i, sample):
         # print('sample_visible_11')
@@ -1092,11 +1130,11 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         bs.eta = 1.0
         bs.pdf = (m_pdf / (4.0 * drjit.dot(bs.wo, m)))
         bs.sampled_component = 0
-        bs.sampled_type = mi.BSDFFlags.GlossyReflection
-        
-        value = self.eval(ctx, si, bs.wo, active)
+        bs.sampled_type = mi.BSDFFlags.Reflection
         
         active = (cos_theta_i > 0.0) & drjit.neq(bs.pdf, 0.0) & (mi.Frame3f.cos_theta(bs.wo) > 0.0) & active
+        
+        value = self.eval(ctx, si, bs.wo, active) / bs.pdf
         
         return (drjit.detach(bs), drjit.select(active, value, 0.0))
 
