@@ -10,11 +10,6 @@ import time
 
 class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
 
-    backend = 'torch'
-    device = 'cuda'
-    ftype = torch.float32
-    itype = torch.long
-
     def __init__(self):
         super().__init__()
 
@@ -53,7 +48,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             [cache['materials'][mesh['mat_id']]['diffuse'] for mesh in cache['meshes']],
             [cache['materials'][mesh['mat_id']]['specular'] for mesh in cache['meshes']],
             [cache['materials'][mesh['mat_id']]['shininess'] for mesh in cache['meshes']],
-            device=device
+            device=configs['device']
         )
         # construct mesh here in case the textures have changed
         cache['mesh'] = Meshes(
@@ -75,17 +70,17 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             fov=[cam['fov'] for cam in selected_cameras], 
             R=torch.stack([cam['R'] for cam in selected_cameras]), 
             T=torch.stack([cam['T'] for cam in selected_cameras]), 
-            device=device
+            device=configs['device']
         )
         # change light here
-        # lights = pr.AmbientLights(ambient_color=((1, 1, 1), ), device=device)
+        # lights = pr.AmbientLights(ambient_color=((1, 1, 1), ), device=configs['device'])
         if cache['point_light']:
             lights = pr.PointLights(
                 location=[list(cache['point_light']['position']) for i in range(len(selected_cameras))], 
                 ambient_color=((0, 0, 0), ),
                 diffuse_color=(tuple(cache['point_light']['radiance']), ),
                 specular_color=((1, 1, 1), ),
-                device=device
+                device=configs['device']
             )
         else: 
             diffuse_color = (1, 1, 1)
@@ -101,7 +96,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 ambient_color=((0, 0, 0), ),
                 diffuse_color=(diffuse_color, ),
                 specular_color=(specular_color, ),
-                device=device
+                device=configs['device']
             )
         cache['light'] = lights
         # cache['mesh'] = join_meshes_as_batch(cache['meshes'])
@@ -122,7 +117,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                 raster_settings=raster_settings
             ),
             shader=pr.SoftPhongShader(
-                device=device, 
+                device=configs['device'], 
                 cameras=cache['camera'],
                 lights=cache['light'],
                 materials=cache['material'],
@@ -162,7 +157,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                     raster_settings=raster_settings
                 ),
                 shader=pr.SoftPhongShader(
-                    device=device, 
+                    device=configs['device'], 
                     cameras=cache['camera'],
                     lights=cache['light'],
                     materials=cache['material'],
@@ -186,7 +181,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
             # change mesh position offset
             offset = torch.zeros(3)
             offset[0] = x[0]
-            offset = offset.to(device)
+            offset = offset.to(configs['device'])
             cache['mesh'].offset_verts_(offset)
 
             blend_params = pr.BlendParams(sigma=1e-4, gamma=1e-4, background_color=(0.0, 0.0, 0.0))
@@ -201,7 +196,7 @@ class PyTorch3DConnector(Connector, connector_name='pytorch3d'):
                     raster_settings=raster_settings
                 ),
                 shader=pr.SoftPhongShader(
-                    device=device, 
+                    device=configs['device'], 
                     cameras=cache['camera'],
                     lights=cache['light'],
                     blend_params=blend_params
@@ -339,12 +334,12 @@ def process_mesh(name, scene):
         if mat_id not in scene:
             raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
         
-        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
         verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
         if mesh['uv'].nelement() == 0:
-            mesh['uv'] = torch.zeros((1, 2)).to(device)
+            mesh['uv'] = torch.zeros((1, 2)).to(configs['device'])
         if mesh['fuv'].nelement() == 0:
-            mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+            mesh['fuv'] = torch.zeros_like(mesh['f']).to(configs['device'])
 
         pytorch3d_mesh = {
             'verts': verts,
@@ -364,12 +359,12 @@ def process_mesh(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == 'v' or param_name == 'to_world':
-                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
                 verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
                 if mesh['uv'].nelement() == 0:
-                    mesh['uv'] = torch.zeros((1, 2)).to(device)
+                    mesh['uv'] = torch.zeros((1, 2)).to(configs['device'])
                 if mesh['fuv'].nelement() == 0:
-                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(configs['device'])
                     
                 if mesh['can_change_topology']:
                     pytorch3d_mesh['verts'] = verts

@@ -83,7 +83,7 @@ class RednerConnector(Connector, connector_name='redner'):
             npass = render_options['npass']
             h, w, c = (cache['film']['height'], cache['film']['width'], 3)
         
-            image = torch.zeros((h, w, c)).to(device).to(ftype).cpu()
+            image = torch.zeros((h, w, c)).to(configs['device']).to(configs['ftype']).cpu()
             for i in range(npass):
                 t = time.time()
                 image_pass = render_pathtracing(redner_scene, max_bounces = max_bounces, num_samples = (render_options['spp'], 4))
@@ -235,14 +235,14 @@ def process_mesh(name, scene):
         brdf = scene[mat_id]
         RednerConnector.extensions[type(brdf)](mat_id, scene)
 
-        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
         verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
         verts = verts.contiguous()
         
         if mesh['uv'].nelement() == 0:
-            mesh['uv'] = torch.zeros((1, 2)).to(device)
+            mesh['uv'] = torch.zeros((1, 2)).to(configs['device'])
         if mesh['fuv'].nelement() == 0:
-            mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+            mesh['fuv'] = torch.zeros_like(mesh['f']).to(configs['device'])
         
         material = cache['textures'][mat_id]
         vts_normals = compute_vertex_normals(verts, mesh['f'].long())
@@ -264,13 +264,13 @@ def process_mesh(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == 'v':
-                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
                 verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
                 verts = verts.contiguous()
                 if mesh['uv'].nelement() == 0:
-                    mesh['uv'] = torch.zeros((1, 2)).to(device)
+                    mesh['uv'] = torch.zeros((1, 2)).to(configs['device'])
                 if mesh['fuv'].nelement() == 0:
-                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(configs['device'])
                 vts_normals = compute_vertex_normals(verts, mesh['f'].long())
                 redner_mesh.vertices = verts.cpu()
                 redner_mesh.normals = vts_normals.cpu()

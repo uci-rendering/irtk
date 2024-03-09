@@ -13,11 +13,6 @@ import time
 
 class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
 
-    backend = 'torch'
-    device = 'cuda'
-    ftype = torch.float32
-    itype = torch.long
-
     def __init__(self):
         super().__init__()
 
@@ -67,7 +62,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
             # print(a_mv)
             # proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180), cache['cameras'][sensor_id]['near'], cache['cameras'][sensor_id]['far'])
             proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180))
-            a_mvp = torch.matmul(proj_mtx.to(device), a_mv.to(device))
+            a_mvp = torch.matmul(proj_mtx.to(configs['device']), a_mv.to(configs['device']))
             if cache['point_light']:
                 a_lightpos = cache['point_light']['position']
                 a_light_power = cache['point_light']['radiance']
@@ -151,7 +146,7 @@ class NvdiffrastConnector(Connector, connector_name='nvdiffrast'):
                 # print(a_mv)
                 # proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180), cache['cameras'][sensor_id]['near'], cache['cameras'][sensor_id]['far'])
                 proj_mtx = projection(math.tan(cache['cameras'][sensor_id]['fov']/2.0*math.pi/180))
-                a_mvp = torch.matmul(proj_mtx.to(device), a_mv.to(device))
+                a_mvp = torch.matmul(proj_mtx.to(configs['device']), a_mv.to(configs['device']))
                 if cache['point_light']:
                     a_lightpos = cache['point_light']['position']
                     a_light_power = cache['point_light']['radiance']
@@ -333,12 +328,12 @@ def process_mesh(name, scene):
         if mat_id not in scene:
             raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
         
-        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
         verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
         if mesh['uv'].nelement() == 0:
-            mesh['uv'] = torch.zeros((1, 2)).to(device)
+            mesh['uv'] = torch.zeros((1, 2)).to(configs['device'])
         if mesh['fuv'].nelement() == 0:
-            mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+            mesh['fuv'] = torch.zeros_like(mesh['f']).to(configs['device'])
             
         nvdiffrast_mesh = {
             'v': verts,
@@ -359,12 +354,12 @@ def process_mesh(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == 'v' or param_name == 'to_world':
-                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
                 verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
                 if mesh['uv'].nelement() == 0:
-                    mesh['uv'] = torch.zeros((1, 2)).to(device)
+                    mesh['uv'] = torch.zeros((1, 2)).to(configs['device'])
                 if mesh['fuv'].nelement() == 0:
-                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+                    mesh['fuv'] = torch.zeros_like(mesh['f']).to(configs['device'])
                     
                 if mesh['can_change_topology']:
                     nvdiffrast_mesh['v'] = verts

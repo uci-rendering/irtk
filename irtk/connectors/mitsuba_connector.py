@@ -18,10 +18,6 @@ mi.register_bsdf("MitsubaMicrofacetBSDF", lambda props: MitsubaMicrofacetBSDF(pr
 
 class MitsubaConnector(Connector, connector_name='mitsuba'):
 
-    backend = 'torch'
-    device = 'cuda'
-    ftype = torch.float32
-    itype = torch.long
     debug = False
 
     def __init__(self):
@@ -220,7 +216,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     mi_scene['emitter']['to_world'] = mi.ScalarTransform4f.translate(emitter_offset) @ emitter_to_world
                     loaded_mi_scene = mi.load_dict(mi_scene)
                 
-                image = torch.zeros((h, w, c)).to(device).to(ftype)
+                image = torch.zeros((h, w, c)).to(configs['device']).to(configs['ftype'])
                 for i in range(npass):
                     # image_pass = mi.render(loaded_mi_scene, sensor=mi_sensors[sensor_id], spp=render_options['spp'], seed=seed).torch()
                     image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], seed=seed).torch()
@@ -234,7 +230,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         # mitsuba_params = [params['shape.vertex_positions']]
         # # print(params)
         # npass = 1
-        # image_grad = mi.TensorXf(torch.ones(256, 256, 3).to(device) / npass)
+        # image_grad = mi.TensorXf(torch.ones(256, 256, 3).to(configs['device']) / npass)
         # for j in range(npass):
             
         #     # image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'])
@@ -242,7 +238,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         #     tmp = image_grad * image_pass
         #     drjit.backward(tmp)
         #     for mitsuba_param in mitsuba_params:
-        #         grad = drjit.grad(mitsuba_param).torch().to(device).to(ftype)
+        #         grad = drjit.grad(mitsuba_param).torch().to(configs['device']).to(configs['ftype'])
         #         grad = torch.nan_to_num(grad)
 
         return images
@@ -294,13 +290,13 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                         drjit.backward(tmp)
                         for param_grad, mitsuba_param in zip(param_grads, mitsuba_params):
                             if type(mitsuba_param) == dict:
-                                backend_grad = drjit.grad(mitsuba_param['backend']).torch().to(device).to(ftype)
+                                backend_grad = drjit.grad(mitsuba_param['backend']).torch().to(configs['device']).to(configs['ftype'])
                                 backend_grad = torch.nan_to_num(backend_grad).reshape(mitsuba_param['frontend'].shape)
                                 tmp = backend_grad * mitsuba_param['frontend']
                                 frontend_grad = torch.autograd.grad(tmp, scene[mitsuba_param['param']], torch.ones_like(tmp), retain_graph=True)
                                 param_grad += frontend_grad[0]
                             else:
-                                grad = drjit.grad(mitsuba_param).torch().to(device).to(ftype)
+                                grad = drjit.grad(mitsuba_param).torch().to(configs['device']).to(configs['ftype'])
                                 grad = torch.nan_to_num(grad).reshape(param_grad.shape)
                                 param_grad += grad
                         
@@ -318,7 +314,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             mitsuba_params = [params['shape.vertex_positions']]
             # print(params)
             npass = 1
-            image_grad = mi.TensorXf(torch.ones(256, 256, 3).to(device) / npass)
+            image_grad = mi.TensorXf(torch.ones(256, 256, 3).to(configs['device']) / npass)
             for j in range(npass):
                 
                 # image_pass = mi.render(loaded_mi_scene, params, sensor=mi_sensors[sensor_id], spp=render_options['spp'])
@@ -326,7 +322,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                 tmp = image_pass
                 drjit.backward(tmp)
                 for mitsuba_param in mitsuba_params:
-                    grad = drjit.grad(mitsuba_param).torch().to(device).to(ftype)
+                    grad = drjit.grad(mitsuba_param).torch().to(configs['device']).to(configs['ftype'])
                     grad = torch.nan_to_num(grad)
             return grad
             """
@@ -505,16 +501,16 @@ def process_mesh(name, scene):
         MitsubaConnector.extensions[type(brdf)](mat_id, scene)
 
         # code for texture
-        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+        verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
         verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
         if mesh['uv'].nelement() == 0:
-            mesh['uv'] = torch.zeros((1, 2)).to(device)
+            mesh['uv'] = torch.zeros((1, 2)).to(configs['device'])
         if mesh['fuv'].nelement() == 0:
             verts_new = verts
             faces_new = mesh['f'].long()
-            uvs_new = torch.zeros(verts.shape[0], 2).to(device)
+            uvs_new = torch.zeros(verts.shape[0], 2).to(configs['device'])
         else:
-            mesh['fuv'] = torch.zeros_like(mesh['f']).to(device)
+            mesh['fuv'] = torch.zeros_like(mesh['f']).to(configs['device'])
             verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
 
         # write_mesh('__mitsuba_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
@@ -560,16 +556,16 @@ def process_mesh(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == 'v' or param_name == 'to_world':
-                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+                verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
                 verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
                 # verts = torch.matmul(mesh['v'], mesh['to_world'][0:3, 0:3].transpose(0, 1))
                 # verts = verts + mesh['to_world'][0:3, 3]
                 if mesh['uv'].nelement() == 0:
-                    mesh['uv'] = torch.zeros((1, 2)).to(device)
+                    mesh['uv'] = torch.zeros((1, 2)).to(configs['device'])
                 if mesh['fuv'].nelement() == 0:
                     verts_new = verts
                     faces_new = mesh['f'].long()
-                    uvs_new = torch.zeros(verts.shape[0], 2).to(device)
+                    uvs_new = torch.zeros(verts.shape[0], 2).to(configs['device'])
                 else:
                     verts_new, faces_new, uvs_new = compute_texture_coordinates(verts, mesh['f'].long(), mesh['uv'], mesh['fuv'].long())
                 params = mi.traverse(mi_mesh)
@@ -604,7 +600,7 @@ def process_mesh(name, scene):
                 
                 else:
                     # frontend
-                    verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(device)), dim=1)
+                    verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
                     verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
                     # verts = torch.matmul(mesh['v'], mesh['to_world'][0:3, 0:3].transpose(0, 1))
                     # verts = verts + mesh['to_world'][0:3, 3]
@@ -1037,7 +1033,7 @@ def compute_texture_coordinates(verts, faces, uv, fuv):
     i0 = i0.unsqueeze(1)
     i1 = i1.unsqueeze(1)
     i2 = i2.unsqueeze(1)
-    faces_new = torch.cat([i0, i1, i2], axis=1).to(device)
+    faces_new = torch.cat([i0, i1, i2], axis=1).to(configs['device'])
 
     return verts_new, faces_new, uvs_new
 

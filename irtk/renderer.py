@@ -34,7 +34,7 @@ class RenderFunction(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_out):
         # print(f'Current thread: {threading.get_ident()}')
-        image_grads = [image_grad.to(device) for image_grad in grad_out]
+        image_grads = [image_grad.to(configs['device']) for image_grad in grad_out]
         param_grads = ctx.connector.renderD(image_grads, ctx.scene, ctx.render_options, ctx.sensor_ids, ctx.integrator_id)
         return tuple([None] * ctx.num_no_grads + param_grads)
 
@@ -53,7 +53,7 @@ class Renderer(torch.nn.Module):
 
         params = [scene[param_name] for param_name in scene.requiring_grad]
         
-        images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, *params).to(device)
+        images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, *params).to(configs['device'])
         return images
 
     def set_render_options(self, render_options):

@@ -18,8 +18,8 @@ def chamfer_distance(mesh_a_, mesh_b_, num_samples, mode='bidirectional'):
         
     samples_a, _ = trimesh.sample.sample_surface(mesh_a, num_samples)
     samples_b, _ = trimesh.sample.sample_surface(mesh_b, num_samples)
-    samples_a = torch.from_numpy(samples_a.view(np.ndarray)).unsqueeze(0).to(device)
-    samples_b = torch.from_numpy(samples_b.view(np.ndarray)).unsqueeze(0).to(device)
+    samples_a = torch.from_numpy(samples_a.view(np.ndarray)).unsqueeze(0).to(configs['device'])
+    samples_b = torch.from_numpy(samples_b.view(np.ndarray)).unsqueeze(0).to(configs['device'])
 
     reverse = False
     bidirectional = False
