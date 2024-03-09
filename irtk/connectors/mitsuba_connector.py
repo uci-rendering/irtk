@@ -842,6 +842,28 @@ def process_smooth_dielectric_brdf(name, scene):
 
     return []
 
+@MitsubaConnector.register(RoughDielectricBSDF)
+def process_rough_dielectric_brdf(name, scene):
+    brdf = scene[name]
+    cache = scene.cached['mitsuba']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        mi_brdf = {
+            'type': 'roughdielectric',
+            'distribution': 'ggx',
+            'int_ior': brdf['i_ior'].cpu().item(),
+            'ext_ior': brdf['e_ior'].cpu().item(),
+            'alpha': brdf['alpha'].cpu().item()
+        }
+        
+        cache['textures'][name] = mi_brdf
+        cache['name_map'][name] = mi_brdf
+
+    mi_brdf = cache['name_map'][name]
+
+    return []
+
 @MitsubaConnector.register(RoughConductorBRDF)
 def process_rough_conductor_brdf(name, scene):
     brdf = scene[name]
