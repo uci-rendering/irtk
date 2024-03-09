@@ -851,10 +851,11 @@ def process_rough_dielectric_brdf(name, scene):
     if name not in cache['name_map']:
         mi_brdf = {
             'type': 'roughdielectric',
-            'distribution': 'ggx',
+            'distribution': 'beckmann',
             'int_ior': brdf['i_ior'].cpu().item(),
             'ext_ior': brdf['e_ior'].cpu().item(),
-            'alpha': brdf['alpha'].cpu().item()
+            'alpha': brdf['alpha'].cpu().item(),
+            'sample_visible': False,
         }
         
         cache['textures'][name] = mi_brdf
