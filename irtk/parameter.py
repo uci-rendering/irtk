@@ -33,8 +33,8 @@ class ParamGroup:
     def get_updated(self):
         return [name for name in self.params if self.params[name]['updated']]
     
-    def mark_updated(self, param_name):
-        self.params[param_name]['updated'] = True
+    def mark_updated(self, param_name, updated = True):
+        self.params[param_name]['updated'] = updated
     
     def __str__(self):
         lines = []

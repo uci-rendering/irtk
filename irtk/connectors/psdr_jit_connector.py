@@ -13,13 +13,25 @@ from drjit.cuda.ad import Float32 as FloatD
 import torch
 
 import os
-
+from ..utils import Timer
 class PSDRJITConnector(Connector, connector_name='psdr_jit'):
 
     def __init__(self):
         super().__init__()
         
         self.debug = False
+
+        self.default_render_options = {
+            'spp': 64,
+            'sppe': 0,
+            'sppse': 0,
+            'log_level': 0,
+            'npass': 1,
+            'seed': 0,
+            'guiding_options': {
+                'type': 'none'
+            }
+        }
 
         self.default_render_options = {
             'spp': 64,
