@@ -162,6 +162,10 @@ def process_perspective_camera(name, scene):
         props.set('width', 0)
         props.set('height', 0)
         props.set('fov', float(camera['fov']))
+        # temporary fix of the to_world matrix 
+        # psdr-enzyme uses left-hand coordinate 
+        to_world = to_numpy(camera['to_world'])
+        to_world[:3, 0] *= -1 
         props.set('to_world', to_numpy(camera['to_world']))
         props.set('rfilter', {'type': 'box'})
         psdr_camera = psdr_cpu.Camera(props)
@@ -239,9 +243,9 @@ def color_to_bitmap(color, c=3):
         color = color.tile(c)
     if color.shape == (c,):
         color = color.reshape(1, 1, c)
-    w, h, _ = color.shape
+    h, w, _ = color.shape
     color = color.reshape(-1, 1)
-    return psdr_cpu.Bitmap(to_numpy(color), to_numpy([h, w]))
+    return psdr_cpu.Bitmap(to_numpy(color), to_numpy([w, h]))
 
 def color_to_spectrum(color):
     if color.shape == ():
