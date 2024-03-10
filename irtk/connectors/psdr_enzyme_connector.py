@@ -166,7 +166,7 @@ def process_perspective_camera(name, scene):
         # psdr-enzyme uses left-hand coordinate 
         to_world = to_numpy(camera['to_world'])
         to_world[:3, 0] *= -1 
-        props.set('to_world', to_numpy(camera['to_world']))
+        props.set('to_world', to_world)
         props.set('rfilter', {'type': 'box'})
         psdr_camera = psdr_cpu.Camera(props)
         cache['ctx']['cameras'].append(psdr_camera)
