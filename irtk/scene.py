@@ -148,7 +148,7 @@ class Mesh(ParamGroup):
         self.add_param('uv', to_torch_f(uv), is_tensor=True, help_msg='mesh uv coordinates')
         self.add_param('fuv', to_torch_i(fuv), is_tensor=True, help_msg='mesh uv face indices')
         self.add_param('mat_id', mat_id, help_msg='name of the material of the mesh')
-        self.add_param('to_world', to_torch_f(to_world), is_tensor=True, help_msg='mesh to world matrix')
+        self.add_param('to_world', to_torch_f(to_world), is_tensor=True, is_diff=True, help_msg='mesh to world matrix')
         self.add_param('use_face_normal', use_face_normal, help_msg='whether to use face normal')
         self.add_param('can_change_topology', can_change_topology, help_msg='whether to the topology can be chagned')
 
