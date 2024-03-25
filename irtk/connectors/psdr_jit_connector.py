@@ -382,7 +382,7 @@ def process_mesh(name, scene):
                 drjit.enable_grad(drjit_param)
                 drjit_params.append(drjit_param)
             elif param_name == 'to_world':
-                drjit_param = psdr_mesh.to_world
+                drjit_param = psdr_mesh.to_world_left
                 drjit.enable_grad(drjit_param)
                 drjit_params.append(drjit_param)
 
