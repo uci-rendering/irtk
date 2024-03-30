@@ -3,6 +3,8 @@ from .io import to_numpy
 import time
 from pathlib import Path
 from collections import OrderedDict
+import sys
+from datetime import datetime
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,6 +39,22 @@ class Timer:
         cls.timers = OrderedDict()
         cls.timers['Forward'] = 0
         cls.timers['Backward'] = 0
+
+class Logger(object):
+    def __init__(self, filename="exp.log"):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+ 
+    def write(self, message):
+        if message != '\n':
+            self.log.write(f'[{datetime.now()}] {message}')
+        else:
+            self.log.write('\n')
+        self.terminal.write(message)
+        self.log.flush()
+    
+    def flush(self):
+        pass
 
 def apply_pmkmp_cm(image, vmin=0, vmax=1):
     """
