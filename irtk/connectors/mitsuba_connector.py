@@ -1,7 +1,7 @@
 from ..connector import Connector
 from ..scene import *
 from ..config import *
-from ..io import write_mesh
+from ..io import *
 from collections import OrderedDict
 from ..utils import Timer
 
@@ -30,7 +30,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         }
 
     # """
-    def update_scene_objects(self, scene, render_options):
+    def update_scene_objects(self, scene, render_options, output_dir=''):
         if 'mitsuba' in scene.cached:
             cache = scene.cached['mitsuba']
         else:
@@ -53,14 +53,11 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         mitsuba_params = []
         for name in scene.components:
             component = scene[name]
-            mitsuba_params += self.extensions[type(component)](name, scene)
+            mitsuba_params += self.extensions[type(component)](name, scene, output_dir)
         
         # Mitsuba Scene
         mi_scene = {
             'type': 'scene',
-            # 'rfilter': {
-            #     'type': 'box',
-            # }
         }
         # Integrators
         for integrator_name, integrator_value in cache['integrators'].items():
@@ -84,6 +81,10 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             #         'value': render_options['point_light_intensity']
             #     }
             # }
+            if output_dir:
+                os.makedirs(f'{output_dir}/assets/meshes', exist_ok=True)
+                v, f, uv, fuv = read_mesh('assets/meshes/plane_point_light.obj')
+                write_mesh(f'{output_dir}/assets/meshes/plane_point_light.obj', v, f)
             mi_scene['emitter'] = {
                 'type': 'obj',
                 'filename': 'assets/meshes/plane_point_light.obj',
@@ -96,10 +97,6 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     }
                 }
             }
-            # mi_scene['emitter'] = {
-            #     'type': 'constant',
-            #     'radiance': 0.99,
-            # }
         elif 'plane_light' in render_options:
             mi_scene['emitter'] = {
                 # 'type': 'obj',
@@ -114,6 +111,16 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     }
                 },
             }
+        
+        # Cameras
+        if output_dir:
+            for sensor_name, sensor_value in cache['cameras'].items():
+                sensor_value['film'] = cache['film']
+                sensor_value['sampler'] = {
+                    'type': 'independent',
+                    'sample_count': render_options['spp']
+                }
+                mi_scene[sensor_name] = sensor_value
         # print(mi_scene)
         # print("loading scene dict...", end='')
 
@@ -389,13 +396,33 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                 seed += 1
         
         return image, grad_image
-        
+    
+    def save_scene(self, scene, render_options, output_dir):
+        if output_dir[-1] == '/': 
+            output_dir = output_dir[:-1]
+        scene.clear_cache()
+        cache, _ = self.update_scene_objects(scene, render_options, output_dir)
+        mi_scene = cache['scene']
+        # print('Saving scene dict:')
+        # print(mi_scene)
+        mi.xml.dict_to_xml(mi_scene, f'{output_dir}/scene.xml')
 
 @MitsubaConnector.register(Integrator)
-def process_integrator(name, scene):
+def process_integrator(name, scene, output_dir):
     integrator = scene[name]
     cache = scene.cached['mitsuba']
 
+    if output_dir:
+        mi_integrator = {
+            'type': 'path',
+        }
+        if 'max_depth' in integrator['config']:
+            mi_integrator['max_depth'] = integrator['config']['max_depth']
+        if 'hide_emitters' in integrator['config']:
+            mi_integrator['hide_emitters'] = integrator['config']['hide_emitters']
+        cache['integrators'][name] = mi_integrator
+        return []
+    
     # TODO: support more integrator types
     mi_integrator = {
         'type': integrator['type']
@@ -432,7 +459,7 @@ def process_integrator(name, scene):
     return []
 
 @MitsubaConnector.register(HDRFilm)
-def process_hdr_film(name, scene):
+def process_hdr_film(name, scene, output_dir):
     film = scene[name]
     cache = scene.cached['mitsuba']
 
@@ -449,7 +476,7 @@ def process_hdr_film(name, scene):
     return []
 
 @MitsubaConnector.register(PerspectiveCamera)
-def process_perspective_camera(name, scene):
+def process_perspective_camera(name, scene, output_dir):
     sensor = scene[name]
     cache = scene.cached['mitsuba']
 
@@ -487,7 +514,7 @@ def process_perspective_camera(name, scene):
     return mitsuba_params
 
 @MitsubaConnector.register(Mesh)
-def process_mesh(name, scene):
+def process_mesh(name, scene, output_dir):
     mesh = scene[name]
     cache = scene.cached['mitsuba']
 
@@ -498,8 +525,31 @@ def process_mesh(name, scene):
         if mat_id not in scene:
             raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
         brdf = scene[mat_id]
-        MitsubaConnector.extensions[type(brdf)](mat_id, scene)
+        MitsubaConnector.extensions[type(brdf)](mat_id, scene, output_dir)
 
+        if output_dir:
+            os.makedirs(f'{output_dir}/assets/meshes', exist_ok=True)
+            write_mesh(f'{output_dir}/assets/meshes/{name}.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
+            mi_mesh_dict = {
+                'type': 'obj',
+                'filename': f'assets/meshes/{name}.obj',
+                'bsdf': cache['textures'][mat_id],
+                'to_world': mi.ScalarTransform4f(mesh['to_world'].cpu().numpy()),
+                'face_normals': mesh['use_face_normal'],
+            }
+            if mesh['is_emitter']:
+                mi_mesh_dict['area_light'] = {
+                    'type': 'area',
+                    'radiance': {
+                        'type': 'rgb',
+                        'value': mesh['radiance'].tolist()
+                    }
+                }
+            
+            cache['meshes'][name] = mi_mesh_dict
+            cache['name_map'][name] = mi_mesh_dict
+            return []
+        
         # code for texture
         verts = torch.cat((mesh['v'], torch.ones((mesh['v'].shape[0], 1)).to(configs['device'])), dim=1)
         verts = torch.matmul(verts, mesh['to_world'].transpose(0, 1))[..., :3]
@@ -624,7 +674,7 @@ def process_mesh(name, scene):
     return mitsuba_params
 
 @MitsubaConnector.register(DiffuseBRDF)
-def process_diffuse_brdf(name, scene):
+def process_diffuse_brdf(name, scene, output_dir):
     brdf = scene[name]
     cache = scene.cached['mitsuba']
     
@@ -682,7 +732,7 @@ def process_diffuse_brdf(name, scene):
     return mitsuba_params
 
 @MitsubaConnector.register(MicrofacetBRDF)
-def process_mitsuba_microfacet_brdf(name, scene):
+def process_mitsuba_microfacet_brdf(name, scene, output_dir):
     brdf = scene[name]
     cache = scene.cached['mitsuba']
     
@@ -815,7 +865,7 @@ def process_microfacet_brdf(name, scene):
     return mitsuba_params
 
 @MitsubaConnector.register(SmoothDielectricBRDF)
-def process_smooth_dielectric_brdf(name, scene):
+def process_smooth_dielectric_brdf(name, scene, output_dir):
     brdf = scene[name]
     cache = scene.cached['mitsuba']
     
@@ -843,7 +893,7 @@ def process_smooth_dielectric_brdf(name, scene):
     return []
 
 @MitsubaConnector.register(RoughDielectricBSDF)
-def process_rough_dielectric_brdf(name, scene):
+def process_rough_dielectric_brdf(name, scene, output_dir):
     brdf = scene[name]
     cache = scene.cached['mitsuba']
     
@@ -855,7 +905,7 @@ def process_rough_dielectric_brdf(name, scene):
             'int_ior': brdf['i_ior'].cpu().item(),
             'ext_ior': brdf['e_ior'].cpu().item(),
             'alpha': brdf['alpha'].cpu().item(),
-            'sample_visible': False,
+            'sample_visible': True,
         }
         
         cache['textures'][name] = mi_brdf
@@ -866,7 +916,7 @@ def process_rough_dielectric_brdf(name, scene):
     return []
 
 @MitsubaConnector.register(RoughConductorBRDF)
-def process_rough_conductor_brdf(name, scene):
+def process_rough_conductor_brdf(name, scene, output_dir):
     brdf = scene[name]
     cache = scene.cached['mitsuba']
     
@@ -899,7 +949,7 @@ def process_rough_conductor_brdf(name, scene):
     return []
 
 @MitsubaConnector.register(EnvironmentLight)
-def process_environment_light(name, scene):
+def process_environment_light(name, scene, output_dir):
     emitter = scene[name]
     cache = scene.cached['mitsuba']
     
@@ -915,6 +965,18 @@ def process_environment_light(name, scene):
             mi_emitter['radiance']['type'] = 'rgb'
             mi_emitter['radiance']['value'] = radiance.cpu().numpy()
         else:
+            if output_dir:
+                os.makedirs(f'{output_dir}/assets/envmaps', exist_ok=True)
+                write_image(f'{output_dir}/assets/envmaps/{name}.exr', radiance)
+                mi_emitter = {
+                    'type': 'envmap',
+                    'filename': f'assets/envmaps/{name}.exr',
+                    'to_world': mi.ScalarTransform4f(emitter['to_world'].cpu().numpy()),
+                }
+                cache['envlights'][name] = mi_emitter
+                cache['name_map'][name] = mi_emitter
+                return []
+            
             mi_emitter['type'] = 'envmap'
             mi_emitter['bitmap'] = mi.Bitmap(radiance.cpu().numpy())
             mi_emitter['to_world'] = mi.ScalarTransform4f(emitter['to_world'].cpu().numpy())
@@ -956,7 +1018,7 @@ def process_environment_light(name, scene):
     return mitsuba_params
 
 @MitsubaConnector.register(PointLight)
-def process_point_light(name, scene):
+def process_point_light(name, scene, output_dir):
     light = scene[name]
     cache = scene.cached['mitsuba']
 
@@ -1070,7 +1132,7 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         self.m_roughness = props['roughness']
 
         # Set the BSDF flags
-        reflection_flags   = mi.BSDFFlags.Reflection  | mi.BSDFFlags.FrontSide
+        reflection_flags   = mi.BSDFFlags.GlossyReflection  | mi.BSDFFlags.FrontSide
         self.m_components  = [reflection_flags]
         self.m_flags = reflection_flags
         # reflection_flags   = mi.BSDFFlags.GlossyReflection   | mi.BSDFFlags.FrontSide
@@ -1149,11 +1211,11 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         bs.eta = 1.0
         bs.pdf = (m_pdf / (4.0 * drjit.dot(bs.wo, m)))
         bs.sampled_component = 0
-        bs.sampled_type = mi.BSDFFlags.Reflection
-        
-        active = (cos_theta_i > 0.0) & drjit.neq(bs.pdf, 0.0) & (mi.Frame3f.cos_theta(bs.wo) > 0.0) & active
+        bs.sampled_type = mi.BSDFFlags.GlossyReflection
         
         value = self.eval(ctx, si, bs.wo, active) / bs.pdf
+        
+        active = (cos_theta_i > 0.0) & drjit.neq(bs.pdf, 0.0) & (mi.Frame3f.cos_theta(bs.wo) > 0.0) & active
         
         return (drjit.detach(bs), drjit.select(active, value, 0.0))
 
