@@ -29,6 +29,7 @@ scene = Scene()
 
 scene.set('object', Mesh.from_file(f'./examples/data/meshes/{mesh_target}.obj', mat_id='blue'))
 scene.set('blue', DiffuseBRDF((0.2, 0.2, 0.9)))
+scene.set('envlight', EnvironmentLight.from_file('./examples/data/envmaps/factory.exr'))
 scene.set('sensor', PerspectiveCamera.from_lookat(fov=40, origin=(-1.5, 1.5, 1.5), target=(0, 0, 0), up=(0, 1, 0)))
 scene.set('film', HDRFilm(width=512, height=512))
 
