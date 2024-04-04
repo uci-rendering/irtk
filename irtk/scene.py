@@ -148,7 +148,7 @@ class Mesh(ParamGroup):
         self.add_param('uv', to_torch_f(uv), is_tensor=True, help_msg='mesh uv coordinates')
         self.add_param('fuv', to_torch_i(fuv), is_tensor=True, help_msg='mesh uv face indices')
         self.add_param('mat_id', mat_id, help_msg='name of the material of the mesh')
-        self.add_param('to_world', to_torch_f(to_world), is_tensor=True, help_msg='mesh to world matrix')
+        self.add_param('to_world', to_torch_f(to_world), is_tensor=True, is_diff=True, help_msg='mesh to world matrix')
         self.add_param('use_face_normal', use_face_normal, help_msg='whether to use face normal')
         self.add_param('can_change_topology', can_change_topology, help_msg='whether to the topology can be chagned')
 
@@ -161,6 +161,27 @@ class Mesh(ParamGroup):
     def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
         v, f, uv, fuv = read_mesh(filename)
         return cls(v, f, uv, fuv, mat_id, to_world, use_face_normal, can_change_topology, radiance)
+    
+    def separate_faces(self):
+        '''
+        Provides an alternative formulation in which vertices are duplicated
+        such that num_v == 3 * num_f.
+        '''
+        mesh = {}
+        mesh['mat_id'] = self['mat_id']
+        mesh['to_world'] = self['to_world']
+        mesh['use_face_normal'] = self['use_face_normal']
+        mesh['can_change_topology'] = self['can_change_topology']
+
+        if self['can_change_topology']:
+            mesh['v'] = self['v']
+            mesh['f'] = self['f']
+        else:
+            mesh['v'] = self['v'][self['f'].long().flatten()]
+            mesh['f'] = to_torch_i(torch.arange(len(mesh['v'])).reshape(-1, 3))
+            mesh['uv'] = self['uv'][self['fuv'].long().flatten()]
+
+        return mesh
     
 class DiffuseBRDF(ParamGroup):
 
