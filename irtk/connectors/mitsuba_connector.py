@@ -11,6 +11,7 @@ import torch
 from collections import OrderedDict
 
 mi.set_variant('cuda_ad_rgb')
+# mi.set_log_level(mi.LogLevel.Debug)
 # mi.register_bsdf("MitsubaMicrofacetBSDF", lambda props: MitsubaMicrofacetBSDF(props))
 
 class MitsubaConnector(Connector, connector_name='mitsuba'):
@@ -166,84 +167,147 @@ def process_perspective_camera(name, scene):
 @MitsubaConnector.register(Mesh)
 def process_mesh(name, scene):
     mesh = scene[name]
-    mesh_alt = mesh.separate_faces()
     cache = scene.cached['mitsuba']
+
+    # Since we use mi.Mesh which is not well supported, we need to use 
+    # some unusual tricks. 
+    def helper():
+        '''
+        Mitsuba doesn't provide a to_world matrix for differentiation. So
+        we manually multiply the to_world matrix and track the gradient. 
+        Also, when passing texture coordinates, Mitsuba requires the 
+        size of textures coordinates matches the size of vertex positions,
+        so we need seperate the mesh into triangle faces and recompute all 
+        the mesh properties. Under this scenario, the vertex normals computed
+        by Mitsuba will be the same as the face normals, which is not desired
+        and we need to compute the vertex normals ourselves. 
+        '''
+        mi_v = tensor_f_to_mi(mesh['v'], mi.Point3f)
+        mi_f = tensor_i_to_mi(mesh['f'])
+        mi_uv = tensor_f_to_mi(mesh['uv'], mi.Point2f)
+        mi_fuv = tensor_i_to_mi(mesh['fuv'])
+        mi_to_world = tensor_f_to_mi(mesh['to_world'], mi.Matrix4f)
+
+        if mesh['v'].requires_grad:
+            dr.enable_grad(mi_v)
+        if mesh['to_world'].requires_grad:
+            dr.enable_grad(mi_to_world)
+
+        mesh_info = {}
+        mesh_info['v'] = mi_v
+        mesh_info['f'] = mi_f
+        mesh_info['to_world'] = mi_to_world
+        
+        if mesh['can_change_topology']:
+            mi_v_new = mi.Transform4f(mi_to_world) @ mi_v
+            mi_f_new = mi_f
+
+            # Let Mitsuba computes the vertex normals
+            if not mesh['use_face_normal']:
+                mesh_info['vn_new'] = dr.zeros(mi.Float, dr.shape(mi_v)[1])
+        else:
+            # Turn the mesh into separate faces
+            mi_v_new = dr.gather(mi.Point3f, mi_v, mi_f)
+            mi_v_new = mi.Transform4f(mi_to_world) @ mi_v_new
+            mi_f_new = dr.arange(mi.UInt, 0, dr.shape(mi_f)[0])
+            mesh_info['uv_new'] = dr.gather(mi.Point2f, mi_uv, mi_fuv)
+
+            # Compute vertex normals
+            if not mesh['use_face_normal']:
+                # Todo: this should be updated to match Mitsuba's implementation
+                idx = dr.arange(mi.UInt, 0, dr.shape(mi_f)[0], 3)
+                mi_v0 = dr.gather(mi.Point3f, mi_v_new, idx + 0)
+                mi_v1 = dr.gather(mi.Point3f, mi_v_new, idx + 1)
+                mi_v2 = dr.gather(mi.Point3f, mi_v_new, idx + 2)
+
+                mi_fn = dr.normalize(dr.cross(mi_v2 - mi_v1, mi_v0 - mi_v1))
+                mi_vn = dr.zeros(mi.Normal3f, dr.shape(mi_v)[1])
+                dr.scatter_reduce(dr.ReduceOp.Add, mi_vn, mi_fn, dr.gather(mi.UInt, mi_f, idx + 0))
+                dr.scatter_reduce(dr.ReduceOp.Add, mi_vn, mi_fn, dr.gather(mi.UInt, mi_f, idx + 1))
+                dr.scatter_reduce(dr.ReduceOp.Add, mi_vn, mi_fn, dr.gather(mi.UInt, mi_f, idx + 2))
+
+                mi_vn = dr.normalize(mi_vn)
+                mi_vn_new = dr.gather(mi.Normal3f, mi_vn, mi_f)
+                mesh_info['vn_new'] = mi_vn_new
+        
+        mesh_info['v_new'] = mi_v_new
+        mesh_info['f_new'] = mi_f_new
+        
+        return mesh_info
 
     # Create the object if it has not been created
     if name not in cache['name_map']:
         # Create its material first
-        mat_id = mesh_alt['mat_id']
+        mat_id = mesh['mat_id']
         if mat_id not in scene:
             raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
-        brdf = scene[mat_id]
-        MitsubaConnector.extensions[type(brdf)](mat_id, scene)
+        bsdf = scene[mat_id]
+        MitsubaConnector.extensions[type(bsdf)](mat_id, scene)
 
         mi_bsdf = cache['name_map'][mat_id] # its material
 
         props = mi.Properties()
         props["bsdf"] = mi_bsdf
-        props["face_normals"] = mesh_alt['use_face_normal']
 
         mi_mesh = mi.Mesh(name, 0, 0, props=props) # placeholder mesh
         mi_mesh_params = mi.traverse(mi_mesh)
+
+        mesh_info = helper()
         
-        mi_v = tensor_f_to_mi(mesh_alt['v'], mi.Point3f)
-        mi_transform = mi.Transform4f(tensor_f_to_mi(mesh_alt['to_world'], mi.Matrix4f))
-        mi_mesh_params['vertex_positions'] = dr.ravel(mi_transform @ mi_v)
-        mi_mesh_params['faces'] = tensor_i_to_mi(mesh_alt['f'])
+        mi_mesh_params['vertex_positions'] = dr.ravel(mesh_info['v_new'])
+        mi_mesh_params['faces'] = mesh_info['f_new']
 
-        if 'uv' in mesh_alt: 
-            mi_mesh_params['vertex_texcoords'] = tensor_f_to_mi(mesh_alt['uv'])
-
-        if not mesh_alt['use_face_normal']:
-            n = compute_vertex_normals(mesh_alt['v'], mesh_alt['f'])
-            mi_n = tensor_f_to_mi(n, mi.Normal3f)
-            mi_mesh_params['vertex_normals'] = dr.ravel(mi_transform @ mi_n)
-
+        # If vertex_positions is updated, mitsuba will recompute the vertex normals.
+        # So we need to update them first before loading the vertex normals we computed,
+        # or the normals will be overrided. 
         mi_mesh_params.update()
 
+        if 'uv_new' in mesh_info: 
+            mi_mesh_params['vertex_texcoords'] = dr.ravel(mesh_info['uv_new'])
+
+        if 'vn_new' in mesh_info:
+            mi_mesh_params['vertex_normals'] = dr.ravel(mesh_info['vn_new'])
+
+        mi_mesh_params.update()
         cache['name_map'][name] = mi_mesh
 
-    mi_mesh = cache['name_map'][name]
-    mi_mesh_params = mi.traverse(mi_mesh)
+    # mi.Mesh is a bit buggy and we cannot update the mesh using mi_mesh directly.
+    # We instead use the scene parameters to update the mesh.
 
-    # Update parameters
     updated = mesh.get_updated()
-    if len(updated) > 0:
-        for param_name in updated:
-            if param_name == 'v' or param_name == 'to_world':
-                mi_v = tensor_f_to_mi(mesh_alt['v'], mi.Point3f)
-                mi_to_world = tensor_f_to_mi(mesh_alt['to_world'], mi.Matrix4f)
-                mi_transform = mi.Transform4f(mi_to_world)
-                mi_mesh_params['vertex_positions'] = dr.ravel(mi_transform @ mi_v)
-            elif param_name == 'f':
-                mi_mesh_params['faces'] = tensor_i_to_mi(mesh_alt['f'])
-
-        mi_mesh_params.update()
-
-    # Enable grad for parameters requiring grad
-    mi_params, add_param = gen_add_param()
-
     requiring_grad = mesh.get_requiring_grad()
-    if len(requiring_grad) > 0:
-        need_update = ('v' in requiring_grad) or ('to_world' in requiring_grad)
+    mi_diff_params, add_param = gen_add_param()
 
-        if need_update:
-            mi_v = tensor_f_to_mi(mesh_alt['v'], mi.Point3f)
-            mi_to_world = tensor_f_to_mi(mesh_alt['to_world'], mi.Matrix4f)
+    if 'scene' in cache and (updated or requiring_grad):
+        mesh_info = helper()
 
+        mi_params = mi.traverse(cache['scene'])
+
+        mesh_update_needed = 'v' in updated or 'to_world' in updated
+        mesh_update_needed |= 'v' in requiring_grad or 'to_world' in requiring_grad
+
+        if mesh_update_needed:
+            mi_params[f'{name}.vertex_positions'] = dr.ravel(mesh_info['v_new'])
+            mi_params[f'{name}.faces'] = mesh_info['f_new']
+            # Update in advance to avoid overriding the vertex normals
+            mi_params.update()
+            if 'vn_new' in mesh_info:
+                mi_params[f'{name}.vertex_normals'] = dr.ravel(mesh_info['vn_new'])
+                mi_params.update()
+
+        # Update parameters
+        for param_name in updated:
+            mesh.mark_updated(param_name, False)
+        mi_params.update()
+        
+        # Enable grad for parameters requiring grad
         for param_name in requiring_grad:
             if param_name == 'v':
-                add_param(mi_v)
+                add_param(mesh_info['v'])
             elif param_name == 'to_world':
-                add_param(mi_to_world)
+                add_param(mesh_info['to_world'])
 
-        # Need to update vertex_position to enable gradient
-        if need_update:
-            mi_transform = mi.Transform4f(mi_to_world)
-            mi_mesh_params['vertex_positions'] = dr.ravel(mi_transform @ mi_v)
-      
-    return mi_params
+    return mi_diff_params
 
 @MitsubaConnector.register(DiffuseBRDF)
 def process_diffuse_brdf(name, scene):
@@ -273,18 +337,18 @@ def process_diffuse_brdf(name, scene):
             if param_name == 'd':
                 kd = convert_color(bsdf['d'], 3)
                 mi_bsdf_params['reflectance.data'] = kd
-
-        mi_bsdf_params.update()
+            mi_bsdf_params.update()
+            bsdf.mark_updated(param_name, False)
 
     # Enable grad for parameters requiring grad
-    mi_params, add_param = gen_add_param()
+    mi_diff_params, add_param = gen_add_param()
 
     requiring_grad = bsdf.get_requiring_grad()
     for param_name in requiring_grad:
         if param_name == 'd':
             add_param(mi_bsdf_params['reflectance.data'])
 
-    return mi_params
+    return mi_diff_params
 
 @MitsubaConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):
@@ -315,11 +379,11 @@ def tensor_i_to_mi(tensor_i, mi_type=None):
     return dr.unravel(mi_type, array_i) if mi_type else array_i
 
 def gen_add_param():
-    mi_params = []
+    mi_diff_params = []
     def add_param(p):
         dr.enable_grad(p)
-        mi_params.append(p)
-    return mi_params, add_param
+        mi_diff_params.append(p)
+    return mi_diff_params, add_param
 
 def convert_color(color, c, bitmap=False):
     if color.shape == ():
@@ -330,50 +394,3 @@ def convert_color(color, c, bitmap=False):
     assert color.dim() == 3
     color = mi.TensorXf(color)
     return mi.Bitmap(color) if bitmap else color
-
-def compute_vertex_normals(verts, faces):
-    """Computes the packed version of vertex normals from the packed verts
-        and faces. This assumes verts are shared between faces. The normal for
-        a vertex is computed as the sum of the normals of all the faces it is
-        part of weighed by the face areas.
-    """
-    faces = faces.long()
-    # Create a zeroed array with the same type and shape as verts
-    verts_normals = torch.zeros_like(verts)
-
-    # Create an indexed view into the verts array
-    tris = verts[faces]
-
-    # Calculate the normal for all triangles
-    tri_normals = torch.cross(
-        tris[:, 2] - tris[:, 1],
-        tris[:, 0] - tris[:, 1],
-        dim=1,
-    )
-
-    # Add the normals through indexed view
-    verts_normals = verts_normals.index_add(
-        0, faces[:, 0], tri_normals
-    )
-    verts_normals = verts_normals.index_add(
-        0, faces[:, 1], tri_normals
-    )
-    verts_normals = verts_normals.index_add(
-        0, faces[:, 2], tri_normals
-    )
-
-    # Normalize normals
-    return torch.nn.functional.normalize(
-        verts_normals, eps=1e-6, dim=1
-    )
-
-def compute_texture_coordinates(verts, faces, uv, fuv, vflip=True):
-    # Cut faces
-    verts_new = verts[faces.long().flatten()]
-    uvs_new = uv[fuv.long().flatten()]
-    if vflip: uvs_new[:, 1] = 1 - uvs_new[:, 1]
-    # Calculate the corresponding indices
-    faces_new = torch.arange(verts_new.shape[0]).reshape(-1, 3)
-    faces_new = to_torch_i(faces_new)
-
-    return verts_new, faces_new, uvs_new
