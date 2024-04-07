@@ -13,8 +13,8 @@ imageio.plugins.freeimage.download()
 def read_mesh(mesh_path):
     v, f, uv, fuv = gpytoolbox.read_mesh(str(mesh_path), return_UV=True)
     if uv.size == 0:
-        uv = np.zeros((0, 2))
-        fuv = np.zeros((0, 3))
+        uv = np.zeros((1, 2))
+        fuv = np.zeros((1, 3))
     return v, f, uv, fuv
 
 def write_mesh(mesh_path, v, f, uv=None, fuv=None):
