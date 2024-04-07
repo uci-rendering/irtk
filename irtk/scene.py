@@ -158,30 +158,11 @@ class Mesh(ParamGroup):
         self.add_param('radiance', radiance, is_tensor=True, is_diff=True, help_msg='radiance if it is used as an emitter')
 
     @classmethod
-    def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
+    def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3), flip_tex=True):
         v, f, uv, fuv = read_mesh(filename)
+        if flip_tex:
+            uv[:, 1] = 1 - uv[:, 1]
         return cls(v, f, uv, fuv, mat_id, to_world, use_face_normal, can_change_topology, radiance)
-    
-    def separate_faces(self):
-        '''
-        Provides an alternative formulation in which vertices are duplicated
-        such that num_v == 3 * num_f.
-        '''
-        mesh = {}
-        mesh['mat_id'] = self['mat_id']
-        mesh['to_world'] = self['to_world']
-        mesh['use_face_normal'] = self['use_face_normal']
-        mesh['can_change_topology'] = self['can_change_topology']
-
-        if self['can_change_topology']:
-            mesh['v'] = self['v']
-            mesh['f'] = self['f']
-        else:
-            mesh['v'] = self['v'][self['f'].long().flatten()]
-            mesh['f'] = to_torch_i(torch.arange(len(mesh['v'])).reshape(-1, 3))
-            mesh['uv'] = self['uv'][self['fuv'].long().flatten()]
-
-        return mesh
     
 class DiffuseBRDF(ParamGroup):
 
