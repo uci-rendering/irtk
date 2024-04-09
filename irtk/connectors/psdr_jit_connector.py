@@ -347,11 +347,19 @@ def process_mesh(name, scene):
     # Create the object if it has not been created
     if name not in cache['name_map']:
         # Create its material first
-        mat_id = mesh['mat_id']
-        if mat_id not in scene:
-            raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
-        brdf = scene[mat_id]
-        PSDRJITConnector.extensions[type(brdf)](mat_id, scene)
+        if 'mat_id' in mesh:
+            mat_id = mesh['mat_id']
+            if mat_id not in scene:
+                raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
+            brdf = scene[mat_id]
+            PSDRJITConnector.extensions[type(brdf)](mat_id, scene)
+        else:
+            # Create a fake BSDF if the mesh is used as an emitter
+            mat_id = f'{name}_null_bsdf'
+            d = convert_color(to_torch_f([0, 0, 0]), 3)
+            psdr_bsdf = psdr_jit.DiffuseBSDF(d)
+            psdr_scene.add_BSDF(psdr_bsdf, mat_id)
+            cache['name_map'][mat_id] = f"BSDF[id={mat_id}]"
 
         # TODO: Fix this workaround when psdr-jit updates psdr_mesh.load_raw()
         if mesh['can_change_topology']:
@@ -359,12 +367,12 @@ def process_mesh(name, scene):
             psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']))
             psdr_mesh.use_face_normal = mesh['use_face_normal']
 
-            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
+            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if 'radiance' in mesh else None
             psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
             psdr_scene.param_map[f"Mesh[{psdr_scene.num_meshes - 1}]"].set_transform(mesh['to_world'].reshape(1, 4, 4))
         else:
             write_mesh('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
-            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if mesh['is_emitter'] else None
+            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if 'radiance' in mesh else None
             psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', torch.eye(4).tolist(), mat_id, psdr_emitter)
             psdr_scene.param_map[f"Mesh[{psdr_scene.num_meshes - 1}]"].set_transform(mesh['to_world'].reshape(1, 4, 4))
             os.remove('__psdr_jit_tmp__.obj')

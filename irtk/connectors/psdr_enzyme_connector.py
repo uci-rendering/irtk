@@ -192,16 +192,17 @@ def process_mesh(name, scene):
         props.set('use_face_normals', to_numpy(mesh['use_face_normal']))
 
         # Create the associated material if it is not exist yet
-        mat_id = mesh['mat_id']
-        if mat_id not in scene:
-            raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
-        if mat_id not in cache['mat_id_map']:
-            brdf = scene[mat_id]
-            PSDREnzymeConnector.extensions[type(brdf)](mat_id, scene)
-        props.set('bsdf_id', cache['mat_id_map'][mat_id])
+        if 'mat_id' in mesh:
+            mat_id = mesh['mat_id']
+            if mat_id not in scene:
+                raise RuntimeError(f"The material of the mesh {name} doesn't exist: mat_id={mat_id}")
+            if mat_id not in cache['mat_id_map']:
+                brdf = scene[mat_id]
+                PSDREnzymeConnector.extensions[type(brdf)](mat_id, scene)
+            props.set('bsdf_id', cache['mat_id_map'][mat_id])
         
         # Create the area light associated with the mesh if needed
-        if mesh['is_emitter']:
+        if 'radiance' in mesh:
             emitter_id = len(cache['ctx']['emitters'])
             radiance = to_numpy(mesh['radiance']).reshape(3, 1)
             psdr_emitter = psdr_cpu.AreaLight(shape_id, radiance)
