@@ -548,74 +548,13 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         diffuse_flags = mi.BSDFFlags.DiffuseReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.SpatiallyVarying
         self.m_components  = [reflection_flags, diffuse_flags]
         self.m_flags = reflection_flags | diffuse_flags
-        
-    def sample_visible_11(self, cos_theta_i, sample):
-        # print('sample_visible_11')
-        p = mi.warp.square_to_uniform_disk_concentric(sample)
-        s = 0.5 * (1.0 + cos_theta_i)
-        p.y = dr.lerp(dr.safe_sqrt(1.0 - dr.sqr(p.x)), p.y, s)
-        x = p.x
-        y = p.y
-        z = dr.safe_sqrt(1.0 - dr.squared_norm(p))
-        sin_theta_i = dr.safe_sqrt(1.0 - dr.sqr(cos_theta_i))
-        norm = dr.rcp(sin_theta_i * y + cos_theta_i * z)
-        return mi.Vector2f(cos_theta_i * y - sin_theta_i * z, x) * norm
-    
-    def smith_g1(self, v, m, m_alpha_u, m_alpha_v):
-        # print('smith_g1')
-        xy_alpha_2 = dr.sqr(m_alpha_u * v.x) + dr.sqr(m_alpha_v * v.y)
-        tan_theta_alpha_2 = xy_alpha_2 / dr.sqr(v.z)
-        result = 2.0 / (1.0 + dr.sqrt(1.0 + tan_theta_alpha_2))
-        # if xy_alpha_2 == 0.0:
-        #     result = 1.0
-        # if dr.dot(v, m) * mi.Frame3f.cos_theta(v) <= 0.0:
-        #     result = 0.0
-        # masked(result, eq(xy_alpha_2, 0.f)) = 1.f;
-        # masked(result, dot(v, m) * Frame<ad>::cos_theta(v) <= 0.f) = 0.f;
-        return result
-    
-    def distr_eval(self, m, m_alpha_u, m_alpha_v):
-        # print('distr_eval')
-        alpha_uv = m_alpha_u * m_alpha_v
-        cos_theta = mi.Frame3f.cos_theta(m)
-        cos_theta_2 = dr.sqr(cos_theta)
-        result = dr.rcp(dr.pi * alpha_uv * dr.sqr(dr.sqr(m.x / m_alpha_u) + dr.sqr(m.y / m_alpha_v) + dr.sqr(m.z)))
-        return dr.select(result * cos_theta > 1e-5, result, 0.0)
-    
-    def distr_sample(self, wi, sample2, m_alpha_u, m_alpha_v):
-        # print('disr_sample')
-        wi_p = dr.normalize(mi.Vector3f(
-            m_alpha_u * wi.x,
-            m_alpha_v * wi.y,
-            wi.z
-        ))
-
-        sin_phi = mi.Frame3f.sin_phi(wi_p)
-        cos_phi = mi.Frame3f.cos_phi(wi_p)
-        cos_theta = mi.Frame3f.cos_theta(wi_p)
-        # sample2 = mi.Vector2f(_sample1, _sample2.x)
-        slope = self.sample_visible_11(cos_theta, sample2)
-
-        slope = mi.Vector2f(
-            (cos_phi * slope.x - sin_phi * slope.y) * m_alpha_u,
-            (sin_phi * slope.x + cos_phi * slope.y) * m_alpha_v
-        )
-        m = dr.normalize(mi.Vector3f(-slope.x, -slope.y, 1))
-
-        # Compute probability density of the sampled position
-        pdf = self.smith_g1(wi, m, m_alpha_u, m_alpha_v) * dr.abs(dr.dot(wi, m)) * self.distr_eval(m, m_alpha_u, m_alpha_v) / dr.abs(mi.Frame3f.cos_theta(wi))
-        pdf = dr.detach(pdf)
-        return m, pdf
     
     def sample(self, ctx, si, sample1, sample2, active):
-        # print('sample')
         bs = mi.BSDFSample3f()
         cos_theta_i =  mi.Frame3f.cos_theta(si.wi)
-        alpha_u = self.m_roughness.eval_1(si, active)
-        alpha_v = alpha_u
-        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_u, alpha_v)
+        alpha = self.m_roughness.eval_1(si, active)
+        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha)
         m, m_pdf = distr.sample(si.wi, sample2)
-        # m, m_pdf = self.distr_sample(si.wi, sample2, alpha_u, alpha_v)
         bs.wo = m * 2.0 * dr.dot(si.wi, m) - si.wi
         bs.eta = 1.0
         bs.pdf = (m_pdf / (4.0 * dr.dot(bs.wo, m)))
@@ -629,8 +568,6 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         return (dr.detach(bs), dr.select(active, value, 0.0))
 
     def eval(self, ctx, si, wo, active):
-        # print('eval')
-        
         cos_theta_nv = mi.Frame3f.cos_theta(si.wi)    # view dir
         cos_theta_nl = mi.Frame3f.cos_theta(wo)    # light dir
         
@@ -676,11 +613,9 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         
         active = active & (cos_theta_i > 0.0) & (cos_theta_o > 0.0) & (dr.dot(si.wi, m) > 0.0) & (dr.dot(wo, m) > 0.0)
 
-        alpha_u = self.m_roughness.eval_1(si, active)
-        alpha_v = self.m_roughness.eval_1(si, active)
-        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_u, alpha_v)
+        alpha = self.m_roughness.eval_1(si, active)
+        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha)
 
-        # result = (self.distr_eval(m, alpha_u, alpha_v) * self.smith_g1(si.wi, m, alpha_u, alpha_v) / (4.0 * cos_theta_i))
         result = (distr.eval(m) * distr.smith_g1(si.wi, m) / (4.0 * cos_theta_i))
         return dr.select(active, dr.detach(result), 0.0)
 
