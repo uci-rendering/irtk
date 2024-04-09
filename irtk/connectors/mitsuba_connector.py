@@ -316,14 +316,11 @@ def process_diffuse_brdf(name, scene):
     
     # Create the object if it has not been created
     if name not in cache['name_map']:
-        kd = convert_color(bsdf['d'], 3, bitmap=True)
+        reflectance = convert_color(bsdf['d'], return_dict=True)
 
         mi_bsdf = mi.load_dict({
             'type': 'diffuse',
-            'reflectance': {
-                'type': 'bitmap',
-                'bitmap': kd
-            }
+            'reflectance': reflectance
         })
         cache['name_map'][name] = mi_bsdf
 
@@ -335,8 +332,8 @@ def process_diffuse_brdf(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == 'd':
-                kd = convert_color(bsdf['d'], 3)
-                mi_bsdf_params['reflectance.data'] = kd
+                kd, kd_t = convert_color(bsdf['d'])
+                mi_bsdf_params[f'reflectance.{kd_t}'] = kd
             mi_bsdf_params.update()
             bsdf.mark_updated(param_name, False)
 
@@ -346,7 +343,8 @@ def process_diffuse_brdf(name, scene):
     requiring_grad = bsdf.get_requiring_grad()
     for param_name in requiring_grad:
         if param_name == 'd':
-            add_param(mi_bsdf_params['reflectance.data'])
+            kd, kd_t = convert_color(bsdf['d'])
+            add_param(mi_bsdf_params[f'reflectance.{kd_t}'])
 
     return mi_diff_params
 
@@ -357,10 +355,11 @@ def process_environment_light(name, scene):
     
     # Create the object if it has not been created
     if name not in cache['name_map']:
-        radiance = convert_color(emitter['radiance'], 3, bitmap=True)
+        radiance = convert_color(emitter['radiance'], return_dict=True)
+        assert radiance['type'] == 'bitmap'
         mi_emitter = {
             'type': 'envmap',
-            'bitmap': radiance,
+            'bitmap': radiance['bitmap'],
             'to_world': mi.ScalarTransform4f(to_numpy(emitter['to_world'])),
         }
         cache['name_map'][name] = mi_emitter
@@ -385,12 +384,20 @@ def gen_add_param():
         mi_diff_params.append(p)
     return mi_diff_params, add_param
 
-def convert_color(color, c, bitmap=False):
-    if color.shape == ():
-        color = color.tile(c)
-    if color.shape == (c,):
-        color = color.reshape(1, 1, c)
-        color = color.repeat(2, 2, 1) # Bitmap resolution must be at least 2 x 2
-    assert color.dim() == 3
-    color = mi.TensorXf(color)
-    return mi.Bitmap(color) if bitmap else color
+def convert_color(color, return_dict=False):
+    if color.dim() == 1:
+        if return_dict:
+            return {
+                'type': 'rgb',
+                'value': to_numpy(color)
+            }
+        else: return tensor_f_to_mi(color), 'value'
+    else:
+        assert color.dim() == 3
+        color = mi.TensorXf(color)
+        if return_dict:
+            return {
+                'type': 'bitmap',
+                'bitmap': mi.Bitmap(color)
+            }
+        else: return color, 'data'
