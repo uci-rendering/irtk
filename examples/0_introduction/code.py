@@ -65,7 +65,6 @@ elif renderer == 'mitsuba':
     
     render = Renderer('mitsuba', render_options={
         'spp': 128,
-        'npass': 1
     })
 elif renderer == 'redner':
     scene.set('integrator', Integrator(type='path', config={
