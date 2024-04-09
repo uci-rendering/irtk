@@ -334,8 +334,8 @@ def process_diffuse_brdf(name, scene):
             if param_name == 'd':
                 kd, kd_t = convert_color(bsdf['d'])
                 mi_bsdf_params[f'reflectance.{kd_t}'] = kd
-            mi_bsdf_params.update()
             bsdf.mark_updated(param_name, False)
+        mi_bsdf_params.update()
 
     # Enable grad for parameters requiring grad
     mi_diff_params, add_param = gen_add_param()
@@ -352,19 +352,70 @@ def process_diffuse_brdf(name, scene):
 def process_environment_light(name, scene):
     emitter = scene[name]
     cache = scene.cached['mitsuba']
+
+    def helper():
+        '''
+        Mitsuba duplicates the first column of the envmap and append it 
+        after the last column. So if the original shape of the envmap is
+        (h, w, c), dr.shape(params['envmap.data']) == (h, w + 1, c). We 
+        manually copy the column here to ensure gradient can be correctly
+        propogated. 
+        '''
+        assert emitter['radiance'].dim() == 3
+        r = mi.TensorXf(emitter['radiance'])
+        
+        if emitter['radiance'].requires_grad:
+            dr.enable_grad(r)
+
+        h, w, c = dr.shape(r)
+        r_new = dr.zeros(mi.TensorXf, shape=(h, w + 1, c))
+
+        hh, ww, cc = dr.meshgrid(dr.arange(mi.UInt, h), dr.arange(mi.UInt, w), dr.arange(mi.UInt, c), indexing='ij')
+        idx = hh * (w + 1) * c + ww * c + cc
+        dr.scatter(r_new.array, r.array, idx)
+
+        hh, cc = dr.meshgrid(dr.arange(mi.UInt, h), dr.arange(mi.UInt, c), indexing='ij')
+        idx = hh * (w + 1) * c + w * c + cc
+        dr.scatter(r_new.array, r[:, 0].array, idx)
+
+        emitter_info = {}
+        emitter_info['r'] = r
+        emitter_info['r_new'] = r_new
+        return emitter_info
     
     # Create the object if it has not been created
     if name not in cache['name_map']:
-        radiance = convert_color(emitter['radiance'], return_dict=True)
-        assert radiance['type'] == 'bitmap'
-        mi_emitter = {
+        mi_emitter = mi.load_dict({
             'type': 'envmap',
-            'bitmap': radiance['bitmap'],
+            'bitmap': mi.Bitmap(mi.TensorXf(emitter['radiance'])),
             'to_world': mi.ScalarTransform4f(to_numpy(emitter['to_world'])),
-        }
+        })
         cache['name_map'][name] = mi_emitter
 
-    return []
+    mi_emitter = cache['name_map'][name]
+    mi_emitter_params = mi.traverse(mi_emitter)
+
+    updated = emitter.get_updated()
+    requiring_grad = emitter.get_requiring_grad()
+    mi_diff_params, add_param = gen_add_param()
+
+    if updated or requiring_grad:
+        emitter_info = helper()
+
+        if 'radiance' in updated or 'radiance' in requiring_grad:
+            mi_emitter_params['data'] = emitter_info['r_new']
+            mi_emitter_params.update()
+
+        # Update parameters
+        for param_name in updated:
+            emitter.mark_updated(param_name, False)
+        
+        # Enable grad for parameters requiring grad
+        for param_name in requiring_grad:
+            if param_name == 'radiance':
+                add_param(emitter_info['r'])
+
+    return mi_diff_params
 
 #----------------------------------------------------------------------------
 # Helpers.
