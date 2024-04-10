@@ -98,11 +98,10 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
         with Timer('-- Backend Backward', prt=self.debug, record=False):
             for i, sensor_id in enumerate(sensor_ids):
                 seed = render_options['seed']
-                spp = render_options['spp']
-                spp_grad = render_options['spp_grad'] if 'spp_grad' in render_options else spp
+                spp_grad = render_options['spp_grad'] if 'spp_grad' in render_options else render_options['spp']
                 
                 image_grad = mi.TensorXf(image_grads[i])
-                mi_integrator.render_backward(mi_scene, mi_params, image_grad, sensor=mi_sensors[sensor_id], seed=seed, spp=spp, spp_grad=spp_grad)
+                mi_integrator.render_backward(mi_scene, mi_params, image_grad, sensor=mi_sensors[sensor_id], seed=seed, spp=spp_grad)
                 for param_grad, mi_param in zip(param_grads, mi_params):
                     grad = to_torch_f(dr.grad(mi_param).torch())
                     grad = torch.nan_to_num(grad).reshape(param_grad.shape)
