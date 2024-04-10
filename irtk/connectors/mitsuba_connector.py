@@ -109,6 +109,54 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
                     param_grad += grad
                         
             return param_grads
+        
+                
+    def forward_ad(self, param_func, scene, render_options, sensor_ids=[0], integrator_id=0):
+        '''
+        param_func should be a function that takes parameters of a mitsuba 
+        scene as the input, and return a variable with gradient tracking 
+        enabled. This variable should affect the scene parameters in some ways, 
+        or it itself is a scene parameter. 
+        '''
+
+        with Timer(f"-- Prepare Scene", prt=self.debug, record=False):
+            cache, _ = self.update_scene_objects(scene, render_options)
+        
+            mi_scene = cache['scene']
+            mi_sensors = cache['sensors']
+            mi_integrator = cache['integrators'][integrator_id]
+
+            mi_params = mi.traverse(mi_scene)
+            fwd_param = param_func(mi_params)
+            mi_params.update()
+
+        with Timer('-- Forward mode AD', prt=self.debug, record=False):
+            images = []
+            grad_images = []
+            seed = render_options['seed']
+            spp = render_options['spp']
+            
+            for sensor_id in sensor_ids:
+                dr.forward(fwd_param, dr.ADFlag.ClearEdges)
+                image = mi_integrator.render(mi_scene, sensor=mi_sensors[sensor_id], seed=seed, spp=spp).torch()
+                image = to_torch_f(image)
+                images.append(image)
+                grad_image = mi_integrator.render_forward(mi_scene, mi_params, sensor=mi_sensors[sensor_id], seed=seed, spp=spp).torch()
+                grad_image = to_torch_f(grad_image)
+                grad_images.append(grad_image)
+                        
+        return images, grad_images
+    
+    def forward_ad_mesh_translation(self, mesh_id, scene, render_options, sensor_ids=[0], integrator_id=0):
+        def param_func(mi_params):
+            P = mi.Float(0)
+            dr.enable_grad(P)
+            v = dr.unravel(mi.Point3f, mi_params[f'{mesh_id}.vertex_positions'])
+            t = mi.Transform4f.translate([P, 0.0, 0.0])
+            mi_params[f'{mesh_id}.vertex_positions'] = dr.ravel(t @ v)
+            return P
+        
+        return self.forward_ad(param_func, scene, render_options, sensor_ids, integrator_id)
 
 @MitsubaConnector.register(Integrator)
 def process_integrator(name, scene):
