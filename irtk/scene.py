@@ -131,12 +131,11 @@ class PerspectiveCameraFull(ParamGroup):
 
     @classmethod
     def from_lookat(cls, fx, fy, cx, cy, origin, target, up, near=1e-6, far=1e7):
-        sensor = cls(fx, fy, cx, cy)
         origin = to_torch_f(origin)
         target = to_torch_f(target)
         up = to_torch_f(up)
-        sensor['to_world'] = lookat(origin, target, up)
-        return sensor
+        to_world = lookat(origin, target, up)
+        return cls(fx, fy, cx, cy, to_world, near=near, far=far)
         
 class Mesh(ParamGroup):
 
