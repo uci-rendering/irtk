@@ -213,6 +213,30 @@ def process_perspective_camera(name, scene):
 
     return []
 
+@MitsubaConnector.register(PerspectiveCameraFull)
+def process_perspective_camera_full(name, scene):
+    sensor = scene[name]
+    cache = scene.cached['mitsuba']
+
+    fd = np.sqrt(sensor['fx'] ** 2 + sensor['fy'] ** 2)
+    fovd = np.rad2deg(2 * np.arctan(1 / fd))
+
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        mi_sensor_dict = {
+            'type': 'perspective',
+            'near_clip': sensor['near'],
+            'far_clip': sensor['far'],
+            'fov': fovd,
+            'fov_axis': 'diagonal',
+            'to_world': mi.ScalarTransform4f(to_numpy(sensor['to_world'])),
+            'principal_point_offset_x': sensor['cx'] - 0.5,
+            'principal_point_offset_y': sensor['cy'] - 0.5,
+        }
+        cache['sensors'].append(mi_sensor_dict)
+
+    return []
+
 @MitsubaConnector.register(Mesh)
 def process_mesh(name, scene):
     mesh = scene[name]
