@@ -168,7 +168,6 @@ def process_integrator(name, scene):
             **integrator['config']
         })
         cache['integrators'].append(mi_integrator)
-        cache['name_map'][name] = mi_integrator
 
     return []
 
