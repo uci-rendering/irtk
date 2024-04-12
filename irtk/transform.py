@@ -41,20 +41,21 @@ def perspective_full(fx, fy, cx, cy, aspect_ratio, near=1e-6, far=1e7):
     mat = translate([1 - 2 * cx, 1 - 2 * cy, 0]) @ scale([2 * fx, 2 * fy, 1]) @ mat
 
     mat = scale([-0.5, -0.5 * aspect_ratio, 1]) @ translate([-1, -1 / aspect_ratio, 0]) @ mat
-    mat = scale([-0.5, -0.5, 1]) @ translate([-1, -1, 0]) @ mat
     return mat
 
 def batched_transform_pos(mat, vec):
     mat = mat.view(1, 4, 4)
+    vec_shape = vec.shape
     vec = vec.view(-1, 3, 1)
     tmp = (mat @ torch.cat([vec, torch.ones_like(vec)[:, 0:1]], dim=1)).reshape(-1, 4)
-    return tmp[:, 0:3] / tmp[:, 3:]
+    return (tmp[:, 0:3] / tmp[:, 3:]).reshape(vec_shape)
 
 def batched_transform_dir(mat, vec):
     mat = mat.view(1, 4, 4)
+    vec_shape = vec.shape
     vec = vec.view(-1, 3, 1)
     tmp = (mat @ torch.cat([vec, torch.zeros_like(vec)[:, 0:1]], dim=1)).reshape(-1, 4)
-    return tmp[:, 0:3]
+    return tmp[:, 0:3].reshape(vec_shape)
 
 def translate(t_vec):
     t_vec = to_torch_f(t_vec)
