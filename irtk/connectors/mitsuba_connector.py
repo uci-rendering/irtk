@@ -257,7 +257,7 @@ def process_mesh(name, scene):
         mi_f = tensor_i_to_mi(mesh['f'])
         mi_uv = tensor_f_to_mi(mesh['uv'], mi.Point2f)
         mi_fuv = tensor_i_to_mi(mesh['fuv'])
-        mi_to_world = tensor_f_to_mi(mesh['to_world'], mi.Matrix4f)
+        mi_to_world = mi.Transform4f(to_numpy(mesh['to_world']))
 
         if mesh['v'].requires_grad:
             dr.enable_grad(mi_v)
@@ -270,7 +270,7 @@ def process_mesh(name, scene):
         mesh_info['to_world'] = mi_to_world
         
         if mesh['can_change_topology']:
-            mi_v_new = mi.Transform4f(mi_to_world) @ mi_v
+            mi_v_new = mi_to_world @ mi_v
             mi_f_new = mi_f
 
             # Let Mitsuba computes the vertex normals
@@ -279,7 +279,7 @@ def process_mesh(name, scene):
         else:
             # Turn the mesh into separate faces
             mi_v_new = dr.gather(mi.Point3f, mi_v, mi_f)
-            mi_v_new = mi.Transform4f(mi_to_world) @ mi_v_new
+            mi_v_new = mi_to_world @ mi_v_new
             mi_f_new = dr.arange(mi.UInt, 0, dr.shape(mi_f)[0])
             mesh_info['uv_new'] = dr.gather(mi.Point2f, mi_uv, mi_fuv)
 
