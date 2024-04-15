@@ -494,6 +494,55 @@ def process_microfacet_brdf(name, scene):
 
     return mi_diff_params
 
+@MitsubaConnector.register(SmoothDielectricBRDF)
+def process_smooth_dielectric_brdf(name, scene):
+    bsdf = scene[name]
+    cache = scene.cached['mitsuba']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        specular_reflectance = convert_color(bsdf['s_reflect'], return_dict=True)
+        specular_transmittance = convert_color(bsdf['s_transmit'], return_dict=True)
+
+        mi_bsdf = mi.load_dict({
+            'type': 'dielectric',
+            'int_ior': bsdf['int_ior'],
+            'ext_ior': bsdf['ext_ior'],
+            'specular_reflectance': specular_reflectance,
+            'specular_transmittance': specular_transmittance
+        })
+        cache['name_map'][name] = mi_bsdf
+
+    # TODO: Make it updateable and differentiable
+
+    return []
+
+@MitsubaConnector.register(RoughConductorBRDF)
+def process_rough_dielectric_brdf(name, scene):
+    bsdf = scene[name]
+    cache = scene.cached['mitsuba']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        eta = convert_color(bsdf['eta'], return_dict=True)
+        k = convert_color(bsdf['k'], return_dict=True)
+        specular_reflectance = convert_color(bsdf['s'], return_dict=True)
+
+        mi_bsdf = mi.load_dict({
+            'type': 'roughconductor',
+            'eta': eta,
+            'k': k,
+            'specular_reflectance': specular_reflectance,
+            'distribution': 'ggx',
+            'alpha_u': bsdf['alpha_u'].item(),
+            'alpha_v': bsdf['alpha_v'].item(),
+        })
+        cache['name_map'][name] = mi_bsdf
+
+    # TODO: Make it updateable and differentiable
+
+    return []
+
 @MitsubaConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):
     emitter = scene[name]
