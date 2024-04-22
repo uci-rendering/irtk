@@ -713,9 +713,7 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         fresnel = F0 + (1.0 - F0) * dr.power(2.0, coeff)
 
         # Geometry term
-        smithG1 = cos_theta_nv / (cos_theta_nv * (1.0 - k) + k)
-        smithG2 = cos_theta_nl / (cos_theta_nl * (1.0 - k) + k)
-        smithG = smithG1 * smithG2
+        smithG = distr.G(si.wi, wo, H)
 
         numerator = ggx * smithG * fresnel
         denominator = 4.0 * cos_theta_nl * cos_theta_nv
