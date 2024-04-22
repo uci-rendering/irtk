@@ -705,8 +705,8 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         k = dr.sqr(roughness + 1.0) / 8.0
 
         # GGX NDF term
-        tmp = alpha / (cos_theta_nh * cos_theta_nh * (dr.sqr(alpha) - 1.0) + 1.0)
-        ggx = tmp * tmp / dr.pi
+        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha)
+        ggx = distr.eval(H)
 
         # Fresnel term
         coeff = cos_theta_vh * (-5.55473 * cos_theta_vh - 6.8316)
