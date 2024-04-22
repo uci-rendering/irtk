@@ -672,7 +672,7 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
     def sample(self, ctx, si, sample1, sample2, active):
         bs = mi.BSDFSample3f()
         cos_theta_i =  mi.Frame3f.cos_theta(si.wi)
-        alpha = self.m_roughness.eval_1(si, active)
+        alpha = dr.sqr(self.m_roughness.eval_1(si, active))
         distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha)
         m, m_pdf = distr.sample(si.wi, sample2)
         bs.wo = m * 2.0 * dr.dot(si.wi, m) - si.wi
@@ -733,7 +733,7 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         
         active = active & (cos_theta_i > 0.0) & (cos_theta_o > 0.0) & (dr.dot(si.wi, m) > 0.0) & (dr.dot(wo, m) > 0.0)
 
-        alpha = self.m_roughness.eval_1(si, active)
+        alpha = dr.sqr(self.m_roughness.eval_1(si, active))
         distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha)
 
         result = (distr.eval(m) * distr.smith_g1(si.wi, m) / (4.0 * cos_theta_i))
