@@ -123,6 +123,44 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
 
         return param_grads
 
+    def forward_ad_mesh_translation(self, mesh_id, scene, render_options, sensor_ids=[0], integrator_id=0):
+        psdr_cpu.set_forward(True)
+
+        cache, _ = self.update_scene_objects(scene, render_options)
+
+        h, w, c = cache['film']['shape']
+        integrator = list(cache['integrators'].values())[integrator_id]
+
+        psdr_scene = cache['scene']
+
+        group, idx = cache['name_map'][mesh_id]
+        psdr_mesh = cache['ctx'][group][idx]
+        psdr_mesh.setTranslation(np.array([1., 0., 0.]))
+        psdr_mesh.requires_grad = True
+
+        images = []
+        grad_images = []
+        for i, sensor_id in enumerate(sensor_ids):
+            psdr_scene.camera = cache['ctx']['cameras'][sensor_id]
+            psdr_scene.camera.width = w
+            psdr_scene.camera.height = h
+            psdr_scene.configure()
+
+            image = to_torch_f(integrator.renderC(psdr_scene, cache['render_options']))
+            image = image.reshape(h, w, c)
+            images.append(image)
+
+            psdr_scene_ad = psdr_cpu.SceneAD(psdr_scene)
+            boundary_integrator = psdr_cpu.BoundaryIntegrator(psdr_scene)
+
+            grad_image = integrator.forwardRenderD(psdr_scene_ad, cache['render_options'])
+            grad_image += boundary_integrator.forwardRenderD(psdr_scene_ad, cache['render_options'])
+            grad_image = grad_image.reshape(h, w, c)
+            grad_images.append(grad_image)
+
+        psdr_cpu.set_forward(False)
+
+        return images, grad_images
 
 @PSDREnzymeConnector.register(Integrator)
 def process_integrator(name, scene):
