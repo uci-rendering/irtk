@@ -11,8 +11,15 @@ import gpytoolbox
 imageio.plugins.freeimage.download()
 
 def read_mesh(mesh_path):
-    v, f, uv, fuv = gpytoolbox.read_mesh(str(mesh_path), return_UV=True)
-    if uv.size == 0:
+    mesh_path = Path(mesh_path)
+    support_uv = mesh_path.suffix == '.obj'
+    if support_uv:
+        v, f, uv, fuv = gpytoolbox.read_mesh(str(mesh_path), return_UV=True)
+    else:
+        v, f = gpytoolbox.read_mesh(str(mesh_path))
+        uv, fuv = None, None
+
+    if not support_uv or uv.size == 0:
         uv = np.zeros((v.shape[0], 2))
         fuv = f.copy()
     return v, f, uv, fuv
