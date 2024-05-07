@@ -8,6 +8,9 @@ import gin
 class Model(ABC):
     def __init__(self, scene):
         self.scene = scene
+    
+    def initialize(self):
+        pass
 
     @abstractmethod
     def zero_grad(self):
@@ -17,10 +20,16 @@ class Model(ABC):
     def set_data(self):
         pass
 
+    def get_regularization(self):
+        return to_torch_f([0])
+
     @abstractmethod
     def step(self):
         pass
 
+    def schedule_lr(self, curr_iter):
+        pass
+    
     @abstractmethod
     def get_results(self):
         pass
@@ -29,8 +38,12 @@ class Model(ABC):
     def write_results(self, result_path):
         pass
 
-    def get_regularization(self):
-        return to_torch_f([0])
+    def load_states(self, state_path):
+        pass
+
+    def save_states(self, state_path):
+        pass
+    
 
 @gin.configurable
 class MultiOpt(Model):
@@ -39,6 +52,10 @@ class MultiOpt(Model):
         super().__init__(scene)
 
         self._models = [model_class(scene) for model_class in model_classes]
+
+    def initialize(self):
+        for model in self._models:
+            model.initialize()
 
     def zero_grad(self):
         for model in self._models:
@@ -51,6 +68,10 @@ class MultiOpt(Model):
     def step(self):
         for model in self._models:
             model.step()
+
+    def schedule_lr(self, curr_iter):
+        for model in self._models:
+            model.schedule_lr(curr_iter)
 
     def get_results(self):
         results = []
@@ -67,3 +88,11 @@ class MultiOpt(Model):
         for model in self._models:
             reg += model.get_regularization()
         return reg
+    
+    def load_states(self, state_path):
+        for model in self._models:
+            model.load_states(state_path)
+
+    def save_states(self, state_path):
+        for model in self._models:
+            model.save_states(state_path)
