@@ -134,13 +134,17 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             grad_images = []
             seed = render_options['seed']
             spp = render_options['spp']
+            spp_grad = render_options['spp_grad'] if 'spp_grad' in render_options else render_options['spp']
             
             for sensor_id in sensor_ids:
                 dr.forward(fwd_param, dr.ADFlag.ClearEdges)
                 image = mi_integrator.render(mi_scene, sensor=mi_sensors[sensor_id], seed=seed, spp=spp).torch()
                 image = to_torch_f(image)
                 images.append(image)
-                grad_image = mi_integrator.render_forward(mi_scene, mi_params, sensor=mi_sensors[sensor_id], seed=seed, spp=spp).torch()
+                if spp_grad > 0:
+                    grad_image = mi_integrator.render_forward(mi_scene, mi_params, sensor=mi_sensors[sensor_id], seed=seed, spp=spp_grad).torch()
+                else:
+                    grad_image = mi_integrator.render_forward(mi_scene, mi_params, sensor=mi_sensors[sensor_id], seed=seed).torch()
                 grad_image = to_torch_f(grad_image)
                 grad_images.append(grad_image)
                         
@@ -328,6 +332,7 @@ def process_mesh(name, scene):
         #       release a new version. 
         if 'radiance' in mesh:
             radiance = convert_color(mesh['radiance'], return_dict=True)
+            radiance['raw'] = True
             mi_area_light = mi.load_dict({
                 'type': 'area',
                 'radiance': radiance
