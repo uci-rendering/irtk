@@ -169,6 +169,7 @@ def process_integrator(name, scene):
 
     integrator_dict = {
         'path2': psdr_cpu.Path2,
+        'pathwas': psdr_cpu.PathWAS,
     }
     if integrator['type'] in integrator_dict:
         cache['integrators'][name] = integrator_dict[integrator['type']]()
@@ -202,7 +203,7 @@ def process_perspective_camera(name, scene):
         props.set('fov', float(camera['fov']))
         # temporary fix of the to_world matrix 
         # psdr-enzyme uses left-hand coordinate 
-        to_world = to_numpy(camera['to_world'])
+        to_world = to_numpy(camera['to_world'].clone())
         to_world[:3, 0] *= -1 
         props.set('to_world', to_world)
         props.set('rfilter', {'type': 'box'})
