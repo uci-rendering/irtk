@@ -341,6 +341,21 @@ def process_rough_dielectric_bsdf(name, scene):
 
     return []
 
+@PSDREnzymeConnector.register(RoughConductorBRDF)
+def process_rough_conductor_bsdf(name, scene):
+    bsdf = scene[name]
+    cache = scene.cached['psdr_enzyme']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        bsdf_id = len(cache['ctx']['bsdfs'])
+        psdr_bsdf = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+        cache['ctx']['bsdfs'].append(psdr_bsdf)
+        cache['name_map'][name] = ("bsdfs", bsdf_id)
+        cache['mat_id_map'][name] = bsdf_id
+
+    return []
+
 @PSDREnzymeConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):
     emitter = scene[name]

@@ -190,7 +190,17 @@ class MicrofacetBRDF(ParamGroup):
         r_texture = read_image(r_filename, r_is_srgb)[..., 0:1]
 
         return cls(d_texture, s_texture, r_texture)
-    
+
+class SmoothDielectricBRDF(ParamGroup):
+
+    def __init__(self, int_ior, ext_ior, s_reflect, s_transmit):
+        super().__init__()
+        
+        self.add_param('int_ior', int_ior, is_tensor=False, is_diff=False, help_msg='interior index of refraction')
+        self.add_param('ext_ior', ext_ior, is_tensor=False, is_diff=False, help_msg='exterior index of refraction')
+        self.add_param('s_reflect', to_torch_f(s_reflect), is_tensor=True, is_diff=False, help_msg='specular reflection component')
+        self.add_param('s_transmit', to_torch_f(s_transmit), is_tensor=True, is_diff=False, help_msg='specular transmission component')
+
 class RoughDielectricBSDF(ParamGroup):
 
     def __init__(self, alpha, i_ior, e_ior):
@@ -198,6 +208,27 @@ class RoughDielectricBSDF(ParamGroup):
         self.add_param('alpha', to_torch_f(alpha), help_msg='roughness')
         self.add_param('i_ior', to_torch_f(i_ior), help_msg='interior index of refraction')
         self.add_param('e_ior', to_torch_f(e_ior), help_msg='exterior index of refraction')
+
+class RoughConductorBRDF(ParamGroup):
+
+    def __init__(self, alpha_u, alpha_v, eta, k, s):
+        super().__init__()
+        
+        self.add_param('alpha_u', to_torch_f(alpha_u), is_tensor=True, is_diff=True, help_msg='alpha_u')
+        self.add_param('alpha_v', to_torch_f(alpha_v), is_tensor=True, is_diff=True, help_msg='alpha_v')
+        self.add_param('eta', to_torch_f(eta), is_tensor=True, is_diff=True, help_msg='eta')
+        self.add_param('k', to_torch_f(k), is_tensor=True, is_diff=True, help_msg='k')
+        self.add_param('s', to_torch_f(s), is_tensor=True, is_diff=True, help_msg='specular reflectance')
+
+    # @classmethod
+    # def from_file(cls, d_filename, s_filename, r_filename, d_is_srgb=None, s_is_srgb=None, r_is_srgb=None):
+    #     d_texture = read_image(d_filename, d_is_srgb)
+    #     s_texture = read_image(s_filename, s_is_srgb)
+    #     r_texture = read_image(r_filename, r_is_srgb)[..., 0:1]
+
+    #     return cls(d_texture, s_texture, r_texture)
+
+
     
 class EnvironmentLight(ParamGroup):
 
@@ -212,3 +243,10 @@ class EnvironmentLight(ParamGroup):
         radiance_texture = read_image(radiance_filename, radiance_is_srgb)
 
         return cls(radiance_texture, to_world)
+    
+class PointLight(ParamGroup):
+    def __init__(self, radiance, position):
+        super().__init__()
+        
+        self.add_param('radiance', to_torch_f(radiance), is_tensor=True, is_diff=False, help_msg='point light radiance')
+        self.add_param('position', to_torch_f(position), is_tensor=True, is_diff=True, help_msg='point light position')
