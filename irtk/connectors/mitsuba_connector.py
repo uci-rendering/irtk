@@ -332,7 +332,7 @@ def process_mesh(name, scene):
         #       release a new version. 
         if 'radiance' in mesh:
             radiance = convert_color(mesh['radiance'], return_dict=True)
-            radiance['raw'] = True
+            # radiance['raw'] = True
             mi_area_light = mi.load_dict({
                 'type': 'area',
                 'radiance': radiance
