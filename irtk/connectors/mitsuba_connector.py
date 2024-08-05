@@ -232,8 +232,8 @@ def process_perspective_camera_full(name, scene):
             'fov': fovd,
             'fov_axis': 'diagonal',
             'to_world': mi.ScalarTransform4f(to_numpy(sensor['to_world'])),
-            'principal_point_offset_x': sensor['cx'] - 0.5,
-            'principal_point_offset_y': sensor['cy'] - 0.5,
+            'principal_point_offset_x': 0.5 - sensor['cx'],
+            'principal_point_offset_y': 0.5 - sensor['cy'],
         }
         cache['sensors'].append(mi_sensor_dict)
 
