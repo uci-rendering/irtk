@@ -289,17 +289,16 @@ def process_mesh(name, scene):
 
             # Compute vertex normals
             if not mesh['use_face_normal']:
-                # Todo: this should be updated to match Mitsuba's implementation
                 idx = dr.arange(mi.UInt, 0, dr.shape(mi_f)[0], 3)
-                mi_v0 = dr.gather(mi.Point3f, mi_v_new, idx + 0)
-                mi_v1 = dr.gather(mi.Point3f, mi_v_new, idx + 1)
-                mi_v2 = dr.gather(mi.Point3f, mi_v_new, idx + 2)
+                mi_vl = [dr.gather(mi.Point3f, mi_v_new, idx + i) for i in range(3)]
 
-                mi_fn = dr.normalize(dr.cross(mi_v2 - mi_v1, mi_v0 - mi_v1))
+                mi_fn = dr.normalize(dr.cross(mi_vl[1] - mi_vl[0], mi_vl[2] - mi_vl[0]))
                 mi_vn = dr.zeros(mi.Normal3f, dr.shape(mi_v)[1])
-                dr.scatter_reduce(dr.ReduceOp.Add, mi_vn, mi_fn, dr.gather(mi.UInt, mi_f, idx + 0))
-                dr.scatter_reduce(dr.ReduceOp.Add, mi_vn, mi_fn, dr.gather(mi.UInt, mi_f, idx + 1))
-                dr.scatter_reduce(dr.ReduceOp.Add, mi_vn, mi_fn, dr.gather(mi.UInt, mi_f, idx + 2))
+                for i in range(3):
+                    angle = dr.acos(dr.dot(
+                        dr.normalize(mi_vl[(i + 1) % 3] - mi_vl[i]), 
+                        dr.normalize(mi_vl[(i + 2) % 3] - mi_vl[i])))
+                    dr.scatter_reduce(dr.ReduceOp.Add, mi_vn, mi_fn * angle, dr.gather(mi.UInt, mi_f, idx + i))
 
                 mi_vn = dr.normalize(mi_vn)
                 mi_vn_new = dr.gather(mi.Normal3f, mi_vn, mi_f)
@@ -714,8 +713,9 @@ class MitsubaMicrofacetBSDF(mi.BSDF):
         ggx = distr.eval(H)
 
         # Fresnel term
-        coeff = cos_theta_vh * (-5.55473 * cos_theta_vh - 6.8316)
-        fresnel = F0 + (1.0 - F0) * dr.power(2.0, coeff)
+        # coeff = cos_theta_vh * (-5.55473 * cos_theta_vh - 6.8316)
+        # fresnel = F0 + (1.0 - F0) * dr.power(2.0, coeff)
+        fresnel = F0 + (1.0 - F0) * dr.power((1 - cos_theta_vh), 5)
 
         # Geometry term
         smithG = distr.G(si.wi, wo, H)
