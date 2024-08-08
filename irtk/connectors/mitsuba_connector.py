@@ -323,15 +323,9 @@ def process_mesh(name, scene):
             mi_bsdf = cache['name_map'][mat_id] # its material
             props["bsdf"] = mi_bsdf
 
-        # Create area light is used as an emitter
-        # TODO: In mitsuba 3.5.0, there is a bug that prevent creating an area 
-        #       light this way, but it is fixed in: 
-        #       https://github.com/mitsuba-renderer/mitsuba3/pull/1096
-        #       You will need to build the master branch of mitsuba until they
-        #       release a new version. 
+        # Create area light if used as an emitter
         if 'radiance' in mesh:
             radiance = convert_color(mesh['radiance'], return_dict=True)
-            # radiance['raw'] = True
             mi_area_light = mi.load_dict({
                 'type': 'area',
                 'radiance': radiance
