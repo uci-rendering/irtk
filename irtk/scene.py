@@ -131,35 +131,39 @@ class PerspectiveCameraFull(ParamGroup):
 
     @classmethod
     def from_lookat(cls, fx, fy, cx, cy, origin, target, up, near=1e-6, far=1e7):
-        sensor = cls(fx, fy, cx, cy)
         origin = to_torch_f(origin)
         target = to_torch_f(target)
         up = to_torch_f(up)
-        sensor['to_world'] = lookat(origin, target, up)
-        return sensor
+        to_world = lookat(origin, target, up)
+        return cls(fx, fy, cx, cy, to_world, near=near, far=far)
         
 class Mesh(ParamGroup):
 
-    def __init__(self, v, f, uv, fuv, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
+    def __init__(self, v, f, uv, fuv, mat_id=None, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=None):
         super().__init__()
         
         self.add_param('v', to_torch_f(v), is_tensor=True, is_diff=True, help_msg='mesh vertex positions')
         self.add_param('f', to_torch_i(f), is_tensor=True, help_msg='mesh face indices')
         self.add_param('uv', to_torch_f(uv), is_tensor=True, help_msg='mesh uv coordinates')
         self.add_param('fuv', to_torch_i(fuv), is_tensor=True, help_msg='mesh uv face indices')
-        self.add_param('mat_id', mat_id, help_msg='name of the material of the mesh')
         self.add_param('to_world', to_torch_f(to_world), is_tensor=True, is_diff=True, help_msg='mesh to world matrix')
         self.add_param('use_face_normal', use_face_normal, help_msg='whether to use face normal')
         self.add_param('can_change_topology', can_change_topology, help_msg='whether to the topology can be chagned')
 
-        radiance = to_torch_f(radiance)
-        is_emitter = radiance.sum() > 0
-        self.add_param('is_emitter', is_emitter, help_msg='whether it is used as an emitter')
-        self.add_param('radiance', radiance, is_tensor=True, is_diff=True, help_msg='radiance if it is used as an emitter')
+        assert not (mat_id is None and radiance is None)
+
+        if mat_id is not None:
+            self.add_param('mat_id', mat_id, help_msg='name of the material of the mesh if used as an non-emitter')
+
+        if radiance is not None:
+            radiance = to_torch_f(radiance)
+            self.add_param('radiance', radiance, is_tensor=True, is_diff=True, help_msg='radiance if used as an emitter')
 
     @classmethod
-    def from_file(cls, filename, mat_id, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=torch.zeros(3)):
+    def from_file(cls, filename, mat_id=None, to_world=torch.eye(4), use_face_normal=True, can_change_topology=False, radiance=None, flip_tex=True):
         v, f, uv, fuv = read_mesh(filename)
+        if flip_tex:
+            uv[:, 1] = 1 - uv[:, 1]
         return cls(v, f, uv, fuv, mat_id, to_world, use_face_normal, can_change_topology, radiance)
     
 class DiffuseBRDF(ParamGroup):

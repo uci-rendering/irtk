@@ -6,6 +6,9 @@ class ParamGroup:
 
     def __init__(self):
         self.params = OrderedDict()
+    
+    def __contains__(self, param_name):
+        return param_name in self.params
 
     def __getitem__(self, param_name):
         return self.params[param_name]['value']

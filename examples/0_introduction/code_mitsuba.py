@@ -4,6 +4,7 @@ import irtk
 from irtk.scene import *
 from irtk.renderer import Renderer
 from irtk.io import write_image
+from pathlib import Path
 
 scene = Scene()
 # scene.set('cow', Mesh.from_file('./examples/data/meshes/cow.obj', mat_id='cow_tex'))
@@ -26,9 +27,12 @@ scene.set('integrator', Integrator(type='path', config={
 
 render = Renderer('mitsuba', render_options={
     'spp': 128,
-    'npass': 1
 })
 image = render(scene)[0]
 
 # write_image('output/cow_mitsuba.png', image)
-write_image('output/armadillo_mitsuba.png', image)
+
+output_dir = Path('output', '0_introduction')
+output_dir.mkdir(exist_ok=True, parents=True)
+
+write_image(output_dir / 'armadillo_mitsuba.png', image)
