@@ -6,6 +6,7 @@ project_template/results
 examples/**/*.png
 examples/**/*.exr
 examples/**/*.obj
+output/*
 
 # Don't ignore files in examples/data
 !examples/data

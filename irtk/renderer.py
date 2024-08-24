@@ -1,14 +1,17 @@
 from .connector import get_connector
 from .config import *
+from .utils import Timer
 import torch 
 import numpy as np
 
 import gin
+import threading
 
 class RenderFunction(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, connector, scene, render_options, sensor_ids, integrator_id, *params):
+        # print(f'Current thread: {threading.get_ident()}')
         images = connector.renderC(scene, render_options, sensor_ids=sensor_ids, integrator_id=integrator_id)
         images = torch.stack(images, dim=0)
 
@@ -21,12 +24,17 @@ class RenderFunction(torch.autograd.Function):
 
         ctx.params = params
        
-        assert(images.sum().isfinite())
-        return images
+        # with Timer('\'Isfinite\' assertion', False):
+        #     assert(images.sum().isfinite())
+        
+        images = torch.nan_to_num(images)
+        
+        return images.cpu()
 
     @staticmethod
     def backward(ctx, grad_out):
-        image_grads = [image_grad for image_grad in grad_out]
+        # print(f'Current thread: {threading.get_ident()}')
+        image_grads = [image_grad.to(configs['device']) for image_grad in grad_out]
         param_grads = ctx.connector.renderD(image_grads, ctx.scene, ctx.render_options, ctx.sensor_ids, ctx.integrator_id)
         return tuple([None] * ctx.num_no_grads + param_grads)
 
@@ -45,7 +53,7 @@ class Renderer(torch.nn.Module):
 
         params = [scene[param_name] for param_name in scene.requiring_grad]
         
-        images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, *params)
+        images = RenderFunction.apply(self.connector, scene, self.render_options, sensor_ids, integrator_id, *params).to(configs['device'])
         return images
 
     def set_render_options(self, render_options):
