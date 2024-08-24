@@ -123,6 +123,44 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
 
         return param_grads
 
+    def forward_ad_mesh_translation(self, mesh_id, scene, render_options, sensor_ids=[0], integrator_id=0):
+        psdr_cpu.set_forward(True)
+
+        cache, _ = self.update_scene_objects(scene, render_options)
+
+        h, w, c = cache['film']['shape']
+        integrator = list(cache['integrators'].values())[integrator_id]
+
+        psdr_scene = cache['scene']
+
+        group, idx = cache['name_map'][mesh_id]
+        psdr_mesh = cache['ctx'][group][idx]
+        psdr_mesh.setTranslation(np.array([1., 0., 0.]))
+        psdr_mesh.requires_grad = True
+
+        images = []
+        grad_images = []
+        for i, sensor_id in enumerate(sensor_ids):
+            psdr_scene.camera = cache['ctx']['cameras'][sensor_id]
+            psdr_scene.camera.width = w
+            psdr_scene.camera.height = h
+            psdr_scene.configure()
+
+            image = to_torch_f(integrator.renderC(psdr_scene, cache['render_options']))
+            image = image.reshape(h, w, c)
+            images.append(image)
+
+            psdr_scene_ad = psdr_cpu.SceneAD(psdr_scene)
+            boundary_integrator = psdr_cpu.BoundaryIntegrator(psdr_scene)
+
+            grad_image = integrator.forwardRenderD(psdr_scene_ad, cache['render_options'])
+            grad_image += boundary_integrator.forwardRenderD(psdr_scene_ad, cache['render_options'])
+            grad_image = grad_image.reshape(h, w, c)
+            grad_images.append(grad_image)
+
+        psdr_cpu.set_forward(False)
+
+        return images, grad_images
 
 @PSDREnzymeConnector.register(Integrator)
 def process_integrator(name, scene):
@@ -131,6 +169,7 @@ def process_integrator(name, scene):
 
     integrator_dict = {
         'path2': psdr_cpu.Path2,
+        'pathwas': psdr_cpu.PathWAS,
     }
     if integrator['type'] in integrator_dict:
         cache['integrators'][name] = integrator_dict[integrator['type']]()
@@ -164,7 +203,7 @@ def process_perspective_camera(name, scene):
         props.set('fov', float(camera['fov']))
         # temporary fix of the to_world matrix 
         # psdr-enzyme uses left-hand coordinate 
-        to_world = to_numpy(camera['to_world'])
+        to_world = to_numpy(camera['to_world'].clone())
         to_world[:3, 0] *= -1 
         props.set('to_world', to_world)
         props.set('rfilter', {'type': 'box'})
@@ -297,6 +336,21 @@ def process_rough_dielectric_bsdf(name, scene):
     if name not in cache['name_map']:
         bsdf_id = len(cache['ctx']['bsdfs'])
         psdr_bsdf = psdr_cpu.RoughDielectricBSDF(bsdf['alpha'], bsdf['i_ior'], bsdf['e_ior'])
+        cache['ctx']['bsdfs'].append(psdr_bsdf)
+        cache['name_map'][name] = ("bsdfs", bsdf_id)
+        cache['mat_id_map'][name] = bsdf_id
+
+    return []
+
+@PSDREnzymeConnector.register(RoughConductorBRDF)
+def process_rough_conductor_bsdf(name, scene):
+    bsdf = scene[name]
+    cache = scene.cached['psdr_enzyme']
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        bsdf_id = len(cache['ctx']['bsdfs'])
+        psdr_bsdf = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
         cache['ctx']['bsdfs'].append(psdr_bsdf)
         cache['name_map'][name] = ("bsdfs", bsdf_id)
         cache['mat_id_map'][name] = bsdf_id
