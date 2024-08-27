@@ -10,16 +10,18 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
 
+sys.path.insert(0, os.path.abspath("../.."))
+
+import irtk
 
 # -- Project information -----------------------------------------------------
 
-project = 'irtk'
-copyright = '2023, Guangyan Cai'
-author = 'Guangyan Cai'
+project = "irtk"
+copyright = "2024, UCI Rendering"
+author = "UCI Rendering"
 
 
 # -- General configuration ---------------------------------------------------
@@ -28,11 +30,27 @@ author = 'Guangyan Cai'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.duration',
+    "sphinx.ext.duration",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    "myst_nb",
+]
+autosummary_generate = True
+autodoc_mock_imports = [
+    "psdr_jit",
+    "psdr_cpu",
+    "mitsuba",
+    "nvdiffrast",
+    "pytorch3d",
+    "pyredner",
 ]
 
+myst_enable_extensions = ["colon_fence"]
+nb_execution_mode = "off"
+
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -45,7 +63,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'furo'
+html_theme = "furo"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

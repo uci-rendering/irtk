@@ -1,0 +1,26 @@
+﻿irtk.connectors.redner\_connector
+=================================
+
+.. automodule:: irtk.connectors.redner_connector
+
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+   
+      compute_vertex_normals
+      process_diffuse_brdf
+      process_environment_light
+      process_hdr_film
+      process_integrator
+      process_mesh
+      process_microfacet_brdf
+      process_perspective_camera
+      render_pathtracing
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      RednerConnector
+   

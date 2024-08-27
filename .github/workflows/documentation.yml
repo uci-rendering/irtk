@@ -18,10 +18,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y make
-          pip install sphinx furo
+          cd docs
+          pip install -r requirements.txt
       - name: Sphinx build
         run: |
-          cd docs && make html
+          make html
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

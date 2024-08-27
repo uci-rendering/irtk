@@ -1,0 +1,14 @@
+﻿irtk.loss
+=========
+
+.. automodule:: irtk.loss
+
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+   
+      l1_loss
+      mesh_laplacian_smoothing
+      total_variation_loss
+   

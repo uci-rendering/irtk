@@ -1,0 +1,12 @@
+﻿irtk.parameter
+==============
+
+.. automodule:: irtk.parameter
+
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      ParamGroup
+   
