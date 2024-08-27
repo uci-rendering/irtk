@@ -1,4 +1,4 @@
-﻿irtk.utils
+irtk.utils
 ==========
 
 .. automodule:: irtk.utils

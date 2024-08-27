@@ -37,6 +37,8 @@ extensions = [
     "myst_nb",
 ]
 autosummary_generate = True
+autosummary_generate_overwrite = False # Change this to true to update the auto-generated doc.
+
 autodoc_mock_imports = [
     "psdr_jit",
     "psdr_cpu",

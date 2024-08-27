@@ -1,4 +1,4 @@
-﻿irtk.config
+irtk.config
 ===========
 
 .. automodule:: irtk.config

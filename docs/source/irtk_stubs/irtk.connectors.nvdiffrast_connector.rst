@@ -1,4 +1,4 @@
-﻿irtk.connectors.nvdiffrast\_connector
+irtk.connectors.nvdiffrast\_connector
 =====================================
 
 .. automodule:: irtk.connectors.nvdiffrast_connector

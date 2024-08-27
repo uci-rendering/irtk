@@ -1,4 +1,4 @@
-﻿irtk.connectors.redner\_connector
+irtk.connectors.redner\_connector
 =================================
 
 .. automodule:: irtk.connectors.redner_connector

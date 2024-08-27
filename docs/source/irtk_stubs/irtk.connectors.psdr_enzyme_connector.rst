@@ -1,4 +1,4 @@
-﻿irtk.connectors.psdr\_enzyme\_connector
+irtk.connectors.psdr\_enzyme\_connector
 =======================================
 
 .. automodule:: irtk.connectors.psdr_enzyme_connector

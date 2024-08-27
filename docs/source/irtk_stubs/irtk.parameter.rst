@@ -1,4 +1,4 @@
-﻿irtk.parameter
+irtk.parameter
 ==============
 
 .. automodule:: irtk.parameter

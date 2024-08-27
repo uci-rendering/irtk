@@ -1,4 +1,4 @@
-﻿irtk.connectors.pytorch3d\_connector
+irtk.connectors.pytorch3d\_connector
 ====================================
 
 .. automodule:: irtk.connectors.pytorch3d_connector

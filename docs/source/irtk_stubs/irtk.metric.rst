@@ -1,4 +1,4 @@
-﻿irtk.metric
+irtk.metric
 ===========
 
 .. automodule:: irtk.metric

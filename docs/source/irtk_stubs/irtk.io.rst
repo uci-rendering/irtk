@@ -1,4 +1,4 @@
-﻿irtk.io
+irtk.io
 =======
 
 .. automodule:: irtk.io

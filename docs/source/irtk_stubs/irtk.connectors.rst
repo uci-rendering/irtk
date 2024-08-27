@@ -1,4 +1,4 @@
-﻿irtk.connectors
+irtk.connectors
 ===============
 
 .. automodule:: irtk.connectors

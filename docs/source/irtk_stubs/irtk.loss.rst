@@ -1,4 +1,4 @@
-﻿irtk.loss
+irtk.loss
 =========
 
 .. automodule:: irtk.loss

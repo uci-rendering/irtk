@@ -1,4 +1,4 @@
-﻿irtk.scene
+irtk.scene
 ==========
 
 .. automodule:: irtk.scene

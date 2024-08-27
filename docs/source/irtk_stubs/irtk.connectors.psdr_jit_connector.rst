@@ -1,7 +1,7 @@
-﻿irtk.connectors.mitsuba\_connector
-==================================
+irtk.connectors.psdr\_jit\_connector
+====================================
 
-.. automodule:: irtk.connectors.mitsuba_connector
+.. automodule:: irtk.connectors.psdr_jit_connector
 
    
    .. rubric:: Functions
@@ -9,24 +9,21 @@
    .. autosummary::
    
       convert_color
-      gen_add_param
       process_diffuse_brdf
       process_environment_light
       process_hdr_film
       process_integrator
       process_mesh
       process_microfacet_brdf
+      process_microfacet_brdf_per_vertex
       process_perspective_camera
       process_perspective_camera_full
-      process_rough_dielectric_brdf
-      process_smooth_dielectric_brdf
-      tensor_f_to_mi
-      tensor_i_to_mi
+      process_point_light
    
    .. rubric:: Classes
 
    .. autosummary::
    
-      MitsubaConnector
-      MitsubaMicrofacetBSDF
+      MicrofacetBRDFPerVertex
+      PSDRJITConnector
    

@@ -1,4 +1,4 @@
-﻿irtk.model
+irtk.model
 ==========
 
 .. automodule:: irtk.model

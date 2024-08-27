@@ -1,4 +1,4 @@
-﻿irtk.renderer
+irtk.renderer
 =============
 
 .. automodule:: irtk.renderer
