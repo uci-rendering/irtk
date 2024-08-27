@@ -1,5 +1,7 @@
 # irtk: Inverse Rendering Toolkit
 
+[![PyPI version](https://badge.fury.io/py/irtk.svg)](https://badge.fury.io/py/irtk)
+
 `irtk` (**I**nverse **R**endering **T**ool**k**it) is designed to simplify the process of conducting inverse rendering experiments with differentiable renderers. 
 
 :::{note} 
