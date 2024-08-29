@@ -48,6 +48,8 @@ autodoc_mock_imports = [
     "nvdiffrast",
     "pytorch3d",
     "pyredner",
+    "torch",
+    "drjit"
 ]
 
 myst_enable_extensions = ["colon_fence"]
