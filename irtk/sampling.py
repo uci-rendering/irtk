@@ -1,7 +1,7 @@
 import torch 
 import math
 
-def sample_sphere(batch, radius, method='stratified', axis=1, phi_min=0, phi_max=torch.pi, theta_min=0, theta_max=2 * torch.pi):
+def sample_sphere(batch, radius, method='uniform', axis=1, phi_min=0, phi_max=math.pi, theta_min=0, theta_max=2 * math.pi):
 	# assumes y-axis is up by default, otherwise we swap 
 	if method == 'uniform':
 		phi_range = phi_max - phi_min
@@ -18,20 +18,6 @@ def sample_sphere(batch, radius, method='stratified', axis=1, phi_min=0, phi_max
 			sinPhi * sinTheta
 		], dim=1) * radius
 
-	elif method == 'stratified':
-		cosPhi = torch.linspace(torch.cos(phi_min), torch.cos(phi_max)).unsqueeze(-1)
-		theta  = torch.linspace(0, torch.pi * 10, batch).unsqueeze(-1) \
-			+ torch.rand(batch, 1) * 0.01
-		
-		sinPhi = torch.sqrt(1 - cosPhi * cosPhi)
-		sinTheta = torch.sin(theta) 
-		cosTheta = torch.cos(theta) 
-		samples = torch.cat([
-			sinPhi * cosTheta, 
-			cosPhi,
-			sinPhi * sinTheta
-		], dim=1) * radius
-		
 	elif method == 'fibonacci':
 		# From http://extremelearning.com.au/how-to-evenly-distribute-points-on-a-sphere-more-effectively-than-the-canonical-fibonacci-lattice/
 		golden_ratio = (1 + 5**0.5) / 2
@@ -48,6 +34,9 @@ def sample_sphere(batch, radius, method='stratified', axis=1, phi_min=0, phi_max
 			cosPhi,
 			sinPhi * sinTheta
 		], dim=1) * radius
+
+	else:
+		raise ValueError(f"Invalid sampling method: {method}. Supported methods are 'uniform' and 'fibonacci'.")
 	
 	# Switch axis 
 	index = torch.LongTensor([0, 1, 2])
@@ -57,5 +46,5 @@ def sample_sphere(batch, radius, method='stratified', axis=1, phi_min=0, phi_max
 
 	return points
 
-def sample_hemisphere(batch, radius, method='stratified', axis=1):
+def sample_hemisphere(batch, radius, method='uniform', axis=1):
 	return sample_sphere(batch, radius, method, axis, phi_max=0.5 * torch.pi)
