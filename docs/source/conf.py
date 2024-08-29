@@ -38,8 +38,8 @@ extensions = [
 ]
 
 # Change these two options to true to update the auto-generated doc.
-autosummary_generate = False
-autosummary_generate_overwrite = False 
+autosummary_generate = True
+autosummary_generate_overwrite = True 
 
 autodoc_mock_imports = [
     "psdr_jit",
