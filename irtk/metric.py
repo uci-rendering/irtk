@@ -1,10 +1,14 @@
 import trimesh
-from chamferdist import ChamferDistance
 import numpy as np
 import torch
 from .config import *
 
 def chamfer_distance(mesh_a_, mesh_b_, num_samples, mode='bidirectional'):
+    try:
+        from chamferdist import ChamferDistance
+    except ImportError:
+        raise ImportError("The package 'chamferdist' is not installed. Please install it using 'pip install chamferdist'.")
+
     assert mode in ['forward', 'backward', 'bidirectional']
 
     if type(mesh_a_) == str:
