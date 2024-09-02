@@ -1,4 +1,4 @@
-from .config import configs
+from .config import configs, TensorLike
 import imageio
 import imageio.v3 as iio
 import numpy as np
@@ -10,7 +10,18 @@ import gpytoolbox
 # downloaded again. 
 imageio.plugins.freeimage.download()
 
-def read_mesh(mesh_path):
+def read_mesh(mesh_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Reads a mesh from a file.
+
+    Args:
+        mesh_path: The path to the mesh file.
+
+    Returns:
+        A tuple containing vertices, faces, UV coordinates, and face UV coordinates.
+        If the file is not an .obj or doesn't contain UV coordinates, the UV coordinates
+        will be set to 0 for all vertices, and face UV indices will match face indices.
+        Currently, UV coordinates can only be read from .obj files.
+    """
     mesh_path = Path(mesh_path)
     support_uv = mesh_path.suffix == '.obj'
     if support_uv:
@@ -24,7 +35,16 @@ def read_mesh(mesh_path):
         fuv = f.copy()
     return v, f, uv, fuv
 
-def write_mesh(mesh_path, v, f, uv=None, fuv=None):
+def write_mesh(mesh_path: str, v: np.ndarray, f: np.ndarray, uv: np.ndarray = None, fuv: np.ndarray = None) -> None:
+    """Writes a mesh to a file.
+
+    Args:
+        mesh_path: The path to the mesh file.
+        v: The vertices of the mesh, shape (num_v, 3).
+        f: The faces of the mesh, shape (num_f, 3).
+        uv: The UV coordinates of the mesh, shape (num_uv, 2). If not present, it will not be written.
+        fuv: The face UV coordinates of the mesh, shape (num_f, 3). If not present, it will not be written.
+    """
     v = to_numpy(v)
     f = to_numpy(f)
     if uv is not None: 
@@ -37,21 +57,45 @@ def write_mesh(mesh_path, v, f, uv=None, fuv=None):
             fuv = None
     gpytoolbox.write_mesh(str(mesh_path), v, f, uv, fuv)
 
-def linear_to_srgb(l):
+def linear_to_srgb(l: np.ndarray) -> np.ndarray:
+    """Converts a linear color space image to sRGB.
+
+    Args:
+        l: The linear color space image.
+
+    Returns:
+        The sRGB image.
+    """
     s = np.zeros_like(l)
     m = l <= 0.00313066844250063
     s[m] = l[m] * 12.92
     s[~m] = 1.055*(l[~m]**(1.0/2.4))-0.055
     return s
 
-def srgb_to_linear(s):
+def srgb_to_linear(s: np.ndarray) -> np.ndarray:
+    """Converts an sRGB image to linear color space.
+
+    Args:
+        s: The sRGB image.
+
+    Returns:
+        The linear color space image.
+    """
     l = np.zeros_like(s)
     m = s <= 0.0404482362771082
     l[m] = s[m] / 12.92
     l[~m] = ((s[~m]+0.055)/1.055) ** 2.4
     return l
 
-def to_srgb(image):
+def to_srgb(image: np.ndarray) -> np.ndarray:
+    """Converts an image to sRGB color space.
+
+    Args:
+        image: The input image.
+
+    Returns:
+        The sRGB image.
+    """
     image = to_numpy(image)
     if image.shape[2] == 4:
         image_alpha = image[:, :, 3:4]
@@ -61,7 +105,15 @@ def to_srgb(image):
         image = linear_to_srgb(image)
     return np.clip(image, 0, 1)
 
-def to_linear(image):
+def to_linear(image: np.ndarray) -> np.ndarray:
+    """Converts an image to linear color space.
+
+    Args:
+        image: The input image.
+
+    Returns:
+        The linear color space image.
+    """
     image = to_numpy(image)
     if image.shape[2] == 4:
         image_alpha = image[:, :, 3:4]
@@ -71,13 +123,30 @@ def to_linear(image):
         image = srgb_to_linear(image)
     return image
 
-def to_numpy(data):
+def to_numpy(data: torch.Tensor) -> np.ndarray:
+    """Converts a torch tensor to a numpy array.
+
+    Args:
+        data: The input torch tensor.
+
+    Returns:
+        The numpy array.
+    """
     if torch.is_tensor(data):
         return data.detach().cpu().numpy()
     else:
         return np.array(data)
     
-def to_torch(data, dtype):
+def to_torch(data: np.ndarray, dtype: torch.dtype) -> torch.Tensor:
+    """Converts a numpy array to a torch tensor.
+
+    Args:
+        data: The input numpy array.
+        dtype: The desired torch data type.
+
+    Returns:
+        The torch tensor.
+    """
     if torch.is_tensor(data):
         return data.to(dtype).to(configs['device']).contiguous()
     elif isinstance(data, np.ndarray):
@@ -85,13 +154,39 @@ def to_torch(data, dtype):
     else:
         return torch.tensor(data, dtype=dtype, device=configs['device']).contiguous()
 
-def to_torch_f(data):
+def to_torch_f(data: np.ndarray) -> torch.Tensor:
+    """Converts a numpy array to a torch float tensor.
+
+    Args:
+        data: The input numpy array.
+
+    Returns:
+        The torch float tensor.
+    """
     return to_torch(data, configs['ftype'])
 
-def to_torch_i(data):
+def to_torch_i(data: np.ndarray) -> torch.Tensor:
+    """Converts a numpy array to a torch integer tensor.
+
+    Args:
+        data: The input numpy array.
+
+    Returns:
+        The torch integer tensor.
+    """
     return to_torch(data, configs['itype'])
 
-def read_image(image_path, is_srgb=None, remove_alpha=True):
+def read_image(image_path: str, is_srgb: bool = None, remove_alpha: bool = True) -> np.ndarray:
+    """Reads an image from a file.
+
+    Args:
+        image_path: The path to the image file.
+        is_srgb: Whether the image is in sRGB format.
+        remove_alpha: Whether to remove the alpha channel.
+
+    Returns:
+        The image as a numpy array.
+    """
     image_path = Path(image_path)
     
     image_ext = image_path.suffix
@@ -123,7 +218,14 @@ def read_image(image_path, is_srgb=None, remove_alpha=True):
 
     return image
 
-def write_image(image_path, image, is_srgb=None):
+def write_image(image_path: str, image: np.ndarray, is_srgb: bool = None) -> None:
+    """Writes an image to a file.
+
+    Args:
+        image_path: The path to the image file.
+        image: The image as a numpy array.
+        is_srgb: Whether the image is in sRGB format.
+    """
     image_path = Path(image_path)
     
     image_ext = image_path.suffix
@@ -161,7 +263,14 @@ def write_image(image_path, image, is_srgb=None):
                 flags=flags,
                 plugin=iio_plugins.get(image_ext))
 
-def exr2png(image_path, verbose=False):
+def exr2png(image_path: str, verbose: bool = False) -> None:
+    """Converts EXR images to PNG format recursively.
+
+    Args:
+        image_path: The path to the image file or directory. If a directory is provided,
+                    it will recursively convert all .exr files in the directory and its subdirectories.
+        verbose: Whether to print the file paths being processed.
+    """
     image_path = Path(image_path)
     if image_path.is_dir():
         for p in image_path.glob('**/*.exr'):
@@ -173,7 +282,15 @@ def exr2png(image_path, verbose=False):
         im = read_image(image_path)
         write_image(image_path.with_suffix('.png'), im)
 
-def write_video(video_path, frames, fps=20, kwargs={}):
+def write_video(video_path: str, frames: list, fps: int = 20, kwargs: dict = {}) -> None:
+    """Writes a video from a sequence of frames.
+
+    Args:
+        video_path: The path to the video file.
+        frames: A list of frames.
+        fps: The frames per second.
+        kwargs: Additional keyword arguments for the video writer.
+    """
     video_path = Path(video_path)
     video_path.parent.mkdir(exist_ok=True, parents=True)
     writer = imageio.get_writer(video_path, fps=fps, **kwargs)
