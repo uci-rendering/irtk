@@ -1,7 +1,11 @@
-from torch import float32, int32
+import torch
+import numpy as np
+from typing import List, Tuple, Union
 
 configs = {
-    "itype": int32,
-    "ftype": float32,
+    "itype": torch.int32,
+    "ftype": torch.float32,
     "device": 'cuda',
 }
+
+TensorLike = Union[torch.Tensor, np.ndarray, List, Tuple]
