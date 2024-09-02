@@ -1,8 +1,20 @@
+from typing import Union, List, Tuple
 from .io import to_torch_f
 import torch 
 import torch.nn.functional as F
 
-def lookat(origin, target, up):
+def lookat(origin: Union[List[float], torch.Tensor], target: Union[List[float], torch.Tensor], up: Union[List[float], torch.Tensor]) -> torch.Tensor:
+    """
+    Compute a 'look-at' transformation matrix.
+
+    Args:
+        origin (Union[List[float], torch.Tensor]): The position of the camera.
+        target (Union[List[float], torch.Tensor]): The point the camera is looking at.
+        up (Union[List[float], torch.Tensor]): The up vector of the camera.
+
+    Returns:
+        torch.Tensor: A 4x4 transformation matrix.
+    """
     origin = to_torch_f(origin)
     target = to_torch_f(target)
     up = to_torch_f(up)
@@ -19,7 +31,19 @@ def lookat(origin, target, up):
 
     return to_world
 
-def perspective(fov, aspect_ratio, near=1e-6, far=1e7):
+def perspective(fov: float, aspect_ratio: float, near: float = 1e-6, far: float = 1e7) -> torch.Tensor:
+    """
+    Compute a perspective projection matrix.
+
+    Args:
+        fov (float): The field of view in degrees.
+        aspect_ratio (float): The aspect ratio of the viewport.
+        near (float, optional): The distance to the near clipping plane. Defaults to 1e-6.
+        far (float, optional): The distance to the far clipping plane. Defaults to 1e7.
+
+    Returns:
+        torch.Tensor: A 4x4 perspective projection matrix.
+    """
     recip = 1 / (far - near)
     tan = torch.tan(torch.deg2rad(to_torch_f(fov * 0.5)))
     cot = 1 / tan
@@ -32,7 +56,22 @@ def perspective(fov, aspect_ratio, near=1e-6, far=1e7):
 
     return mat
 
-def perspective_full(fx, fy, cx, cy, aspect_ratio, near=1e-6, far=1e7):
+def perspective_full(fx: float, fy: float, cx: float, cy: float, aspect_ratio: float, near: float = 1e-6, far: float = 1e7) -> torch.Tensor:
+    """
+    Compute a full perspective projection matrix.
+
+    Args:
+        fx (float): The focal length in x direction.
+        fy (float): The focal length in y direction.
+        cx (float): The x-coordinate of the principal point.
+        cy (float): The y-coordinate of the principal point.
+        aspect_ratio (float): The aspect ratio of the viewport.
+        near (float, optional): The distance to the near clipping plane. Defaults to 1e-6.
+        far (float, optional): The distance to the far clipping plane. Defaults to 1e7.
+
+    Returns:
+        torch.Tensor: A 4x4 full perspective projection matrix.
+    """
     recip = 1 / (far - near)
     mat = torch.diag(to_torch_f([1, 1, far * recip, 0]))
     mat[2, 3] = -near * far * recip
@@ -43,21 +82,50 @@ def perspective_full(fx, fy, cx, cy, aspect_ratio, near=1e-6, far=1e7):
     mat = scale([-0.5, -0.5 * aspect_ratio, 1]) @ translate([-1, -1 / aspect_ratio, 0]) @ mat
     return mat
 
-def batched_transform_pos(mat, vec):
+def batched_transform_pos(mat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
+    """
+    Apply a batched transformation to position vectors.
+
+    Args:
+        mat (torch.Tensor): A 4x4 transformation matrix.
+        vec (torch.Tensor): A batch of 3D position vectors.
+
+    Returns:
+        torch.Tensor: The transformed position vectors.
+    """
     mat = mat.view(1, 4, 4)
     vec_shape = vec.shape
     vec = vec.view(-1, 3, 1)
     tmp = (mat @ torch.cat([vec, torch.ones_like(vec)[:, 0:1]], dim=1)).reshape(-1, 4)
     return (tmp[:, 0:3] / tmp[:, 3:]).reshape(vec_shape)
 
-def batched_transform_dir(mat, vec):
+def batched_transform_dir(mat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
+    """
+    Apply a batched transformation to direction vectors.
+
+    Args:
+        mat (torch.Tensor): A 4x4 transformation matrix.
+        vec (torch.Tensor): A batch of 3D direction vectors.
+
+    Returns:
+        torch.Tensor: The transformed direction vectors.
+    """
     mat = mat.view(1, 4, 4)
     vec_shape = vec.shape
     vec = vec.view(-1, 3, 1)
     tmp = (mat @ torch.cat([vec, torch.zeros_like(vec)[:, 0:1]], dim=1)).reshape(-1, 4)
     return tmp[:, 0:3].reshape(vec_shape)
 
-def translate(t_vec):
+def translate(t_vec: Union[List[float], torch.Tensor]) -> torch.Tensor:
+    """
+    Create a translation matrix.
+
+    Args:
+        t_vec (Union[List[float], torch.Tensor]): The translation vector.
+
+    Returns:
+        torch.Tensor: A 4x4 translation matrix.
+    """
     t_vec = to_torch_f(t_vec)
 
     to_world = to_torch_f(torch.eye(4))
@@ -65,7 +133,18 @@ def translate(t_vec):
 
     return to_world
 
-def rotate(axis, angle, use_degree=True):
+def rotate(axis: Union[List[float], torch.Tensor], angle: float, use_degree: bool = True) -> torch.Tensor:
+    """
+    Create a rotation matrix.
+
+    Args:
+        axis (Union[List[float], torch.Tensor]): The axis of rotation.
+        angle (float): The angle of rotation.
+        use_degree (bool, optional): If True, the angle is in degrees. If False, it's in radians. Defaults to True.
+
+    Returns:
+        torch.Tensor: A 4x4 rotation matrix.
+    """
     axis = to_torch_f(axis)
     angle = to_torch_f(angle)
 
@@ -94,7 +173,16 @@ def rotate(axis, angle, use_degree=True):
 
     return to_world
 
-def scale(size):
+def scale(size: Union[float, List[float], torch.Tensor]) -> torch.Tensor:
+    """
+    Create a scaling matrix.
+
+    Args:
+        size (Union[float, List[float], torch.Tensor]): The scaling factor(s).
+
+    Returns:
+        torch.Tensor: A 4x4 scaling matrix.
+    """
     size = to_torch_f(size)
 
     to_world = to_torch_f(torch.eye(4))
@@ -110,7 +198,16 @@ def scale(size):
     return to_world
 
 # texture map transform (2d)
-def translate2D(t_vec):
+def translate2D(t_vec: Union[List[float], torch.Tensor]) -> torch.Tensor:
+    """
+    Create a 2D translation matrix.
+
+    Args:
+        t_vec (Union[List[float], torch.Tensor]): The 2D translation vector.
+
+    Returns:
+        torch.Tensor: A 3x3 2D translation matrix.
+    """
     t_vec = to_torch_f(t_vec)
 
     to_world = to_torch_f(torch.eye(3))
@@ -118,7 +215,17 @@ def translate2D(t_vec):
 
     return to_world
 
-def rotate2D(angle, use_degree=True):
+def rotate2D(angle: float, use_degree: bool = True) -> torch.Tensor:
+    """
+    Create a 2D rotation matrix.
+
+    Args:
+        angle (float): The angle of rotation.
+        use_degree (bool, optional): If True, the angle is in degrees. If False, it's in radians. Defaults to True.
+
+    Returns:
+        torch.Tensor: A 3x3 2D rotation matrix.
+    """
     angle = to_torch_f(angle)
 
     to_world = to_torch_f(torch.eye(3))
@@ -138,7 +245,16 @@ def rotate2D(angle, use_degree=True):
 
     return to_world
 
-def scale2D(size):
+def scale2D(size: Union[float, List[float], torch.Tensor]) -> torch.Tensor:
+    """
+    Create a 2D scaling matrix.
+
+    Args:
+        size (Union[float, List[float], torch.Tensor]): The scaling factor(s).
+
+    Returns:
+        torch.Tensor: A 3x3 2D scaling matrix.
+    """
     size = to_torch_f(size)
     to_world = to_torch_f(torch.eye(3))
 
