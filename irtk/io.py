@@ -31,7 +31,7 @@ def read_mesh(mesh_path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.nd
         v, f = gpytoolbox.read_mesh(str(mesh_path))
         uv, fuv = None, None
 
-    if not support_uv or uv.size == 0:
+    if not support_uv or uv is None:
         uv = np.zeros((v.shape[0], 2))
         fuv = f.copy()
     return v, f, uv, fuv
