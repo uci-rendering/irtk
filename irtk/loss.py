@@ -1,9 +1,27 @@
 import torch
 
-def l1_loss(target_image, rendered_image):
+def l1_loss(target_image: torch.Tensor, rendered_image: torch.Tensor) -> torch.Tensor:
+    """Computes the L1 loss between two images.
+
+    Args:
+        target_image: The target image in PyTorch format.
+        rendered_image: The rendered image in PyTorch format.
+
+    Returns:
+        The L1 loss between the two image. 
+    """
     return (target_image - rendered_image).abs().mean() # NOTE
 
-def mesh_laplacian_smoothing(verts, faces):
+def mesh_laplacian_smoothing(verts: torch.Tensor, faces: torch.Tensor) -> torch.Tensor:
+    """Computes the Laplacian smoothing loss of the given mesh.
+
+    Args:
+        verts: The vertices of the mesh, shape (num_v, 3).
+        faces: The faces of the mesh, shape (num_f, 3).
+
+    Returns:
+        The Laplacian smoothing loss of the given mesh.
+    """
     # compute L once per mesh subdiv.
     with torch.no_grad():
         V, F = verts.shape[0], faces.shape[0]
@@ -46,7 +64,16 @@ def mesh_laplacian_smoothing(verts, faces):
     loss = loss.norm(dim=1)
     return loss.mean()
 
-def total_variation_loss(texture, texture_mask):
+def total_variation_loss(texture: torch.Tensor, texture_mask: torch.Tensor) -> torch.Tensor:
+    """Computes the total variation L1 (TV-L1) loss of the given texture.
+
+    Args:
+        texture: The texture in PyTorch format.
+        texture_mask: A mask for the texture. 
+
+    Returns:
+        The TV-L1 loss of the given texture.
+    """
     m = (texture_mask[:-1, :-1] & texture_mask[1:, :-1] & texture_mask[:-1, 1:])
     loss = (texture[:-1, :-1] - texture[1:, :-1])[m].abs().mean() +\
            (texture[:-1, :-1] - texture[:-1, 1:])[m].abs().mean()

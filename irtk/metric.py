@@ -2,8 +2,24 @@ import trimesh
 import numpy as np
 import torch
 from .config import *
+from typing import Literal
 
-def chamfer_distance(mesh_a_, mesh_b_, num_samples, mode='bidirectional'):
+def chamfer_distance(
+    mesh_a_: str | dict, 
+    mesh_b_: str | dict, 
+    num_samples: int, 
+    mode: Literal['forward', 'backward', 'bidirectional'] = 'bidirectional') -> float:
+    """Computes the Chamfer Distance (CD) between two meshes.
+
+    Args:
+        mesh_a_: One mesh specified by file name or a dict containing 'v' and 'f'. 
+        mesh_b_: Another mesh specified by file name or a dict containing 'v' and 'f'. 
+        num_samples: Number of samples to compute Chamfer Distance.
+        mode: The sample mode. Supports 'forward', 'backward', and 'bidirectional'.
+
+    Returns:
+        The Chamfer Distance between the two meshes.
+    """
     try:
         from chamferdist import ChamferDistance
     except ImportError:

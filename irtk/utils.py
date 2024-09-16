@@ -12,12 +12,26 @@ from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 
 class Timer:
+    '''
+    Timer to record and display operation elapsed time. 
+    
+    Typical usage is adding `with Timer():` before the code block.
+    '''
     
     timers = OrderedDict()
     timers['Forward'] = 0
     timers['Backward'] = 0
     
-    def __init__(self, label, prt=True, record=True):
+    def __init__(self, label: str, prt: bool = True, record: bool = True):
+        '''
+        Initialize the timer.
+        
+        Args:
+            label: A user defined label for the timer.
+            prt: Whether to print the time.
+            record: Whether to store the time in the `timers` dict for later retrieval. 
+                Time pieces with the same label are added together.
+        '''
         self.label = label
         self.prt = prt
         self.record = record
@@ -36,12 +50,27 @@ class Timer:
     
     @classmethod
     def reset_timers(cls):
+        '''
+        Clear all recorded times in the `timers` dict.
+        '''
         cls.timers = OrderedDict()
         cls.timers['Forward'] = 0
         cls.timers['Backward'] = 0
 
 class Logger(object):
-    def __init__(self, filename="exp.log"):
+    '''
+    Logger to redirect stdout to both the console and a file.
+    
+    Typical usage: `sys.stdout = Logger('a.log')`.
+    '''
+    
+    def __init__(self, filename: str = "exp.log"):
+        '''
+        Initialize the logger.
+        
+        Args:
+            filename: The file name of the log file.
+        '''
         self.terminal = sys.stdout
         self.log = open(filename, "a", encoding='utf-8')
  
