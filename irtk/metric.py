@@ -8,7 +8,8 @@ def chamfer_distance(
     mesh_a_: str | dict, 
     mesh_b_: str | dict, 
     num_samples: int, 
-    mode: Literal['forward', 'backward', 'bidirectional'] = 'bidirectional') -> float:
+    mode: Literal['forward', 'backward', 'bidirectional'] = 'bidirectional'
+) -> float:
     """Computes the Chamfer Distance (CD) between two meshes.
 
     Args:
