@@ -2,6 +2,7 @@
 
 [PyTorch3D](https://pytorch3d.org/) is a differentiable rasterizer. 
 It supports differentiation of rendered image w.r.t. arbitrary scene parameters in direct illuminated scenes.
+
 In most cases, we set a point light to be always collocated to the camera, to ensure the consistency of the rendered image when compared to physics-based renderers. 
 
 ```{Attention}
