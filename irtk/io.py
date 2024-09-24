@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from pathlib import Path
 import gpytoolbox
+import pyexr
 
 # Download necessary imageio plugins. If they already exists they won't be 
 # downloaded again. 
@@ -195,6 +196,12 @@ def read_image(image_path: str, is_srgb: bool = None, remove_alpha: bool = True)
         '.hdr': 'HDR-FI',
         '.png': 'PNG-FI',
     }
+    if image_ext in ['.exr', '.hdr', '.rgbe']:
+        with pyexr.open(image_path) as image_file:
+            # default.(RGB), S0, S1, S2, S3
+            if len(image_file.channels) == 15:
+                image = np.stack([image_file.get('S0'), image_file.get('S1'), image_file.get('S2'), image_file.get('S3')], axis=0)
+                return image
     
     image = iio.imread(image_path, plugin=iio_plugins.get(image_ext))
     image = np.atleast_3d(image)
@@ -240,6 +247,26 @@ def write_image(image_path: str, image: np.ndarray, is_srgb: bool = None) -> Non
     hdr_formats = ['.exr', '.hdr', '.rgbe']
     
     image = to_numpy(image)
+    
+    # image of polarization containing stokes vectors (4 channel)
+    if len(image.shape) == 4 and image.shape[0] == 4:
+        if image_ext in hdr_formats:
+            data = {'default': image[0],
+                    'S0': image[0],
+                    'S1': image[1],
+                    'S2': image[2],
+                    'S3': image[3]}
+            precisions = {'default': pyexr.HALF,
+                        'S0': pyexr.HALF,
+                        'S1': pyexr.HALF,
+                        'S2': pyexr.HALF,
+                        'S3': pyexr.HALF}
+            pyexr.write(image_path, data, precision=precisions)
+            return
+        else:
+            # save only the first channel
+            image = image[0]
+    
     image = np.atleast_3d(image)
     if image.shape[2] == 1:
         image = np.repeat(image, 3, axis=2)

@@ -11,6 +11,15 @@ psdr_cpu.set_verbose(False)
 
 from irtk.utils import Timer
 
+def _array_to_polarized_image(arr, height, width):
+    if psdr_cpu.polarization_on:
+        image = torch.zeros(4, height, width, 3)
+        for i in range(4):
+            image[i] = arr[i::4].reshape(height, width, 3)
+        return image
+    else:
+        raise ValueError("Polarization is not enabled.")
+
 class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
 
     def __init__(self):
@@ -87,7 +96,10 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
             psdr_scene.camera.height = h
             psdr_scene.configure()
             image = to_torch_f(integrator.renderC(psdr_scene, cache['render_options']))
-            image = image.reshape(h, w, c)
+            if psdr_cpu.polarization_on:
+                image = _array_to_polarized_image(image, h, w)
+            else:
+                image = image.reshape(h, w, c)
             images.append(image)
 
         return images
@@ -147,7 +159,10 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
             psdr_scene.configure()
 
             image = to_torch_f(integrator.renderC(psdr_scene, cache['render_options']))
-            image = image.reshape(h, w, c)
+            if psdr_cpu.polarization_on:
+                image = _array_to_polarized_image(image, h, w)
+            else:
+                image = image.reshape(h, w, c)
             images.append(image)
 
             psdr_scene_ad = psdr_cpu.SceneAD(psdr_scene)
@@ -155,7 +170,10 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
 
             grad_image = integrator.forwardRenderD(psdr_scene_ad, cache['render_options'])
             grad_image += boundary_integrator.forwardRenderD(psdr_scene_ad, cache['render_options'])
-            grad_image = grad_image.reshape(h, w, c)
+            if psdr_cpu.polarization_on:
+                grad_image = _array_to_polarized_image(grad_image, h, w)
+            else:
+                grad_image = grad_image.reshape(h, w, c)
             grad_images.append(grad_image)
 
         psdr_cpu.set_forward(False)
@@ -166,11 +184,15 @@ class PSDREnzymeConnector(Connector, connector_name='psdr_enzyme'):
 def process_integrator(name, scene):
     integrator = scene[name]
     cache = scene.cached['psdr_enzyme']
-
-    integrator_dict = {
-        'path2': psdr_cpu.Path2,
-        'pathwas': psdr_cpu.PathWAS,
-    }
+    if not psdr_cpu.polarization_on:
+        integrator_dict = {
+            'path2': psdr_cpu.Path2,
+            'pathwas': psdr_cpu.PathWAS,
+        }
+    else:
+        integrator_dict = {
+            'path2': psdr_cpu.Path2
+        }
     if integrator['type'] in integrator_dict:
         cache['integrators'][name] = integrator_dict[integrator['type']]()
     else:
