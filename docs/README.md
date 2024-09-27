@@ -16,3 +16,13 @@ Finally, run
 ```bash
 sphinx-autobuild source build/html
 ```
+
+Alternatively, you can build the documentation with
+```bash
+make html
+```
+or clean up the generated files with
+```bash
+make clean
+```
+Then serve the documentation at `build/html/index.html` with, for example, VSCode Live Server.
