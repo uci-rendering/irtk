@@ -21,7 +21,14 @@ To address this issue, `irtk` introduces a unified frontend built on [`PyTorch`]
 :hidden:
 
 install
-examples/code
+examples/quick_start
+```
+
+```{toctree}
+:caption: Tutorials
+:maxdepth: 2
+:hidden:
+
 examples/cam_pos
 ```
 
