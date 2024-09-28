@@ -17,11 +17,19 @@ To address this issue, `irtk` introduces a unified frontend built on [`PyTorch`]
 
 ```{toctree}
 :caption: Get Started
-:maxdepth: 2
+:maxdepth: 3
 :hidden:
 
 install
-examples/code
+examples/quick_start
+```
+
+```{toctree}
+:caption: Tutorials
+:maxdepth: 2
+:hidden:
+
+examples/simple_inverse_rendering_example
 ```
 
 ```{toctree}
