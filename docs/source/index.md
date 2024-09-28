@@ -29,7 +29,7 @@ examples/quick_start
 :maxdepth: 2
 :hidden:
 
-examples/cam_pos
+examples/simple_inverse_rendering_example
 ```
 
 ```{toctree}
