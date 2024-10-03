@@ -13,7 +13,13 @@ from irtk.utils import Timer
 
 def _array_to_polarized_image(arr, height, width):
     if psdr_cpu.polarization_on:
-        image = torch.zeros(4, height, width, 3)
+        if isinstance(arr, np.ndarray):
+            image = np.zeros((4, height, width, 3))
+        elif isinstance(arr, torch.Tensor):
+            image = torch.zeros(4, height, width, 3)
+        else:
+            raise ValueError(
+                "Image should be either numpy.ndarray or torch.Tensor.")
         for i in range(4):
             image[i] = arr[i::4].reshape(height, width, 3)
         return image
