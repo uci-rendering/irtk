@@ -363,12 +363,33 @@ def process_rough_dielectric_bsdf(name, scene):
     # Create the object if it has not been created
     if name not in cache['name_map']:
         bsdf_id = len(cache['ctx']['bsdfs'])
-        psdr_bsdf = psdr_cpu.RoughDielectricBSDF(bsdf['alpha'], bsdf['i_ior'], bsdf['e_ior'])
+        psdr_bsdf = psdr_cpu.RoughDielectricBSDF(bsdf['alpha'].item(), bsdf['i_ior'].item(), bsdf['e_ior'].item())
         cache['ctx']['bsdfs'].append(psdr_bsdf)
         cache['name_map'][name] = ("bsdfs", bsdf_id)
         cache['mat_id_map'][name] = bsdf_id
 
-    return []
+    group, idx = cache['name_map'][name]
+
+    # Update parameters
+    updated = bsdf.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == 'alpha':
+                cache['ctx'][group][idx] = psdr_cpu.RoughDielectricBSDF(bsdf['alpha'].item(), bsdf['i_ior'].item(), bsdf['e_ior'].item())
+            elif param_name == 'i_ior':
+                cache['ctx'][group][idx] = psdr_cpu.RoughDielectricBSDF(bsdf['alpha'].item(), bsdf['i_ior'].item(), bsdf['e_ior'].item())
+            elif param_name == 'e_ior':
+                cache['ctx'][group][idx] = psdr_cpu.RoughDielectricBSDF(bsdf['alpha'].item(), bsdf['i_ior'].item(), bsdf['e_ior'].item())
+            bsdf.mark_updated(param_name, False)
+        cache['update_scene'] = True
+    
+    # Creating strings for accessing parameters requiring grad
+    param_name_map = {
+        'alpha': 'alpha'
+    }
+    requiring_grad = bsdf.get_requiring_grad()
+    params = [f'{group}[{idx}].{param_name_map[param_name]}' for param_name in requiring_grad]
+    return params
 
 @PSDREnzymeConnector.register(RoughConductorBRDF)
 def process_rough_conductor_bsdf(name, scene):
@@ -383,7 +404,28 @@ def process_rough_conductor_bsdf(name, scene):
         cache['name_map'][name] = ("bsdfs", bsdf_id)
         cache['mat_id_map'][name] = bsdf_id
 
-    return []
+    group, idx = cache['name_map'][name]
+
+    # Update parameters
+    updated = bsdf.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == 'alpha_u':
+                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+            elif param_name == 'eta':
+                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+            elif param_name == 'k':
+                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+            bsdf.mark_updated(param_name, False)
+        cache['update_scene'] = True
+    
+    # Creating strings for accessing parameters requiring grad
+    param_name_map = {
+        'alpha_u': 'alpha'
+    }
+    requiring_grad = bsdf.get_requiring_grad()
+    params = [f'{group}[{idx}].{param_name_map[param_name]}' for param_name in requiring_grad]
+    return params
 
 @PSDREnzymeConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):

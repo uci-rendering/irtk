@@ -641,7 +641,7 @@ class RoughDielectricBSDF(ParamGroup):
             e_ior (float): The exterior index of refraction.
         """
         super().__init__()
-        self.add_param("alpha", to_torch_f(alpha), help_msg="roughness")
+        self.add_param("alpha", to_torch_f(alpha), is_diff=True, help_msg="roughness")
         self.add_param(
             "i_ior", to_torch_f(i_ior), help_msg="interior index of refraction"
         )
