@@ -396,10 +396,15 @@ def process_rough_conductor_bsdf(name, scene):
     bsdf = scene[name]
     cache = scene.cached['psdr_enzyme']
     
+    def get_alpha(alpha):
+        if isinstance(alpha, float) or isinstance(alpha, int):
+            return color_to_bitmap([alpha, alpha, alpha], 3)
+        return color_to_bitmap(alpha, 3)
+
     # Create the object if it has not been created
     if name not in cache['name_map']:
         bsdf_id = len(cache['ctx']['bsdfs'])
-        psdr_bsdf = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+        psdr_bsdf = psdr_cpu.RoughConductorBSDF(get_alpha(bsdf['alpha_u']), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
         cache['ctx']['bsdfs'].append(psdr_bsdf)
         cache['name_map'][name] = ("bsdfs", bsdf_id)
         cache['mat_id_map'][name] = bsdf_id
@@ -411,11 +416,11 @@ def process_rough_conductor_bsdf(name, scene):
     if len(updated) > 0:
         for param_name in updated:
             if param_name == 'alpha_u':
-                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(get_alpha(bsdf['alpha_u']), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
             elif param_name == 'eta':
-                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(get_alpha(bsdf['alpha_u']), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
             elif param_name == 'k':
-                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(bsdf['alpha_u'].item(), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+                cache['ctx'][group][idx] = psdr_cpu.RoughConductorBSDF(get_alpha(bsdf['alpha_u']), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
             bsdf.mark_updated(param_name, False)
         cache['update_scene'] = True
     
