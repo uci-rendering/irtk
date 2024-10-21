@@ -1,0 +1,6 @@
+irtk.connectors.redner\_connector.process\_microfacet\_brdf
+===========================================================
+
+.. currentmodule:: irtk.connectors.redner_connector
+
+.. autofunction:: process_microfacet_brdf

@@ -1,0 +1,6 @@
+irtk.connectors.pytorch3d\_connector.process\_perspective\_camera
+=================================================================
+
+.. currentmodule:: irtk.connectors.pytorch3d_connector
+
+.. autofunction:: process_perspective_camera

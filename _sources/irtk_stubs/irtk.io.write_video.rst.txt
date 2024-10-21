@@ -1,0 +1,6 @@
+irtk.io.write\_video
+====================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: write_video

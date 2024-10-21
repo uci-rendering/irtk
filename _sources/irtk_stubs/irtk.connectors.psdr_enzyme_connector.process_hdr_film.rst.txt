@@ -1,0 +1,6 @@
+irtk.connectors.psdr\_enzyme\_connector.process\_hdr\_film
+==========================================================
+
+.. currentmodule:: irtk.connectors.psdr_enzyme_connector
+
+.. autofunction:: process_hdr_film

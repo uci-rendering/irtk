@@ -1,0 +1,6 @@
+irtk.io.read\_mesh
+==================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: read_mesh

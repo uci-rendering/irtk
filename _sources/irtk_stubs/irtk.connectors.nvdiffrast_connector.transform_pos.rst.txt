@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.transform\_pos
+====================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: transform_pos

@@ -1,0 +1,6 @@
+irtk.connectors.psdr\_jit\_connector.process\_hdr\_film
+=======================================================
+
+.. currentmodule:: irtk.connectors.psdr_jit_connector
+
+.. autofunction:: process_hdr_film

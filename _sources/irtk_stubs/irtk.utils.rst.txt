@@ -1,0 +1,22 @@
+irtk.utils
+==========
+
+.. automodule:: irtk.utils
+
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      Logger
+      Timer
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      apply_pmkmp_cm
+      get_pmkmp_color_bar
+   

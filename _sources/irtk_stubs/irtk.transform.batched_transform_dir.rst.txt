@@ -1,0 +1,6 @@
+irtk.transform.batched\_transform\_dir
+======================================
+
+.. currentmodule:: irtk.transform
+
+.. autofunction:: batched_transform_dir

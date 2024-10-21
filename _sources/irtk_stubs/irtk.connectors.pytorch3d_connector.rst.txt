@@ -1,0 +1,25 @@
+irtk.connectors.pytorch3d\_connector
+====================================
+
+.. automodule:: irtk.connectors.pytorch3d_connector
+
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      PyTorch3DConnector
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      process_diffuse_brdf
+      process_hdr_film
+      process_mesh
+      process_microfacet_brdf
+      process_perspective_camera
+      process_point_light
+   

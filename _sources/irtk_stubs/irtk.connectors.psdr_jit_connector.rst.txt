@@ -1,0 +1,31 @@
+irtk.connectors.psdr\_jit\_connector
+====================================
+
+.. automodule:: irtk.connectors.psdr_jit_connector
+
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      MicrofacetBRDFPerVertex
+      PSDRJITConnector
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      convert_color
+      process_diffuse_brdf
+      process_environment_light
+      process_hdr_film
+      process_integrator
+      process_mesh
+      process_microfacet_brdf
+      process_microfacet_brdf_per_vertex
+      process_perspective_camera
+      process_perspective_camera_full
+      process_point_light
+   

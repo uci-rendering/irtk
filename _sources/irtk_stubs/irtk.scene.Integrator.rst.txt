@@ -1,0 +1,10 @@
+irtk.scene.Integrator
+=====================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: Integrator
+   :members:
+
+   .. automethod:: __init__
+   

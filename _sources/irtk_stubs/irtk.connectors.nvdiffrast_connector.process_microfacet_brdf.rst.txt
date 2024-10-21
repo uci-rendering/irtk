@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.process\_microfacet\_brdf
+===============================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: process_microfacet_brdf

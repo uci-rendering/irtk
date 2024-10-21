@@ -1,0 +1,10 @@
+irtk.connectors.nvdiffrast\_connector.Texture2D
+===============================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autoclass:: Texture2D
+   :members:
+
+   .. automethod:: __init__
+   

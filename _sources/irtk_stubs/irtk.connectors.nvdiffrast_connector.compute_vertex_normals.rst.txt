@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.compute\_vertex\_normals
+==============================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: compute_vertex_normals

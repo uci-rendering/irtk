@@ -1,0 +1,6 @@
+irtk.connectors.psdr\_enzyme\_connector.process\_mesh
+=====================================================
+
+.. currentmodule:: irtk.connectors.psdr_enzyme_connector
+
+.. autofunction:: process_mesh

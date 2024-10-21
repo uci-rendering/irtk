@@ -1,0 +1,10 @@
+irtk.scene.RoughConductorBRDF
+=============================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: RoughConductorBRDF
+   :members:
+
+   .. automethod:: __init__
+   

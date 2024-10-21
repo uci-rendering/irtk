@@ -1,0 +1,6 @@
+irtk.connectors.redner\_connector.process\_mesh
+===============================================
+
+.. currentmodule:: irtk.connectors.redner_connector
+
+.. autofunction:: process_mesh

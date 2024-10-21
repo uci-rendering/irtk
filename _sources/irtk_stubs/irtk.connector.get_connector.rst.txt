@@ -1,0 +1,6 @@
+irtk.connector.get\_connector
+=============================
+
+.. currentmodule:: irtk.connector
+
+.. autofunction:: get_connector

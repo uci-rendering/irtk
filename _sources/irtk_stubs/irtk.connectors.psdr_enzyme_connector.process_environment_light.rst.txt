@@ -1,0 +1,6 @@
+irtk.connectors.psdr\_enzyme\_connector.process\_environment\_light
+===================================================================
+
+.. currentmodule:: irtk.connectors.psdr_enzyme_connector
+
+.. autofunction:: process_environment_light

@@ -1,0 +1,6 @@
+irtk.transform.translate
+========================
+
+.. currentmodule:: irtk.transform
+
+.. autofunction:: translate

@@ -1,0 +1,10 @@
+irtk.connectors.redner\_connector.RednerConnector
+=================================================
+
+.. currentmodule:: irtk.connectors.redner_connector
+
+.. autoclass:: RednerConnector
+   :members:
+
+   .. automethod:: __init__
+   

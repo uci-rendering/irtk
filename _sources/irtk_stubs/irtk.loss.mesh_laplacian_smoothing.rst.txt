@@ -1,0 +1,6 @@
+irtk.loss.mesh\_laplacian\_smoothing
+====================================
+
+.. currentmodule:: irtk.loss
+
+.. autofunction:: mesh_laplacian_smoothing

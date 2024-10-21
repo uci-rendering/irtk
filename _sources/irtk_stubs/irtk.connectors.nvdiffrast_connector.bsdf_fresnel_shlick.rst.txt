@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.bsdf\_fresnel\_shlick
+===========================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: bsdf_fresnel_shlick

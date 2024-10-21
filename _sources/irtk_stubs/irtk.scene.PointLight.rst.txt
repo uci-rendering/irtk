@@ -1,0 +1,10 @@
+irtk.scene.PointLight
+=====================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: PointLight
+   :members:
+
+   .. automethod:: __init__
+   

@@ -1,0 +1,10 @@
+irtk.connectors.psdr\_jit\_connector.MicrofacetBRDFPerVertex
+============================================================
+
+.. currentmodule:: irtk.connectors.psdr_jit_connector
+
+.. autoclass:: MicrofacetBRDFPerVertex
+   :members:
+
+   .. automethod:: __init__
+   

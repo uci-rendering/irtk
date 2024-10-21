@@ -1,0 +1,6 @@
+irtk.connectors.psdr\_jit\_connector.convert\_color
+===================================================
+
+.. currentmodule:: irtk.connectors.psdr_jit_connector
+
+.. autofunction:: convert_color

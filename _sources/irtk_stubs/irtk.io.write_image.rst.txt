@@ -1,0 +1,6 @@
+irtk.io.write\_image
+====================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: write_image

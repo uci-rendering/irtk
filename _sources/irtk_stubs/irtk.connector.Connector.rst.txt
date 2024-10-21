@@ -1,0 +1,10 @@
+irtk.connector.Connector
+========================
+
+.. currentmodule:: irtk.connector
+
+.. autoclass:: Connector
+   :members:
+
+   .. automethod:: __init__
+   

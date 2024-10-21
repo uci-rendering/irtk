@@ -1,0 +1,6 @@
+irtk.transform.lookat
+=====================
+
+.. currentmodule:: irtk.transform
+
+.. autofunction:: lookat

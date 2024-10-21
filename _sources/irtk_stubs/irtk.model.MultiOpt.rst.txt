@@ -1,0 +1,10 @@
+irtk.model.MultiOpt
+===================
+
+.. currentmodule:: irtk.model
+
+.. autoclass:: MultiOpt
+   :members:
+
+   .. automethod:: __init__
+   

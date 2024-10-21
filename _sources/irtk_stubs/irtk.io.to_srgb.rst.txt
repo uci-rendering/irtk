@@ -1,0 +1,6 @@
+irtk.io.to\_srgb
+================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: to_srgb

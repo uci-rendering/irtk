@@ -1,0 +1,10 @@
+irtk.utils.Logger
+=================
+
+.. currentmodule:: irtk.utils
+
+.. autoclass:: Logger
+   :members:
+
+   .. automethod:: __init__
+   

@@ -1,0 +1,6 @@
+irtk.connectors.mitsuba\_connector.tensor\_f\_to\_mi
+====================================================
+
+.. currentmodule:: irtk.connectors.mitsuba_connector
+
+.. autofunction:: tensor_f_to_mi

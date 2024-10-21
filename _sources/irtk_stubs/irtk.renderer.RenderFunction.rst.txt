@@ -1,0 +1,10 @@
+irtk.renderer.RenderFunction
+============================
+
+.. currentmodule:: irtk.renderer
+
+.. autoclass:: RenderFunction
+   :members:
+
+   .. automethod:: __init__
+   

@@ -1,0 +1,6 @@
+irtk.sampling.sample\_hemisphere
+================================
+
+.. currentmodule:: irtk.sampling
+
+.. autofunction:: sample_hemisphere

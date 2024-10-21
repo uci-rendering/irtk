@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.lookAt
+============================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: lookAt

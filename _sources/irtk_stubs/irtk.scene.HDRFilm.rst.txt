@@ -1,0 +1,10 @@
+irtk.scene.HDRFilm
+==================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: HDRFilm
+   :members:
+
+   .. automethod:: __init__
+   

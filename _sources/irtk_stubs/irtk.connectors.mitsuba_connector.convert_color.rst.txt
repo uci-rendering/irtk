@@ -1,0 +1,6 @@
+irtk.connectors.mitsuba\_connector.convert\_color
+=================================================
+
+.. currentmodule:: irtk.connectors.mitsuba_connector
+
+.. autofunction:: convert_color

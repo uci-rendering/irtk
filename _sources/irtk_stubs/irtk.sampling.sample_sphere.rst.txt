@@ -1,0 +1,6 @@
+irtk.sampling.sample\_sphere
+============================
+
+.. currentmodule:: irtk.sampling
+
+.. autofunction:: sample_sphere

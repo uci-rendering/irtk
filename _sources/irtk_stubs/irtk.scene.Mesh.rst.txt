@@ -1,0 +1,10 @@
+irtk.scene.Mesh
+===============
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: Mesh
+   :members:
+
+   .. automethod:: __init__
+   

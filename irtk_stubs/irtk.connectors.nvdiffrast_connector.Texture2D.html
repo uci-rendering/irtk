@@ -1,0 +1,565 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="irtk.connectors.nvdiffrast_connector.avg_pool_nhwc" href="irtk.connectors.nvdiffrast_connector.avg_pool_nhwc.html" /><link rel="prev" title="irtk.connectors.nvdiffrast_connector.NvdiffrastConnector" href="irtk.connectors.nvdiffrast_connector.NvdiffrastConnector.html" />
+
+    <!-- Generated with Sphinx 8.1.3 and Furo 2024.08.06 -->
+        <title>irtk.connectors.nvdiffrast_connector.Texture2D - irtk documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=302659d7" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">irtk  documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">irtk  documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/quick_start.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../examples/simple_inverse_rendering_example.html">Simple Inverse Rendering Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">References</span></p>
+<ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../connectors/index.html">Connector References</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Connector References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../connectors/psdr-jit.html">psdr-jit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../connectors/psdr-enzyme.html">psdr-enzyme</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../connectors/mitsuba.html">Mitsuba 3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../connectors/nvdiffrast.html">nvdiffrast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../connectors/pytorch3d.html">PyTorch3D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../connectors/redner.html">redner</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../api.html">API References</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 current has-children"><a class="reference internal" href="irtk.html">irtk</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of irtk</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="irtk.config.html">irtk.config</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.connector.html">irtk.connector</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of irtk.connector</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.connector.Connector.html">irtk.connector.Connector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.connector.get_connector.html">irtk.connector.get_connector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.connector.get_connector_list.html">irtk.connector.get_connector_list</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.connector.is_connector_available.html">irtk.connector.is_connector_available</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current has-children"><a class="reference internal" href="irtk.connectors.html">irtk.connectors</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of irtk.connectors</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l4 has-children"><a class="reference internal" href="irtk.connectors.mitsuba_connector.html">irtk.connectors.mitsuba_connector</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of irtk.connectors.mitsuba_connector</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.MitsubaConnector.html">irtk.connectors.mitsuba_connector.MitsubaConnector</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.MitsubaMicrofacetBSDF.html">irtk.connectors.mitsuba_connector.MitsubaMicrofacetBSDF</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.convert_color.html">irtk.connectors.mitsuba_connector.convert_color</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.gen_add_param.html">irtk.connectors.mitsuba_connector.gen_add_param</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_diffuse_brdf.html">irtk.connectors.mitsuba_connector.process_diffuse_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_environment_light.html">irtk.connectors.mitsuba_connector.process_environment_light</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_hdr_film.html">irtk.connectors.mitsuba_connector.process_hdr_film</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_integrator.html">irtk.connectors.mitsuba_connector.process_integrator</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_mesh.html">irtk.connectors.mitsuba_connector.process_mesh</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_microfacet_brdf.html">irtk.connectors.mitsuba_connector.process_microfacet_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_perspective_camera.html">irtk.connectors.mitsuba_connector.process_perspective_camera</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_perspective_camera_full.html">irtk.connectors.mitsuba_connector.process_perspective_camera_full</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_rough_dielectric_brdf.html">irtk.connectors.mitsuba_connector.process_rough_dielectric_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.process_smooth_dielectric_brdf.html">irtk.connectors.mitsuba_connector.process_smooth_dielectric_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.tensor_f_to_mi.html">irtk.connectors.mitsuba_connector.tensor_f_to_mi</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.mitsuba_connector.tensor_i_to_mi.html">irtk.connectors.mitsuba_connector.tensor_i_to_mi</a></li>
+</ul>
+</li>
+<li class="toctree-l4 current has-children"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.html">irtk.connectors.nvdiffrast_connector</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of irtk.connectors.nvdiffrast_connector</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.NvMesh.html">irtk.connectors.nvdiffrast_connector.NvMesh</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.NvdiffrastConnector.html">irtk.connectors.nvdiffrast_connector.NvdiffrastConnector</a></li>
+<li class="toctree-l5 current current-page"><a class="current reference internal" href="#">irtk.connectors.nvdiffrast_connector.Texture2D</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.avg_pool_nhwc.html">irtk.connectors.nvdiffrast_connector.avg_pool_nhwc</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_fresnel_shlick.html">irtk.connectors.nvdiffrast_connector.bsdf_fresnel_shlick</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_lambda_ggx.html">irtk.connectors.nvdiffrast_connector.bsdf_lambda_ggx</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_lambert.html">irtk.connectors.nvdiffrast_connector.bsdf_lambert</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_masking_smith_ggx_correlated.html">irtk.connectors.nvdiffrast_connector.bsdf_masking_smith_ggx_correlated</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_microfacet.html">irtk.connectors.nvdiffrast_connector.bsdf_microfacet</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_ndf_ggx.html">irtk.connectors.nvdiffrast_connector.bsdf_ndf_ggx</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_pbr.html">irtk.connectors.nvdiffrast_connector.bsdf_pbr</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_pbr_specular.html">irtk.connectors.nvdiffrast_connector.bsdf_pbr_specular</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_phong.html">irtk.connectors.nvdiffrast_connector.bsdf_phong</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.bsdf_prepare_shading_normal.html">irtk.connectors.nvdiffrast_connector.bsdf_prepare_shading_normal</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.compute_tangents.html">irtk.connectors.nvdiffrast_connector.compute_tangents</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.compute_vertex_normals.html">irtk.connectors.nvdiffrast_connector.compute_vertex_normals</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.interpolate.html">irtk.connectors.nvdiffrast_connector.interpolate</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.lambert.html">irtk.connectors.nvdiffrast_connector.lambert</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.lookAt.html">irtk.connectors.nvdiffrast_connector.lookAt</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.microfacet_bsdf.html">irtk.connectors.nvdiffrast_connector.microfacet_bsdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.microfacet_eval.html">irtk.connectors.nvdiffrast_connector.microfacet_eval</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.pbr_bsdf.html">irtk.connectors.nvdiffrast_connector.pbr_bsdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.prepare_shading_normal.html">irtk.connectors.nvdiffrast_connector.prepare_shading_normal</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.process_diffuse_brdf.html">irtk.connectors.nvdiffrast_connector.process_diffuse_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.process_hdr_film.html">irtk.connectors.nvdiffrast_connector.process_hdr_film</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.process_mesh.html">irtk.connectors.nvdiffrast_connector.process_mesh</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.process_microfacet_brdf.html">irtk.connectors.nvdiffrast_connector.process_microfacet_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.process_perspective_camera.html">irtk.connectors.nvdiffrast_connector.process_perspective_camera</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.process_point_light.html">irtk.connectors.nvdiffrast_connector.process_point_light</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.projection.html">irtk.connectors.nvdiffrast_connector.projection</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.render.html">irtk.connectors.nvdiffrast_connector.render</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.render_layer.html">irtk.connectors.nvdiffrast_connector.render_layer</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.render_mesh.html">irtk.connectors.nvdiffrast_connector.render_mesh</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.scale_img_hwc.html">irtk.connectors.nvdiffrast_connector.scale_img_hwc</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.scale_img_nhwc.html">irtk.connectors.nvdiffrast_connector.scale_img_nhwc</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.shade.html">irtk.connectors.nvdiffrast_connector.shade</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.transform_pos.html">irtk.connectors.nvdiffrast_connector.transform_pos</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.nvdiffrast_connector.xfm_points.html">irtk.connectors.nvdiffrast_connector.xfm_points</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.html">irtk.connectors.psdr_enzyme_connector</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of irtk.connectors.psdr_enzyme_connector</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.PSDREnzymeConnector.html">irtk.connectors.psdr_enzyme_connector.PSDREnzymeConnector</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.color_to_bitmap.html">irtk.connectors.psdr_enzyme_connector.color_to_bitmap</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.color_to_spectrum.html">irtk.connectors.psdr_enzyme_connector.color_to_spectrum</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.process_diffuse_brdf.html">irtk.connectors.psdr_enzyme_connector.process_diffuse_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.process_environment_light.html">irtk.connectors.psdr_enzyme_connector.process_environment_light</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.process_hdr_film.html">irtk.connectors.psdr_enzyme_connector.process_hdr_film</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.process_integrator.html">irtk.connectors.psdr_enzyme_connector.process_integrator</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.process_mesh.html">irtk.connectors.psdr_enzyme_connector.process_mesh</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.process_perspective_camera.html">irtk.connectors.psdr_enzyme_connector.process_perspective_camera</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.process_rough_conductor_bsdf.html">irtk.connectors.psdr_enzyme_connector.process_rough_conductor_bsdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_enzyme_connector.process_rough_dielectric_bsdf.html">irtk.connectors.psdr_enzyme_connector.process_rough_dielectric_bsdf</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.html">irtk.connectors.psdr_jit_connector</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of irtk.connectors.psdr_jit_connector</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.MicrofacetBRDFPerVertex.html">irtk.connectors.psdr_jit_connector.MicrofacetBRDFPerVertex</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.PSDRJITConnector.html">irtk.connectors.psdr_jit_connector.PSDRJITConnector</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.convert_color.html">irtk.connectors.psdr_jit_connector.convert_color</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_diffuse_brdf.html">irtk.connectors.psdr_jit_connector.process_diffuse_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_environment_light.html">irtk.connectors.psdr_jit_connector.process_environment_light</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_hdr_film.html">irtk.connectors.psdr_jit_connector.process_hdr_film</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_integrator.html">irtk.connectors.psdr_jit_connector.process_integrator</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_mesh.html">irtk.connectors.psdr_jit_connector.process_mesh</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_microfacet_brdf.html">irtk.connectors.psdr_jit_connector.process_microfacet_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_microfacet_brdf_per_vertex.html">irtk.connectors.psdr_jit_connector.process_microfacet_brdf_per_vertex</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_perspective_camera.html">irtk.connectors.psdr_jit_connector.process_perspective_camera</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_perspective_camera_full.html">irtk.connectors.psdr_jit_connector.process_perspective_camera_full</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.psdr_jit_connector.process_point_light.html">irtk.connectors.psdr_jit_connector.process_point_light</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="irtk.connectors.pytorch3d_connector.html">irtk.connectors.pytorch3d_connector</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle navigation of irtk.connectors.pytorch3d_connector</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.pytorch3d_connector.PyTorch3DConnector.html">irtk.connectors.pytorch3d_connector.PyTorch3DConnector</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.pytorch3d_connector.process_diffuse_brdf.html">irtk.connectors.pytorch3d_connector.process_diffuse_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.pytorch3d_connector.process_hdr_film.html">irtk.connectors.pytorch3d_connector.process_hdr_film</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.pytorch3d_connector.process_mesh.html">irtk.connectors.pytorch3d_connector.process_mesh</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.pytorch3d_connector.process_microfacet_brdf.html">irtk.connectors.pytorch3d_connector.process_microfacet_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.pytorch3d_connector.process_perspective_camera.html">irtk.connectors.pytorch3d_connector.process_perspective_camera</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.pytorch3d_connector.process_point_light.html">irtk.connectors.pytorch3d_connector.process_point_light</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="irtk.connectors.redner_connector.html">irtk.connectors.redner_connector</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle navigation of irtk.connectors.redner_connector</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.RednerConnector.html">irtk.connectors.redner_connector.RednerConnector</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.compute_vertex_normals.html">irtk.connectors.redner_connector.compute_vertex_normals</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.process_diffuse_brdf.html">irtk.connectors.redner_connector.process_diffuse_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.process_environment_light.html">irtk.connectors.redner_connector.process_environment_light</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.process_hdr_film.html">irtk.connectors.redner_connector.process_hdr_film</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.process_integrator.html">irtk.connectors.redner_connector.process_integrator</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.process_mesh.html">irtk.connectors.redner_connector.process_mesh</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.process_microfacet_brdf.html">irtk.connectors.redner_connector.process_microfacet_brdf</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.process_perspective_camera.html">irtk.connectors.redner_connector.process_perspective_camera</a></li>
+<li class="toctree-l5"><a class="reference internal" href="irtk.connectors.redner_connector.render_pathtracing.html">irtk.connectors.redner_connector.render_pathtracing</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.io.html">irtk.io</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle navigation of irtk.io</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.exr2png.html">irtk.io.exr2png</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.linear_to_srgb.html">irtk.io.linear_to_srgb</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.read_image.html">irtk.io.read_image</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.read_mesh.html">irtk.io.read_mesh</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.srgb_to_linear.html">irtk.io.srgb_to_linear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.to_linear.html">irtk.io.to_linear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.to_numpy.html">irtk.io.to_numpy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.to_srgb.html">irtk.io.to_srgb</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.to_torch.html">irtk.io.to_torch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.to_torch_f.html">irtk.io.to_torch_f</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.to_torch_i.html">irtk.io.to_torch_i</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.write_image.html">irtk.io.write_image</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.write_mesh.html">irtk.io.write_mesh</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.io.write_video.html">irtk.io.write_video</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.loss.html">irtk.loss</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><div class="visually-hidden">Toggle navigation of irtk.loss</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.loss.l1_loss.html">irtk.loss.l1_loss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.loss.mesh_laplacian_smoothing.html">irtk.loss.mesh_laplacian_smoothing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.loss.total_variation_loss.html">irtk.loss.total_variation_loss</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.metric.html">irtk.metric</a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><div class="visually-hidden">Toggle navigation of irtk.metric</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.metric.chamfer_distance.html">irtk.metric.chamfer_distance</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.model.html">irtk.model</a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><div class="visually-hidden">Toggle navigation of irtk.model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.model.Model.html">irtk.model.Model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.model.MultiOpt.html">irtk.model.MultiOpt</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.parameter.html">irtk.parameter</a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" role="switch" type="checkbox"/><label for="toctree-checkbox-16"><div class="visually-hidden">Toggle navigation of irtk.parameter</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.parameter.ParamGroup.html">irtk.parameter.ParamGroup</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.renderer.html">irtk.renderer</a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" role="switch" type="checkbox"/><label for="toctree-checkbox-17"><div class="visually-hidden">Toggle navigation of irtk.renderer</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.renderer.RenderFunction.html">irtk.renderer.RenderFunction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.renderer.Renderer.html">irtk.renderer.Renderer</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.sampling.html">irtk.sampling</a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" role="switch" type="checkbox"/><label for="toctree-checkbox-18"><div class="visually-hidden">Toggle navigation of irtk.sampling</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.sampling.sample_hemisphere.html">irtk.sampling.sample_hemisphere</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.sampling.sample_sphere.html">irtk.sampling.sample_sphere</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.scene.html">irtk.scene</a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" role="switch" type="checkbox"/><label for="toctree-checkbox-19"><div class="visually-hidden">Toggle navigation of irtk.scene</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.DiffuseBRDF.html">irtk.scene.DiffuseBRDF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.EnvironmentLight.html">irtk.scene.EnvironmentLight</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.HDRFilm.html">irtk.scene.HDRFilm</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.Integrator.html">irtk.scene.Integrator</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.Mesh.html">irtk.scene.Mesh</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.MicrofacetBRDF.html">irtk.scene.MicrofacetBRDF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.PerspectiveCamera.html">irtk.scene.PerspectiveCamera</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.PerspectiveCameraFull.html">irtk.scene.PerspectiveCameraFull</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.PointLight.html">irtk.scene.PointLight</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.RoughConductorBRDF.html">irtk.scene.RoughConductorBRDF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.RoughDielectricBSDF.html">irtk.scene.RoughDielectricBSDF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.Scene.html">irtk.scene.Scene</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.scene.SmoothDielectricBRDF.html">irtk.scene.SmoothDielectricBRDF</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.transform.html">irtk.transform</a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" role="switch" type="checkbox"/><label for="toctree-checkbox-20"><div class="visually-hidden">Toggle navigation of irtk.transform</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.batched_transform_dir.html">irtk.transform.batched_transform_dir</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.batched_transform_pos.html">irtk.transform.batched_transform_pos</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.lookat.html">irtk.transform.lookat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.perspective.html">irtk.transform.perspective</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.perspective_full.html">irtk.transform.perspective_full</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.rotate.html">irtk.transform.rotate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.rotate2D.html">irtk.transform.rotate2D</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.scale.html">irtk.transform.scale</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.scale2D.html">irtk.transform.scale2D</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.translate.html">irtk.transform.translate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.transform.translate2D.html">irtk.transform.translate2D</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="irtk.utils.html">irtk.utils</a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" role="switch" type="checkbox"/><label for="toctree-checkbox-21"><div class="visually-hidden">Toggle navigation of irtk.utils</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="irtk.utils.Logger.html">irtk.utils.Logger</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.utils.Timer.html">irtk.utils.Timer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.utils.apply_pmkmp_cm.html">irtk.utils.apply_pmkmp_cm</a></li>
+<li class="toctree-l4"><a class="reference internal" href="irtk.utils.get_pmkmp_color_bar.html">irtk.utils.get_pmkmp_color_bar</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/irtk_stubs/irtk.connectors.nvdiffrast_connector.Texture2D.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="irtk-connectors-nvdiffrast-connector-texture2d">
+<h1>irtk.connectors.nvdiffrast_connector.Texture2D<a class="headerlink" href="#irtk-connectors-nvdiffrast-connector-texture2d" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="irtk.connectors.nvdiffrast_connector.Texture2D">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">irtk.connectors.nvdiffrast_connector.</span></span><span class="sig-name descname"><span class="pre">Texture2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">init</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#irtk.connectors.nvdiffrast_connector.Texture2D" title="Link to this definition">¶</a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="irtk.connectors.nvdiffrast_connector.Texture2D.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">init</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#irtk.connectors.nvdiffrast_connector.Texture2D.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="irtk.connectors.nvdiffrast_connector.avg_pool_nhwc.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">irtk.connectors.nvdiffrast_connector.avg_pool_nhwc</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="irtk.connectors.nvdiffrast_connector.NvdiffrastConnector.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">irtk.connectors.nvdiffrast_connector.NvdiffrastConnector</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2024, UCI Rendering
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">irtk.connectors.nvdiffrast_connector.Texture2D</a><ul>
+<li><a class="reference internal" href="#irtk.connectors.nvdiffrast_connector.Texture2D"><code class="docutils literal notranslate"><span class="pre">Texture2D</span></code></a><ul>
+<li><a class="reference internal" href="#irtk.connectors.nvdiffrast_connector.Texture2D.__init__"><code class="docutils literal notranslate"><span class="pre">Texture2D.__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=5fa4622c"></script>
+    </body>
+</html>

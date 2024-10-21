@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.microfacet\_bsdf
+======================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: microfacet_bsdf

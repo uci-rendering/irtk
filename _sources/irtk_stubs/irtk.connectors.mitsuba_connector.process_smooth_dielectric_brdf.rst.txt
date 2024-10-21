@@ -1,0 +1,6 @@
+irtk.connectors.mitsuba\_connector.process\_smooth\_dielectric\_brdf
+====================================================================
+
+.. currentmodule:: irtk.connectors.mitsuba_connector
+
+.. autofunction:: process_smooth_dielectric_brdf

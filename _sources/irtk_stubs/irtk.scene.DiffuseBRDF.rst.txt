@@ -1,0 +1,10 @@
+irtk.scene.DiffuseBRDF
+======================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: DiffuseBRDF
+   :members:
+
+   .. automethod:: __init__
+   

@@ -1,0 +1,10 @@
+irtk.scene.SmoothDielectricBRDF
+===============================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: SmoothDielectricBRDF
+   :members:
+
+   .. automethod:: __init__
+   

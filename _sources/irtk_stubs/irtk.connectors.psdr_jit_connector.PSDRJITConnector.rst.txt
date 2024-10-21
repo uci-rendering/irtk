@@ -1,0 +1,10 @@
+irtk.connectors.psdr\_jit\_connector.PSDRJITConnector
+=====================================================
+
+.. currentmodule:: irtk.connectors.psdr_jit_connector
+
+.. autoclass:: PSDRJITConnector
+   :members:
+
+   .. automethod:: __init__
+   

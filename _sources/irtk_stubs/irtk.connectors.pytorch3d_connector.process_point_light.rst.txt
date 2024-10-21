@@ -1,0 +1,6 @@
+irtk.connectors.pytorch3d\_connector.process\_point\_light
+==========================================================
+
+.. currentmodule:: irtk.connectors.pytorch3d_connector
+
+.. autofunction:: process_point_light

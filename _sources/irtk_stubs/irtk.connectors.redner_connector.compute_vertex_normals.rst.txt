@@ -1,0 +1,6 @@
+irtk.connectors.redner\_connector.compute\_vertex\_normals
+==========================================================
+
+.. currentmodule:: irtk.connectors.redner_connector
+
+.. autofunction:: compute_vertex_normals

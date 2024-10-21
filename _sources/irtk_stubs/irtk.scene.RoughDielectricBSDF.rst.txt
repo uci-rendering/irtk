@@ -1,0 +1,10 @@
+irtk.scene.RoughDielectricBSDF
+==============================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: RoughDielectricBSDF
+   :members:
+
+   .. automethod:: __init__
+   

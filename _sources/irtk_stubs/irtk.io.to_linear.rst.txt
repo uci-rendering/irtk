@@ -1,0 +1,6 @@
+irtk.io.to\_linear
+==================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: to_linear

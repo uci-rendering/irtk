@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.bsdf\_pbr
+===============================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: bsdf_pbr

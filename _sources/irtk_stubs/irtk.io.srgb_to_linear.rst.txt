@@ -1,0 +1,6 @@
+irtk.io.srgb\_to\_linear
+========================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: srgb_to_linear

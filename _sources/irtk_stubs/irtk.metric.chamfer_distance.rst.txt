@@ -1,0 +1,6 @@
+irtk.metric.chamfer\_distance
+=============================
+
+.. currentmodule:: irtk.metric
+
+.. autofunction:: chamfer_distance

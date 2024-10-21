@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.render\_layer
+===================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: render_layer

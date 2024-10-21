@@ -1,0 +1,6 @@
+irtk.transform.rotate
+=====================
+
+.. currentmodule:: irtk.transform
+
+.. autofunction:: rotate

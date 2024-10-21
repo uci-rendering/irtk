@@ -1,0 +1,10 @@
+irtk.scene.EnvironmentLight
+===========================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: EnvironmentLight
+   :members:
+
+   .. automethod:: __init__
+   

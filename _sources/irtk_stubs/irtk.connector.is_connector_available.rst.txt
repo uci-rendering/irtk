@@ -1,0 +1,6 @@
+irtk.connector.is\_connector\_available
+=======================================
+
+.. currentmodule:: irtk.connector
+
+.. autofunction:: is_connector_available

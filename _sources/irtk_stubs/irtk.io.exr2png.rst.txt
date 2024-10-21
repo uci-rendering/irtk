@@ -1,0 +1,6 @@
+irtk.io.exr2png
+===============
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: exr2png

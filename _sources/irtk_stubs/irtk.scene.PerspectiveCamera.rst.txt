@@ -1,0 +1,10 @@
+irtk.scene.PerspectiveCamera
+============================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: PerspectiveCamera
+   :members:
+
+   .. automethod:: __init__
+   

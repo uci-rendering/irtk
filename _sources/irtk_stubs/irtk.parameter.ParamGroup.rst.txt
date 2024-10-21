@@ -1,0 +1,10 @@
+irtk.parameter.ParamGroup
+=========================
+
+.. currentmodule:: irtk.parameter
+
+.. autoclass:: ParamGroup
+   :members:
+
+   .. automethod:: __init__
+   

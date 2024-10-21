@@ -1,0 +1,6 @@
+irtk.connectors.psdr\_enzyme\_connector.color\_to\_spectrum
+===========================================================
+
+.. currentmodule:: irtk.connectors.psdr_enzyme_connector
+
+.. autofunction:: color_to_spectrum

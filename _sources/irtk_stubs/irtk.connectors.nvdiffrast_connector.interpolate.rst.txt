@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.interpolate
+=================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: interpolate

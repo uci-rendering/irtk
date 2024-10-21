@@ -1,0 +1,6 @@
+irtk.connectors.redner\_connector.process\_perspective\_camera
+==============================================================
+
+.. currentmodule:: irtk.connectors.redner_connector
+
+.. autofunction:: process_perspective_camera

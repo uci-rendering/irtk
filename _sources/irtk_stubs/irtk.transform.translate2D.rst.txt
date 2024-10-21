@@ -1,0 +1,6 @@
+irtk.transform.translate2D
+==========================
+
+.. currentmodule:: irtk.transform
+
+.. autofunction:: translate2D

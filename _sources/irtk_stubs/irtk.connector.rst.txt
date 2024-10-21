@@ -1,0 +1,22 @@
+irtk.connector
+==============
+
+.. automodule:: irtk.connector
+
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      Connector
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      get_connector
+      get_connector_list
+      is_connector_available
+   

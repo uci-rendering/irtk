@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.avg\_pool\_nhwc
+=====================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: avg_pool_nhwc

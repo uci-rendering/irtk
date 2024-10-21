@@ -1,0 +1,6 @@
+irtk.loss.total\_variation\_loss
+================================
+
+.. currentmodule:: irtk.loss
+
+.. autofunction:: total_variation_loss

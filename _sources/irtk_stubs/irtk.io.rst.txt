@@ -1,0 +1,26 @@
+irtk.io
+=======
+
+.. automodule:: irtk.io
+
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      exr2png
+      linear_to_srgb
+      read_image
+      read_mesh
+      srgb_to_linear
+      to_linear
+      to_numpy
+      to_srgb
+      to_torch
+      to_torch_f
+      to_torch_i
+      write_image
+      write_mesh
+      write_video
+   

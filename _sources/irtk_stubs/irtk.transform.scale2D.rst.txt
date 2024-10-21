@@ -1,0 +1,6 @@
+irtk.transform.scale2D
+======================
+
+.. currentmodule:: irtk.transform
+
+.. autofunction:: scale2D

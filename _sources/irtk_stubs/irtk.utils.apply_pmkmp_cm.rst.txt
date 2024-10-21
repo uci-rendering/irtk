@@ -1,0 +1,6 @@
+irtk.utils.apply\_pmkmp\_cm
+===========================
+
+.. currentmodule:: irtk.utils
+
+.. autofunction:: apply_pmkmp_cm

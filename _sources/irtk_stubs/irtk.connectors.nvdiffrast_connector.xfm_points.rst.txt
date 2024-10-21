@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.xfm\_points
+=================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: xfm_points

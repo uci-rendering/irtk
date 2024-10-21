@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.process\_point\_light
+===========================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: process_point_light

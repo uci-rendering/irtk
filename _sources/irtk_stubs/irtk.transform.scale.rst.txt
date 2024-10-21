@@ -1,0 +1,6 @@
+irtk.transform.scale
+====================
+
+.. currentmodule:: irtk.transform
+
+.. autofunction:: scale

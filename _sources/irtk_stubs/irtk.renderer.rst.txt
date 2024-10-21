@@ -1,0 +1,14 @@
+irtk.renderer
+=============
+
+.. automodule:: irtk.renderer
+
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      RenderFunction
+      Renderer
+   

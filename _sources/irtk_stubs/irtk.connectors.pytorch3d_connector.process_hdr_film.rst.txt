@@ -1,0 +1,6 @@
+irtk.connectors.pytorch3d\_connector.process\_hdr\_film
+=======================================================
+
+.. currentmodule:: irtk.connectors.pytorch3d_connector
+
+.. autofunction:: process_hdr_film

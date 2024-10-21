@@ -1,0 +1,6 @@
+irtk.loss.l1\_loss
+==================
+
+.. currentmodule:: irtk.loss
+
+.. autofunction:: l1_loss

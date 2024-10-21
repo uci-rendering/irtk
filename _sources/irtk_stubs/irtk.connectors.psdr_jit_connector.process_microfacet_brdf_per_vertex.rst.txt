@@ -1,0 +1,6 @@
+irtk.connectors.psdr\_jit\_connector.process\_microfacet\_brdf\_per\_vertex
+===========================================================================
+
+.. currentmodule:: irtk.connectors.psdr_jit_connector
+
+.. autofunction:: process_microfacet_brdf_per_vertex

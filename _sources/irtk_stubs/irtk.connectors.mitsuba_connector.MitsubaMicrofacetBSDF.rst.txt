@@ -1,0 +1,10 @@
+irtk.connectors.mitsuba\_connector.MitsubaMicrofacetBSDF
+========================================================
+
+.. currentmodule:: irtk.connectors.mitsuba_connector
+
+.. autoclass:: MitsubaMicrofacetBSDF
+   :members:
+
+   .. automethod:: __init__
+   

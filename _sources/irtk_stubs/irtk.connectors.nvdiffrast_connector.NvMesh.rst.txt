@@ -1,0 +1,10 @@
+irtk.connectors.nvdiffrast\_connector.NvMesh
+============================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autoclass:: NvMesh
+   :members:
+
+   .. automethod:: __init__
+   

@@ -1,0 +1,10 @@
+irtk.utils.Timer
+================
+
+.. currentmodule:: irtk.utils
+
+.. autoclass:: Timer
+   :members:
+
+   .. automethod:: __init__
+   

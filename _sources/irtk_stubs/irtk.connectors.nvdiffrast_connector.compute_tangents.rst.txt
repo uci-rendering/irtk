@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.compute\_tangents
+=======================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: compute_tangents

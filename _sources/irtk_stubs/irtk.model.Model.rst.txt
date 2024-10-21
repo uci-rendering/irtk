@@ -1,0 +1,10 @@
+irtk.model.Model
+================
+
+.. currentmodule:: irtk.model
+
+.. autoclass:: Model
+   :members:
+
+   .. automethod:: __init__
+   

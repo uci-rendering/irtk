@@ -1,0 +1,6 @@
+irtk.connectors.mitsuba\_connector.process\_environment\_light
+==============================================================
+
+.. currentmodule:: irtk.connectors.mitsuba_connector
+
+.. autofunction:: process_environment_light

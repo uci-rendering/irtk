@@ -1,0 +1,6 @@
+irtk.io.to\_numpy
+=================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: to_numpy

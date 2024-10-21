@@ -1,0 +1,6 @@
+irtk.io.to\_torch\_i
+====================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: to_torch_i

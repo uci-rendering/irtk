@@ -1,0 +1,10 @@
+irtk.connectors.nvdiffrast\_connector.NvdiffrastConnector
+=========================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autoclass:: NvdiffrastConnector
+   :members:
+
+   .. automethod:: __init__
+   

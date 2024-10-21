@@ -1,0 +1,10 @@
+irtk.scene.MicrofacetBRDF
+=========================
+
+.. currentmodule:: irtk.scene
+
+.. autoclass:: MicrofacetBRDF
+   :members:
+
+   .. automethod:: __init__
+   

@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.process\_hdr\_film
+========================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: process_hdr_film

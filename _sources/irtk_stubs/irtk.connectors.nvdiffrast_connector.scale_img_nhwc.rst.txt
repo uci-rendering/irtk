@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.scale\_img\_nhwc
+======================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: scale_img_nhwc

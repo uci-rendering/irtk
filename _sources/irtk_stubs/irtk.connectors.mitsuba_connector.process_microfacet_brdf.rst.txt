@@ -1,0 +1,6 @@
+irtk.connectors.mitsuba\_connector.process\_microfacet\_brdf
+============================================================
+
+.. currentmodule:: irtk.connectors.mitsuba_connector
+
+.. autofunction:: process_microfacet_brdf

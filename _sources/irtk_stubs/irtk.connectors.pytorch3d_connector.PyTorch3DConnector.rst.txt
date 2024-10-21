@@ -1,0 +1,10 @@
+irtk.connectors.pytorch3d\_connector.PyTorch3DConnector
+=======================================================
+
+.. currentmodule:: irtk.connectors.pytorch3d_connector
+
+.. autoclass:: PyTorch3DConnector
+   :members:
+
+   .. automethod:: __init__
+   

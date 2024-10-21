@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.bsdf\_masking\_smith\_ggx\_correlated
+===========================================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: bsdf_masking_smith_ggx_correlated

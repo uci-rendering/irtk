@@ -1,0 +1,56 @@
+irtk.connectors.nvdiffrast\_connector
+=====================================
+
+.. automodule:: irtk.connectors.nvdiffrast_connector
+
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      NvMesh
+      NvdiffrastConnector
+      Texture2D
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      avg_pool_nhwc
+      bsdf_fresnel_shlick
+      bsdf_lambda_ggx
+      bsdf_lambert
+      bsdf_masking_smith_ggx_correlated
+      bsdf_microfacet
+      bsdf_ndf_ggx
+      bsdf_pbr
+      bsdf_pbr_specular
+      bsdf_phong
+      bsdf_prepare_shading_normal
+      compute_tangents
+      compute_vertex_normals
+      interpolate
+      lambert
+      lookAt
+      microfacet_bsdf
+      microfacet_eval
+      pbr_bsdf
+      prepare_shading_normal
+      process_diffuse_brdf
+      process_hdr_film
+      process_mesh
+      process_microfacet_brdf
+      process_perspective_camera
+      process_point_light
+      projection
+      render
+      render_layer
+      render_mesh
+      scale_img_hwc
+      scale_img_nhwc
+      shade
+      transform_pos
+      xfm_points
+   

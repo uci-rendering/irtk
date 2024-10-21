@@ -1,0 +1,6 @@
+irtk.connectors.mitsuba\_connector.process\_integrator
+======================================================
+
+.. currentmodule:: irtk.connectors.mitsuba_connector
+
+.. autofunction:: process_integrator

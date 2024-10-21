@@ -1,0 +1,10 @@
+irtk.connectors.psdr\_enzyme\_connector.PSDREnzymeConnector
+===========================================================
+
+.. currentmodule:: irtk.connectors.psdr_enzyme_connector
+
+.. autoclass:: PSDREnzymeConnector
+   :members:
+
+   .. automethod:: __init__
+   

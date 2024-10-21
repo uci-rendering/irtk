@@ -1,0 +1,6 @@
+irtk.transform.perspective\_full
+================================
+
+.. currentmodule:: irtk.transform
+
+.. autofunction:: perspective_full

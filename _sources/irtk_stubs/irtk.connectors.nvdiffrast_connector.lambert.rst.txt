@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.lambert
+=============================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: lambert

@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.bsdf\_lambda\_ggx
+=======================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: bsdf_lambda_ggx

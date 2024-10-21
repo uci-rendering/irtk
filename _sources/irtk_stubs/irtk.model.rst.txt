@@ -1,0 +1,14 @@
+irtk.model
+==========
+
+.. automodule:: irtk.model
+
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      Model
+      MultiOpt
+   

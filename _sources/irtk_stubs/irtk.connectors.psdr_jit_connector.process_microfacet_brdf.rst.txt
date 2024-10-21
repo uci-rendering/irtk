@@ -1,0 +1,6 @@
+irtk.connectors.psdr\_jit\_connector.process\_microfacet\_brdf
+==============================================================
+
+.. currentmodule:: irtk.connectors.psdr_jit_connector
+
+.. autofunction:: process_microfacet_brdf

@@ -1,0 +1,6 @@
+irtk.connectors.nvdiffrast\_connector.prepare\_shading\_normal
+==============================================================
+
+.. currentmodule:: irtk.connectors.nvdiffrast_connector
+
+.. autofunction:: prepare_shading_normal

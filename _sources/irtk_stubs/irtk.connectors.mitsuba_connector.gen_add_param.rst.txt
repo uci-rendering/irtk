@@ -1,0 +1,6 @@
+irtk.connectors.mitsuba\_connector.gen\_add\_param
+==================================================
+
+.. currentmodule:: irtk.connectors.mitsuba_connector
+
+.. autofunction:: gen_add_param

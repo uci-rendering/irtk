@@ -1,0 +1,6 @@
+irtk.utils.get\_pmkmp\_color\_bar
+=================================
+
+.. currentmodule:: irtk.utils
+
+.. autofunction:: get_pmkmp_color_bar

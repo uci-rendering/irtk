@@ -1,0 +1,6 @@
+irtk.io.read\_image
+===================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: read_image

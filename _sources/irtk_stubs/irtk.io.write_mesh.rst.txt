@@ -1,0 +1,6 @@
+irtk.io.write\_mesh
+===================
+
+.. currentmodule:: irtk.io
+
+.. autofunction:: write_mesh

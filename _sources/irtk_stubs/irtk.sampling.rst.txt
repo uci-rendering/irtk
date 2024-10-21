@@ -1,0 +1,14 @@
+irtk.sampling
+=============
+
+.. automodule:: irtk.sampling
+
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      sample_hemisphere
+      sample_sphere
+   
