@@ -2,11 +2,11 @@ import trimesh
 import numpy as np
 import torch
 from .config import *
-from typing import Literal
+from typing import Literal, Dict, Union
 
 def chamfer_distance(
-    mesh_a_: str | dict, 
-    mesh_b_: str | dict, 
+    mesh_a_: Union[str, Dict], 
+    mesh_b_: Union[str, Dict], 
     num_samples: int, 
     mode: Literal['forward', 'backward', 'bidirectional'] = 'bidirectional'
 ) -> float:

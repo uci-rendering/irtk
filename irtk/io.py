@@ -5,12 +5,13 @@ import numpy as np
 import torch
 from pathlib import Path
 import gpytoolbox
+from typing import Tuple
 
 # Download necessary imageio plugins. If they already exists they won't be 
 # downloaded again. 
 imageio.plugins.freeimage.download()
 
-def read_mesh(mesh_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def read_mesh(mesh_path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Reads a mesh from a file.
 
     Args:

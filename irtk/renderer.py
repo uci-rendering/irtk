@@ -1,4 +1,4 @@
-from typing import List, Union, Any
+from typing import List, Dict, Union, Any
 from .connector import get_connector, Connector
 from .scene import Scene
 from .config import *
@@ -18,7 +18,7 @@ class RenderFunction(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx: Any, connector: Connector, scene: Scene, render_options: dict[str, Any],
+    def forward(ctx: Any, connector: Connector, scene: Scene, render_options: Dict[str, Any],
                 sensor_ids: Union[List[int], torch.Tensor], integrator_id: int, *params: Any) -> torch.Tensor:
         """
         Performs the forward pass of the rendering operation.
@@ -76,7 +76,7 @@ class Renderer(torch.nn.Module):
     used seamlessly with other PyTorch operations.
     """
 
-    def __init__(self, connector_name: str, render_options: dict[str, Any] = {}):
+    def __init__(self, connector_name: str, render_options: Dict[str, Any] = {}):
         """
         Initializes the Renderer.
 
