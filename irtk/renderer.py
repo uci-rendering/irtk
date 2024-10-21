@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import List, Union, Any
 from .connector import get_connector, Connector
 from .scene import Scene

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .config import configs, TensorLike
 import imageio
 import imageio.v3 as iio
@@ -5,6 +6,7 @@ import numpy as np
 import torch
 from pathlib import Path
 import gpytoolbox
+
 
 # Download necessary imageio plugins. If they already exists they won't be 
 # downloaded again. 
