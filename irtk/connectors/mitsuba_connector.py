@@ -68,7 +68,7 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
     def renderC(self, scene, render_options, sensor_ids=[0], integrator_id=0):
         with Timer(f"-- Prepare Scene", prt=self.debug, record=False):
             cache, _ = self.update_scene_objects(scene, render_options)
-
+            npass = render_options['npass']
             mi_scene = cache['scene']
             mi_sensors = cache['sensors']
             mi_integrator = cache['integrators'][integrator_id]
@@ -77,12 +77,13 @@ class MitsubaConnector(Connector, connector_name='mitsuba'):
             images = []
             seed = render_options['seed']
             spp = render_options['spp']
-            
             for sensor_id in sensor_ids:
                 image = mi_integrator.render(mi_scene, sensor=mi_sensors[sensor_id], seed=seed, spp=spp).torch()
-                image = to_torch_f(image)
+                image = to_torch_f(image) / npass
+                for i in range(1, npass):
+                    image_pass = mi_integrator.render(mi_scene, sensor=mi_sensors[sensor_id], seed=seed+i, spp=spp).torch()
+                    image += to_torch_f(image_pass) / npass
                 images.append(image)
-
         return images
         
     def renderD(self, image_grads, scene, render_options, sensor_ids=[0], integrator_id=0):
