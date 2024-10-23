@@ -207,7 +207,7 @@ class PerspectiveCamera(ParamGroup):
         """Generates rays from the camera.
 
         Args:
-            samples (torch.Tensor): The sample points.
+            samples (torch.Tensor): The sample points of shape (N, 2). The range of the values should be [0, 1].
             aspect_ratio (float): The aspect ratio of the camera.
 
         Returns:
@@ -300,7 +300,7 @@ class PerspectiveCameraFull(ParamGroup):
         """Generates rays from the camera.
 
         Args:
-            samples (torch.Tensor): The sample points.
+            samples (torch.Tensor): The sample points of shape (N, 2). The range of the values should be [0, 1].
             aspect_ratio (float): The aspect ratio of the camera.
 
         Returns:
