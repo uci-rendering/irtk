@@ -20,8 +20,8 @@ def lookat(origin: Union[List[float], torch.Tensor], target: Union[List[float], 
     up = to_torch_f(up)
 
     dir = F.normalize(target - origin, dim=0)
-    left = F.normalize(torch.cross(up, dir), dim=0)
-    new_up = F.normalize(torch.cross(dir, left), dim=0)
+    left = F.normalize(torch.linalg.cross(up, dir), dim=0)
+    new_up = F.normalize(torch.linalg.cross(dir, left), dim=0)
 
     to_world = to_torch_f(torch.eye(4))
     to_world[:3, 0] = left
