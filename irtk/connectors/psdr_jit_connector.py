@@ -7,9 +7,8 @@ from ..utils import Timer
 import drjit
 import psdr_jit
 from drjit.scalar import Array3f
-from drjit.cuda import Array3f as Vector3fC, Array3i as Vector3iC
+from drjit.cuda import Array2f as Vector2fC, Array3f as Vector3fC, Array3i as Vector3iC
 from drjit.cuda.ad import Array3f as Vector3fD, Array1f as Vector1fD, Float32 as FloatD, Matrix4f as Matrix4fD, Matrix3f as Matrix3fD
-from drjit.cuda.ad import Float32 as FloatD
 import torch
 
 import os
@@ -361,21 +360,15 @@ def process_mesh(name, scene):
             psdr_scene.add_BSDF(psdr_bsdf, mat_id)
             cache['name_map'][mat_id] = f"BSDF[id={mat_id}]"
 
-        # TODO: Fix this workaround when psdr-jit updates psdr_mesh.load_raw()
+        psdr_mesh = psdr_jit.Mesh()
         if mesh['can_change_topology']:
-            psdr_mesh = psdr_jit.Mesh()
             psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']))
-            psdr_mesh.use_face_normal = mesh['use_face_normal']
-
-            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if 'radiance' in mesh else None
-            psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
-            psdr_scene.param_map[f"Mesh[{psdr_scene.num_meshes - 1}]"].set_transform(mesh['to_world'].reshape(1, 4, 4))
         else:
-            write_mesh('__psdr_jit_tmp__.obj', mesh['v'], mesh['f'], mesh['uv'], mesh['fuv'])
-            psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if 'radiance' in mesh else None
-            psdr_scene.add_Mesh('__psdr_jit_tmp__.obj', torch.eye(4).tolist(), mat_id, psdr_emitter)
-            psdr_scene.param_map[f"Mesh[{psdr_scene.num_meshes - 1}]"].set_transform(mesh['to_world'].reshape(1, 4, 4))
-            os.remove('__psdr_jit_tmp__.obj')
+            psdr_mesh.load_raw(Vector3fC(mesh['v']), Vector3iC(mesh['f']), Vector2fC(mesh['uv']), Vector3iC(mesh['fuv']))
+        psdr_mesh.use_face_normal = mesh['use_face_normal']
+        psdr_emitter = psdr_jit.AreaLight(mesh['radiance'].tolist()) if 'radiance' in mesh else None
+        psdr_scene.add_Mesh(psdr_mesh, mat_id, psdr_emitter)
+        psdr_scene.param_map[f"Mesh[{psdr_scene.num_meshes - 1}]"].set_transform(mesh['to_world'].reshape(1, 4, 4))
         
         cache['name_map'][name] = f"Mesh[{psdr_scene.num_meshes - 1}]"
         if psdr_emitter:
