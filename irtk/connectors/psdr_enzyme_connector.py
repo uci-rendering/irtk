@@ -239,6 +239,26 @@ def process_perspective_camera(name, scene):
         cache['ctx']['cameras'].append(psdr_camera)
         cache['name_map'][name] = ("cameras", camera_id)
 
+    group, idx = cache['name_map'][name]
+
+    # Update parameters
+    updated = camera.get_updated()
+    if len(updated) > 0:
+        props = Properties()
+        props.set('width', 0)
+        props.set('height', 0)
+        props.set('fov', float(camera['fov']))
+        # temporary fix of the to_world matrix 
+        # psdr-enzyme uses left-hand coordinate 
+        to_world = to_numpy(camera['to_world'].clone())
+        to_world[:3, 0] *= -1 
+        props.set('to_world', to_world)
+        props.set('rfilter', {'type': 'tent'})
+        cache['ctx'][group][idx] = psdr_cpu.Camera(props)
+        cache['update_scene'] = True
+        for param_name in updated:
+            camera.mark_updated(param_name, False)
+
     return []
 
 @PSDREnzymeConnector.register(Mesh)
@@ -431,6 +451,110 @@ def process_rough_conductor_bsdf(name, scene):
     requiring_grad = bsdf.get_requiring_grad()
     params = [f'{group}[{idx}].{param_name_map[param_name]}' for param_name in requiring_grad]
     return params
+
+@PSDREnzymeConnector.register(SubsurfaceDiffuseBSDF)
+def process_subsurface_diffuse_bsdf(name, scene):
+    bsdf = scene[name]
+    cache = scene.cached['psdr_enzyme']
+
+    def get_reflectance(reflectance):
+        if isinstance(reflectance, float) or isinstance(reflectance, int):
+            return to_numpy([reflectance, reflectance, reflectance])
+        return to_numpy(reflectance)
+        #     return color_to_bitmap([reflectance, reflectance, reflectance], 3)
+        # return color_to_bitmap(reflectance, 3)
+
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        bsdf_id = len(cache['ctx']['bsdfs'])
+        psdr_bsdf = psdr_cpu.SubsurfaceDiffuseBSDF(bsdf['i_ior'].item(), bsdf['e_ior'].item(), get_reflectance(bsdf['reflectance']))
+        cache['ctx']['bsdfs'].append(psdr_bsdf)
+        cache['name_map'][name] = ("bsdfs", bsdf_id)
+        cache['mat_id_map'][name] = bsdf_id
+
+    group, idx = cache['name_map'][name]
+
+    # Update parameters
+    updated = bsdf.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == 'i_ior':
+                cache['ctx'][group][idx] = psdr_cpu.SubsurfaceDiffuseBSDF(bsdf['i_ior'].item(), bsdf['e_ior'].item(), get_reflectance(bsdf['reflectance']))
+            elif param_name == 'e_ior':
+                cache['ctx'][group][idx] = psdr_cpu.SubsurfaceDiffuseBSDF(bsdf['i_ior'].item(), bsdf['e_ior'].item(), get_reflectance(bsdf['reflectance']))
+            elif param_name == 'reflectance':
+                cache['ctx'][group][idx] = psdr_cpu.SubsurfaceDiffuseBSDF(bsdf['i_ior'].item(), bsdf['e_ior'].item(), get_reflectance(bsdf['reflectance']))
+            bsdf.mark_updated(param_name, False)
+        cache['update_scene'] = True
+
+    # Creating strings for accessing parameters requiring grad
+    param_name_map = {
+        'i_ior': 'i_ior',
+        'e_ior': 'e_ior',
+        'reflectance': 'reflectance'
+    }
+    requiring_grad = bsdf.get_requiring_grad()
+    params = [f'{group}[{idx}].{param_name_map[param_name]}' for param_name in requiring_grad]
+    return params
+
+@PSDREnzymeConnector.register(BlendBSDF)
+def process_blend_bsdf(name, scene):
+    bsdf = scene[name]
+    cache = scene.cached['psdr_enzyme']
+
+    def get_weight(weight):
+        if isinstance(weight, float) or isinstance(weight, int):
+            return color_to_bitmap([weight, weight, weight], 3)
+        return color_to_bitmap(weight, 3)
+    
+    def get_bsdf(bsdf):
+        if isinstance(bsdf, RoughConductorBRDF):
+            return psdr_cpu.RoughConductorBSDF(get_weight(bsdf['alpha_u']), to_numpy(bsdf['eta']), to_numpy(bsdf['k']))
+        elif isinstance(bsdf, RoughDielectricBSDF):
+            return psdr_cpu.RoughDielectricBSDF(bsdf['alpha'].item(), bsdf['i_ior'].item(), bsdf['e_ior'].item())
+        elif isinstance(bsdf, SubsurfaceDiffuseBSDF):
+            def get_reflectance(reflectance):
+                if isinstance(reflectance, float) or isinstance(reflectance, int):
+                    return to_numpy([reflectance, reflectance, reflectance])
+                return to_numpy(reflectance)
+            return psdr_cpu.SubsurfaceDiffuseBSDF(bsdf['i_ior'].item(), bsdf['e_ior'].item(), get_reflectance(bsdf['reflectance']))
+        elif isinstance(bsdf, DiffuseBRDF):
+            d = color_to_bitmap(bsdf['d'], 3)
+            psdr_bsdf = psdr_cpu.DiffuseBSDF()
+            psdr_bsdf.reflectance = d 
+            return psdr_bsdf
+        else:
+            raise ValueError(f"bsdf type [{type(bsdf)}] is not supported.")
+
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        bsdf_id = len(cache['ctx']['bsdfs'])
+        psdr_bsdf = psdr_cpu.BlendBSDF(get_bsdf(bsdf['bsdf1']), get_bsdf(bsdf['bsdf2']), get_weight(bsdf['weight']))
+        cache['ctx']['bsdfs'].append(psdr_bsdf)
+        cache['name_map'][name] = ("bsdfs", bsdf_id)
+        cache['mat_id_map'][name] = bsdf_id
+
+    group, idx = cache['name_map'][name]
+
+    # Update parameters
+    updated = bsdf.get_updated()
+    if len(updated) > 0:
+        for param_name in updated:
+            if param_name == 'weight' or param_name == 'bsdf1' or param_name == 'bsdf2':
+                cache['ctx'][group][idx] = psdr_cpu.BlendBSDF(get_bsdf(bsdf['bsdf1']), get_bsdf(bsdf['bsdf2']), get_weight(bsdf['weight']))
+            bsdf.mark_updated(param_name, False)
+        cache['update_scene'] = True
+    
+    # Creating strings for accessing parameters requiring grad
+    param_name_map = {
+        'bsdf1': 'bsdf1',
+        'bsdf2': 'bsdf2',
+        'weight': 'weight'
+    }
+    requiring_grad = bsdf.get_requiring_grad()
+    params = [f'{group}[{idx}].{param_name}' for param_name in requiring_grad]
+    return params
+
 
 @PSDREnzymeConnector.register(EnvironmentLight)
 def process_environment_light(name, scene):

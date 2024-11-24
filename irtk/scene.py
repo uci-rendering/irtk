@@ -707,6 +707,73 @@ class RoughConductorBRDF(ParamGroup):
     #     return cls(d_texture, s_texture, r_texture)
 
 
+class SubsurfaceDiffuseBSDF(ParamGroup):
+    """A class representing a subsurface diffuse BSDF."""
+
+    def __init__(self, i_ior: float, e_ior: float, reflectance: TensorLike) -> None:
+        """Initializes a SubsurfaceDiffuseBSDF object.
+
+        Args:
+            i_ior: The interior index of refraction.
+            e_ior: The exterior index of refraction.
+            reflectance: The reflectance (float).
+        """
+        super().__init__()
+
+        self.add_param(
+            "i_ior", to_torch_f(i_ior), help_msg="interior index of refraction"
+        )
+        self.add_param(
+            "e_ior", to_torch_f(e_ior), help_msg="exterior index of refraction"
+        )
+        self.add_param(
+            "reflectance",
+            to_torch_f(reflectance),
+            is_tensor=True,
+            is_diff=True,
+            help_msg="reflectance",
+        )
+
+
+class BlendBSDF(ParamGroup):
+    """A class representing a blend BSDF."""
+    
+    def __init__(
+        self,
+        bsdf1: ParamGroup,
+        bsdf2: ParamGroup,
+        weight: TensorLike,  # float
+    ) -> None:
+        """Initializes a BlendBSDF object.
+
+        Args:
+            bsdf1: The first BSDF.
+            bsdf2: The second BSDF.
+            weight: The weight of the blend (float).
+        """
+        super().__init__()
+
+        self.add_param("bsdf1", bsdf1, is_diff=True, help_msg="first BSDF")
+        self.add_param("bsdf2", bsdf2, is_diff=True, help_msg="second BSDF")
+        self.add_param(
+            "weight", to_torch_f(weight), is_tensor=True, is_diff=True, help_msg="blend weight"
+        )
+
+
+    def get_requiring_grad(self) -> List[str]:
+        """Get names of parameters that require gradients.
+
+        Returns:
+            A list of parameter names that are differentiable and require gradients.
+        """
+        bsdf1_requiring_grad = self["bsdf1"].get_requiring_grad()
+        bsdf1_requiring_grad = [f'bsdf1.{name}' for name in bsdf1_requiring_grad]
+        bsdf2_requiring_grad = self["bsdf2"].get_requiring_grad()
+        bsdf2_requiring_grad = [f'bsdf2.{name}' for name in bsdf2_requiring_grad]
+        weight_requiring_grad = []
+        return bsdf1_requiring_grad + bsdf2_requiring_grad + weight_requiring_grad
+
+
 class EnvironmentLight(ParamGroup):
     """A class representing an environment light."""
 
