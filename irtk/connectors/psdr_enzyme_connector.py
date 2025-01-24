@@ -460,7 +460,8 @@ def process_subsurface_diffuse_bsdf(name, scene):
     def get_reflectance(reflectance):
         if isinstance(reflectance, float) or isinstance(reflectance, int):
             return to_numpy([reflectance, reflectance, reflectance])
-        return to_numpy(reflectance)
+        d = to_numpy(reflectance)
+        return color_to_bitmap(d, 3)
         #     return color_to_bitmap([reflectance, reflectance, reflectance], 3)
         # return color_to_bitmap(reflectance, 3)
 
@@ -516,7 +517,8 @@ def process_blend_bsdf(name, scene):
             def get_reflectance(reflectance):
                 if isinstance(reflectance, float) or isinstance(reflectance, int):
                     return to_numpy([reflectance, reflectance, reflectance])
-                return to_numpy(reflectance)
+                d = to_numpy(reflectance)
+                return color_to_bitmap(d, 3)
             return psdr_cpu.SubsurfaceDiffuseBSDF(bsdf['i_ior'].item(), bsdf['e_ior'].item(), get_reflectance(bsdf['reflectance']))
         elif isinstance(bsdf, DiffuseBRDF):
             d = color_to_bitmap(bsdf['d'], 3)
@@ -564,11 +566,26 @@ def process_environment_light(name, scene):
     # Create the object if it has not been created
     if name not in cache['name_map']:
         emitter_id = len(cache['ctx']['emitters'])
-        radiance = color_to_bitmap(emitter['radiance'], 3)
+        radiance_tex = emitter['radiance']
+        if len(radiance_tex.shape) == 4 and radiance_tex.shape[0] == 4:
+            radiance = color_to_bitmap(radiance_tex[0], 3)
+            S1 = color_to_bitmap(radiance_tex[1], 3)
+            S2 = color_to_bitmap(radiance_tex[2], 3)
+            S3 = color_to_bitmap(radiance_tex[3], 3)
+        else:
+            radiance = color_to_bitmap(emitter['radiance'], 3)
+            if psdr_cpu.polarization_on:
+                S1 = color_to_bitmap(0, 3)
+                S2 = color_to_bitmap(0, 3)
+                S3 = color_to_bitmap(0, 3)
         props = Properties()
         props.setBitmap('data', radiance)
         props.set('toWorld', to_numpy(emitter['to_world']))
         psdr_emitter = psdr_cpu.EnvironmentMap(props)
+        if psdr_cpu.polarization_on:
+            psdr_emitter.m_pol_S1 = S1
+            psdr_emitter.m_pol_S2 = S2
+            psdr_emitter.m_pol_S3 = S3
         cache['ctx']['emitters'].append(psdr_emitter)
         cache['name_map'][name] = ("emitters", emitter_id)
 
