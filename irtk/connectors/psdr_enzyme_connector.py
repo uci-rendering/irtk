@@ -575,9 +575,9 @@ def process_environment_light(name, scene):
         else:
             radiance = color_to_bitmap(emitter['radiance'], 3)
             if psdr_cpu.polarization_on:
-                S1 = color_to_bitmap(0, 3)
-                S2 = color_to_bitmap(0, 3)
-                S3 = color_to_bitmap(0, 3)
+                S1 = color_to_bitmap(torch.zeros(3), 3)
+                S2 = color_to_bitmap(torch.zeros(3), 3)
+                S3 = color_to_bitmap(torch.zeros(3), 3)
         props = Properties()
         props.setBitmap('data', radiance)
         props.set('toWorld', to_numpy(emitter['to_world']))
