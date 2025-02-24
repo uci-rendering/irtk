@@ -291,8 +291,18 @@ def process_mesh(name, scene):
         # Create the area light associated with the mesh if needed
         if 'radiance' in mesh:
             emitter_id = len(cache['ctx']['emitters'])
-            radiance = to_numpy(mesh['radiance']).reshape(3, 1)
-            psdr_emitter = psdr_cpu.AreaLight(shape_id, radiance)
+            if len(mesh['radiance'].shape) == 4 and mesh['radiance'].shape[0] == 4:
+                S0 = to_numpy(mesh['radiance'][0]).reshape(3, 1)
+                S1 = to_numpy(mesh['radiance'][1]).reshape(3, 1)
+                S2 = to_numpy(mesh['radiance'][2]).reshape(3, 1)
+                S3 = to_numpy(mesh['radiance'][3]).reshape(3, 1)
+                if psdr_cpu.polarization_on:
+                    psdr_emitter = psdr_cpu.AreaLight(shape_id, S0, S1, S2, S3)
+                else:
+                    psdr_emitter = psdr_cpu.AreaLight(shape_id, S0)
+            else:
+                radiance = to_numpy(mesh['radiance']).reshape(3, 1)
+                psdr_emitter = psdr_cpu.AreaLight(shape_id, radiance)
             cache['ctx']['emitters'].append(psdr_emitter)
             cache['name_map'][name + '_emitter'] = ("emitters", emitter_id)
             props.set('light_id', emitter_id)
@@ -304,6 +314,10 @@ def process_mesh(name, scene):
     group, idx = cache['name_map'][name]
     psdr_mesh = cache['ctx'][group][idx]
 
+    psdr_emitter = None
+    if 'radiance' in mesh:
+        psdr_emitter = cache['ctx']['emitters'][cache['name_map'][name + '_emitter'][1]]
+
     # Update parameters
     updated = mesh.get_updated()
     if len(updated) > 0:
@@ -314,6 +328,19 @@ def process_mesh(name, scene):
                 psdr_mesh.indices = to_numpy(mesh['f'])
             elif param_name == 'to_world':
                 psdr_mesh.to_world = to_numpy(mesh['to_world'])
+            elif param_name == 'radiance' and psdr_emitter is not None:
+                if len(mesh['radiance'].shape) == 4 and mesh['radiance'].shape[0] == 4:
+                    S0 = to_numpy(mesh['radiance'][0]).reshape(3, 1)
+                    S1 = to_numpy(mesh['radiance'][1]).reshape(3, 1)
+                    S2 = to_numpy(mesh['radiance'][2]).reshape(3, 1)
+                    S3 = to_numpy(mesh['radiance'][3]).reshape(3, 1)
+                    if psdr_cpu.polarization_on:
+                        psdr_emitter.assign(S0, S1, S2, S3)
+                    else:
+                        psdr_emitter.assign(S0)
+                else:
+                    radiance = to_numpy(mesh['radiance']).reshape(3, 1)
+                    psdr_emitter.assign(radiance)
             mesh.mark_updated(param_name, False)
         psdr_mesh.configure()
         cache['update_scene'] = True
@@ -562,32 +589,55 @@ def process_blend_bsdf(name, scene):
 def process_environment_light(name, scene):
     emitter = scene[name]
     cache = scene.cached['psdr_enzyme']
-    
-    # Create the object if it has not been created
-    if name not in cache['name_map']:
-        emitter_id = len(cache['ctx']['emitters'])
-        radiance_tex = emitter['radiance']
+
+    def get_radiance(radiance_tex):
+        S1 = None
+        S2 = None
+        S3 = None
         if len(radiance_tex.shape) == 4 and radiance_tex.shape[0] == 4:
             radiance = color_to_bitmap(radiance_tex[0], 3)
             S1 = color_to_bitmap(radiance_tex[1], 3)
             S2 = color_to_bitmap(radiance_tex[2], 3)
             S3 = color_to_bitmap(radiance_tex[3], 3)
         else:
-            radiance = color_to_bitmap(emitter['radiance'], 3)
+            radiance = color_to_bitmap(radiance_tex, 3)
             if psdr_cpu.polarization_on:
-                S1 = color_to_bitmap(torch.zeros(3), 3)
-                S2 = color_to_bitmap(torch.zeros(3), 3)
-                S3 = color_to_bitmap(torch.zeros(3), 3)
+                S1 = color_to_bitmap(torch.zeros(4, 4, 3), 3)
+                S2 = color_to_bitmap(torch.zeros(4, 4, 3), 3)
+                S3 = color_to_bitmap(torch.zeros(4, 4, 3), 3)
+        return radiance, S1, S2, S3
+    
+    # Create the object if it has not been created
+    if name not in cache['name_map']:
+        emitter_id = len(cache['ctx']['emitters'])
+        radiance_tex = emitter['radiance']
+        radiance, S1, S2, S3 = get_radiance(radiance_tex)
         props = Properties()
         props.setBitmap('data', radiance)
         props.set('toWorld', to_numpy(emitter['to_world']))
         psdr_emitter = psdr_cpu.EnvironmentMap(props)
         if psdr_cpu.polarization_on:
-            psdr_emitter.m_pol_S1 = S1
-            psdr_emitter.m_pol_S2 = S2
-            psdr_emitter.m_pol_S3 = S3
+            psdr_emitter.assign(radiance, S1, S2, S3)
         cache['ctx']['emitters'].append(psdr_emitter)
         cache['name_map'][name] = ("emitters", emitter_id)
+
+    group, idx = cache['name_map'][name]
+    updated = emitter.get_updated()
+    if len(updated) > 0:
+        psdr_emitter = cache['ctx']['emitters'][idx]
+        for param_name in updated:
+            if param_name == 'radiance':
+                radiance_tex = emitter['radiance']
+                radiance, S1, S2, S3 = get_radiance(radiance_tex)
+                psdr_emitter = cache['ctx']['emitters'][idx]
+                if psdr_cpu.polarization_on:
+                    psdr_emitter.assign(radiance, S1, S2, S3)
+                else:
+                    psdr_emitter.assign(radiance)
+            elif param_name == 'to_world':
+                psdr_emitter.m_toWorld = to_numpy(emitter['to_world'])
+            emitter.mark_updated(param_name, False)
+        cache['update_scene'] = True
 
     return []
 
